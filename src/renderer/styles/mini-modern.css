@@ -1,0 +1,53 @@
+/* "Actuel" — 420 × 128 content. Also the fallback layout for the other themes
+   until they are rebuilt (step 3). */
+body.mini { --mini-height: 128px; }
+body.mini[data-theme="autoradio"], body.mini[data-theme="hifi"] { --mini-height: 168px; }
+body.mini[data-theme="autoradio-hf"], body.mini[data-theme="hifi-hf"] { --mini-height: 192px; }
+
+#mini .card {
+  height: var(--mini-height); padding: 10px 12px 6px;
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-rows: 48px 24px 1fr;
+  column-gap: 11px; row-gap: 2px; align-items: center;
+}
+#mini img.cover { width: 48px; height: 48px; border-radius: 8px; }
+#mini .meta { min-width: 0; align-self: center; }
+#mini .title { font-size: 15px; font-weight: 600; }
+#mini .artist { font-size: 12px; color: var(--muted); margin-top: 1px; }
+#mini .tools { display: flex; gap: 2px; align-self: start; }
+#mini .tools button { width: 28px; height: 28px; color: var(--muted); }
+#mini .tools button:hover { color: var(--text); }
+#mini .tools svg { width: 17px; height: 17px; }
+.titlebar-toggle[aria-pressed="true"] { color: var(--accent) !important; }
+
+#mini .progress-row { grid-column: 1 / -1; display: grid; grid-template-columns: 38px 1fr 38px; align-items: center; gap: 6px; }
+#mini .time { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#mini .time.total { text-align: right; }
+
+#mini .bottom { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; min-width: 0; height: 36px; }
+#mini .controls { display: flex; align-items: center; gap: 2px; flex: none; }
+#mini .controls button { width: 32px; height: 32px; }
+#mini .controls svg { width: 20px; height: 20px; }
+#mini .controls .play { width: 40px; height: 32px; background: #e9e3ff; color: var(--accent-ink); margin: 0 2px; }
+#mini .controls .play:hover { background: #fff; }
+#mini .controls .play svg { width: 22px; height: 22px; }
+#mini .shuffle { color: var(--faint); }
+#mini .shuffle[aria-pressed="true"] { color: var(--accent); }
+
+#mini .volume-button { width: 32px; height: 32px; flex: none; color: var(--muted); }
+#mini .volume-button:hover, #mini .bottom.volume-open .volume-button { color: var(--text); }
+.volume-button svg .x { display: none; }
+.volume-button[data-level="0"] svg :is(.w1, .w2) { display: none; }
+.volume-button[data-level="0"] svg .x { display: inline; }
+.volume-button[data-level="1"] svg .w2 { display: none; }
+
+#mini .slot { position: relative; flex: 1; min-width: 0; height: 32px; }
+#mini .upnext { position: absolute; inset: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 7px; align-content: center; justify-items: start; padding: 0 6px 0 9px; border-left: 1px solid var(--line); border-radius: 0 6px 6px 0; text-align: left; }
+#mini .upnext .label { grid-row: 1 / 3; font-size: 9px; letter-spacing: .1em; color: var(--faint); }
+#mini .upnext .next-title { font-size: 12px; max-width: 100%; }
+#mini .upnext .next-artist { font-size: 11px; color: var(--muted); max-width: 100%; }
+#mini .slider.volume { position: absolute; inset: 7px 8px; display: none; }
+#mini .bottom.volume-open .upnext { display: none; }
+#mini .bottom.volume-open .slider.volume { display: block; }
+
+#mini .grip { width: 22px; height: 28px; flex: none; color: var(--faint); }
+#mini .grip svg { width: 16px; height: 16px; }

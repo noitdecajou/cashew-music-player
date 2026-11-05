@@ -1,0 +1,28 @@
+{
+  "name": "music-player",
+  "productName": "Music Player",
+  "version": "2.0.0-alpha.1",
+  "private": true,
+  "description": "Lecteur YouTube Music avec mini-player pour Windows",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "electron-vite build && node test/e2e/run.mjs",
+    "dist:win": "electron-vite build && electron-builder --win nsis --x64",
+    "dist:portable": "electron-vite build && electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0",
+    "electron-vite": "6.0.0",
+    "playwright": "1.63.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}

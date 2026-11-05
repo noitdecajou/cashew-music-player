@@ -1,0 +1,66 @@
+:root {
+  --bg: #111218; --surface: #1a1c24; --surface-2: #242630; --line: #2b2e39;
+  --text: #f3f3f6; --muted: #a1a5b6; --faint: #6f7385;
+  --accent: #c9b9ff; --accent-ink: #231d33; --warn: #e8b35f;
+  --titlebar: 30px; --toolbar: 52px; --side-panel: 380px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--text); font: 13px/1.35 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; padding-top: var(--titlebar); user-select: none; }
+body.booting { visibility: hidden; }
+body.seamless { --titlebar: 0px; }
+button { font: inherit; color: inherit; background: transparent; border: 0; border-radius: 8px; padding: 0; cursor: pointer; display: inline-grid; place-items: center; }
+button:hover { background: #ffffff12; }
+button:focus-visible, [role="slider"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+svg { width: 18px; height: 18px; fill: currentColor; }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+img.cover { object-fit: cover; background: linear-gradient(135deg, #5d4d8f, #2b3040); color: transparent; }
+img.cover:not(.loaded) { content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); }
+
+body.mini .large-only, body.large .mini-only { display: none !important; }
+
+/* Title bar ----------------------------------------------------------------*/
+#titlebar { position: fixed; inset: 0 0 auto; height: 30px; display: flex; align-items: center; background: #1d1e23; color: #aaaab2; z-index: 10; -webkit-app-region: drag; font-size: 12px; }
+body.seamless #titlebar { display: none; }
+#titlebar .brand { flex: 1; display: flex; align-items: center; gap: 7px; padding-left: 10px; min-width: 0; }
+#titlebar .brand img { width: 15px; height: 15px; }
+#titlebar button { width: 44px; height: 30px; border-radius: 0; -webkit-app-region: no-drag; }
+#titlebar button svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.3; }
+#titlebar .close:hover { background: #c42b1c; color: #fff; }
+
+/* Large mode toolbar (YouTube Music view sits right below) -----------------*/
+#toolbar { height: var(--toolbar); display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+#toolbar .now { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+#toolbar img.cover { width: 34px; height: 34px; border-radius: 6px; flex: none; }
+#toolbar .meta { min-width: 0; }
+#toolbar .title { font-weight: 600; }
+#toolbar .artist { color: var(--muted); font-size: 12px; }
+#toolbar .notice { color: var(--muted); font-size: 12px; max-width: 300px; }
+#toolbar button { height: 32px; padding: 0 12px; background: var(--surface-2); gap: 6px; grid-auto-flow: column; }
+#toolbar button:hover { background: #343745; }
+#toolbar button.primary { background: #e9e3ff; color: var(--accent-ink); font-weight: 600; }
+.pin[aria-pressed="true"] { color: var(--accent); }
+
+/* Panels -------------------------------------------------------------------*/
+#panel { background: var(--surface); padding: 12px; }
+body.large #panel { position: fixed; right: 0; top: calc(var(--titlebar) + var(--toolbar)); bottom: 0; width: var(--side-panel); border-left: 1px solid var(--line); }
+body.mini #panel { height: calc(100vh - var(--titlebar) - var(--mini-height)); border-top: 1px solid var(--line); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.panel-head button { width: 28px; height: 28px; }
+.panel-body { color: var(--muted); }
+
+/* Sliders (progress and volume share the same component) --------------------*/
+.slider { position: relative; height: 18px; cursor: pointer; touch-action: none; }
+.slider .rail { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: #3a3d49; overflow: hidden; }
+.slider .fill { height: 100%; width: 0; background: var(--accent); }
+.slider .thumb { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0008; transform: scale(0); transition: transform .12s; pointer-events: none; }
+.slider:hover .thumb, .slider:focus-visible .thumb, .slider.dragging .thumb { transform: scale(1); }
+.slider:hover .rail, .slider.dragging .rail { height: 6px; margin-top: -3px; }
+.slider[aria-disabled="true"] { cursor: default; }
+.slider[aria-disabled="true"] .thumb { display: none; }
+.slider.muted .fill { background: var(--faint); }
+
+/* Moving the mini player ----------------------------------------------------*/
+body.mini .drag-zone, body.mini .grip { cursor: grab; touch-action: none; }
+body.moving, body.moving * { cursor: grabbing !important; }

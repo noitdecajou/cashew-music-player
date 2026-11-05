@@ -1,0 +1,114 @@
+import assert from 'node:assert/strict';
+import { after, before, test } from 'node:test';
+import { launch } from './harness.mjs';
+
+let h;
+before(async () => { h = await launch(); });
+after(async () => { await h?.close(); });
+
+test('the card shows the queue metadata of the playing track', async () => {
+  await h.ytm('__fake.start(0)');
+  await h.until(async () => (await h.shell.textContent('#toolbar .title')) === 'Premier titre', { message: 'title' });
+  assert.equal(await h.shell.textContent('#toolbar .artist'), 'Artiste Un');
+  const last = (await h.log()).filter(m => m.kind === 'snapshot').at(-1).snapshot;
+  assert.equal(last.track.artwork, 'https://lh3.googleusercontent.com/AAAAAAAAAAA=w544-h544-l90-rj');
+  assert.deepEqual(last.next, { title: 'Deuxième titre', artist: 'Artiste Deux' });
+  assert.equal(last.status, 'playing');
+  assert.equal(last.signedIn, true);
+});
+
+test('a clock is never sent before the card of its track (natural handoffs, lagging queue)', async () => {
+  await h.ytm('__fake.setQueueLag(300)');
+  for (let i = 0; i < 2; i++) {
+    const before = await h.ytm('__fake.index');
+    await h.ytm('__fake.nearEnd(0.5)');
+    await h.until(async () => (await h.ytm('__fake.index')) !== before, { message: 'handoff' });
+  }
+  await new Promise(r => setTimeout(r, 600));
+  let cardTrack = '';
+  for (const message of await h.log()) {
+    if (message.kind === 'snapshot') cardTrack = message.snapshot.track?.id ?? '';
+    if (message.kind === 'progress') assert.equal(message.progress.trackId, cardTrack, 'progress paired with its card');
+  }
+  const last = (await h.log()).filter(m => m.kind === 'snapshot').at(-1).snapshot;
+  assert.equal(last.track.id, 'CCCCCCCCCCC');
+  assert.equal(last.track.title, 'Troisième titre'); // queue title, even before the store caught up
+  await h.ytm('__fake.setQueueLag(0)');
+});
+
+test('transport and shuffle commands reach the page', async () => {
+  await h.shell.click('[data-window="toggle-mini"]');
+  await h.shell.waitForSelector('body.mini');
+  await h.shell.click('#mini [data-command="toggle-play"]');
+  await h.until(async () => (await h.shell.getAttribute('#mini .play', 'aria-label')) === 'Lire', { message: 'paused' });
+  await h.shell.click('#mini [data-command="next"]');
+  await h.until(async () => (await h.shell.textContent('#mini .title')) === 'Premier titre', { message: 'next wraps to first' });
+  await h.shell.click('#mini [data-command="shuffle"]');
+  await h.until(async () => (await h.shell.getAttribute('#mini .shuffle', 'aria-pressed')) === 'true', { message: 'shuffle on' });
+});
+
+test('dragging the progress bar seeks once, on release, to the released position', async () => {
+  await h.until(async () => (await h.shell.getAttribute('#mini .progress', 'aria-disabled')) === 'false', { message: 'seekable' });
+  const box = await h.shell.locator('#mini .progress').boundingBox();
+  const before = (await h.ytm('__fake.calls.length'));
+  await h.shell.mouse.move(box.x + box.width * 0.1, box.y + box.height / 2);
+  await h.shell.mouse.down();
+  for (let i = 1; i <= 10; i++) await h.shell.mouse.move(box.x + box.width * (0.1 + i * 0.05), box.y + box.height / 2);
+  const seeksDuringDrag = (await h.ytm('__fake.calls')).slice(before).filter(c => c[0] === 'seekTo');
+  assert.equal(seeksDuringDrag.length, 0, 'no seek while dragging');
+  assert.match(await h.shell.textContent('#mini .elapsed'), /^(1:5\d|2:0\d)$/, 'preview time follows the hand (~60% of 3:20 = 2:00)');
+  await h.shell.mouse.up();
+  const seeks = await h.until(async () => {
+    const list = (await h.ytm('__fake.calls')).slice(before).filter(c => c[0] === 'seekTo');
+    return list.length ? list : null;
+  }, { message: 'seek' });
+  assert.equal(seeks.length, 1);
+  assert.ok(Math.abs(seeks[0][1] - 120) < 4, `seek near 120 s, got ${seeks[0][1]}`);
+});
+
+test('volume: wheel and slider set the volume without resizing the mini player', async () => {
+  const size = await h.contentSize();
+  await h.shell.hover('#mini .volume-button');
+  await h.shell.mouse.wheel(0, -100); // up: +5
+  await h.until(async () => (await h.ytm('__fake.calls')).some(c => c[0] === 'setVolume' && c[1] === 75), { message: 'wheel +5' });
+  assert.ok(await h.shell.isVisible('#mini .slider.volume'), 'slider replaces the up-next area');
+  const box = await h.shell.locator('#mini .slider.volume').boundingBox();
+  await h.shell.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
+  await h.shell.mouse.down();
+  await h.shell.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2);
+  await h.shell.mouse.up();
+  await h.until(async () => {
+    const last = (await h.ytm('__fake.calls')).filter(c => c[0] === 'setVolume').at(-1);
+    return last && Math.abs(last[1] - 30) <= 2;
+  }, { message: 'slider ~30' }).catch(async e => { throw new Error(e.message + ' calls=' + JSON.stringify((await h.ytm('__fake.calls')).filter(c => c[0] === 'setVolume'))); });
+  await h.shell.click('#mini .volume-button'); // open: click toggles mute
+  await h.until(async () => (await h.shell.getAttribute('#mini .volume-button', 'data-level')) === '0', { message: 'muted icon' });
+  assert.deepEqual(await h.contentSize(), size);
+});
+
+test('mini sizes: theme size plus the 30 px title bar, which can be hidden', async () => {
+  assert.deepEqual(await h.contentSize(), [420, 158]);
+  await h.shell.keyboard.press('Control+Shift+B');
+  await h.until(async () => JSON.stringify(await h.contentSize()) === '[420,128]', { message: 'seamless 420x128' });
+  await h.shell.evaluate(() => window.player.setTheme('autoradio-hf'));
+  await h.until(async () => JSON.stringify(await h.contentSize()) === '[720,192]', { message: 'HF 720x192' });
+  await h.shell.click('#mini [data-window="toggle-search"]');
+  await h.until(async () => JSON.stringify(await h.contentSize()) === '[720,450]', { message: 'panel 450' });
+  await h.shell.keyboard.press('Escape');
+  await h.until(async () => JSON.stringify(await h.contentSize()) === '[720,192]', { message: 'panel closed' });
+});
+
+test('the page cannot spoof the shell, and invalid commands are dropped', async () => {
+  const before = (await h.ytm('__fake.calls.length'));
+  await h.shell.evaluate(() => {
+    window.player.command({ type: 'seek', trackId: 'not-an-id', position: 5 });
+    window.player.command({ type: 'volume', volume: 'loud' });
+    window.player.command({ type: 'rm -rf' });
+  });
+  await new Promise(r => setTimeout(r, 300));
+  const after = (await h.ytm('__fake.calls')).slice(before);
+  assert.deepEqual(after.filter(c => ['seekTo', 'setVolume'].includes(c[0])), []);
+  // The YouTube Music page has no access to the shell API.
+  assert.equal(await h.ytm('typeof window.player'), 'undefined');
+  assert.equal(await h.ytm('typeof require'), 'undefined');
+});

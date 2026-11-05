@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>YouTube Music (fixture)</title></head>
+<body>
+<!--
+  Fake music.youtube.com for end-to-end tests. It mimics the API surface
+  observed on the real site (see docs/ytm-bridge.md): #movie_player methods
+  and events, the player bar buttons/attributes, the queue store, mediaSession.
+  Window.__fake exposes controls and a call log to the tests.
+-->
+<ytmusic-app>
+  <div id="movie_player"><video></video></div>
+  <ytmusic-player-bar shuffle-on="false" repeat-mode="NONE">
+    <button id="play-pause-button"></button>
+    <button class="previous-button"></button>
+    <button class="next-button"></button>
+    <button class="shuffle"></button>
+    <button class="repeat"></button>
+    <ytmusic-like-button-renderer like-status="INDIFFERENT"></ytmusic-like-button-renderer>
+  </ytmusic-player-bar>
+  <ytmusic-player-queue></ytmusic-player-queue>
+</ytmusic-app>
+<script>
+(() => {
+  const tracks = [
+    { id: 'AAAAAAAAAAA', title: 'Premier titre', artist: 'Artiste Un', duration: 200 },
+    { id: 'BBBBBBBBBBB', title: 'Deuxième titre', artist: 'Artiste Deux', duration: 150 },
+    { id: 'CCCCCCCCCCC', title: 'Troisième titre', artist: 'Artiste Trois', duration: 180 },
+  ];
+  const row = t => ({ playlistPanelVideoRenderer: {
+    videoId: t.id, title: { runs: [{ text: t.title }] }, shortBylineText: { runs: [{ text: t.artist }] },
+    longBylineText: { runs: [{ text: t.artist }, { text: ' • ' }, { text: 'Album' }] },
+    thumbnail: { thumbnails: [{ url: `https://lh3.googleusercontent.com/${t.id}=w60-h60-l90-rj` }] },
+  } });
+
+  const calls = [];
+  const listeners = {};
+  const video = document.querySelector('video');
+  const bar = document.querySelector('ytmusic-player-bar');
+  let index = -1, state = -1, time = 0, volume = 70, muted = false, shuffle = false;
+  // How late Music's queue store follows the player during a natural handoff.
+  let queueLagMs = 0;
+
+  const queueState = { items: tracks.map(row), selectedItemIndex: -1, shuffleEnabled: false, repeatMode: 'NONE', automixItems: [] };
+  const subscribers = new Set();
+  const store = {
+    getState: () => ({ queue: { ...queueState } }),
+    subscribe: fn => { subscribers.add(fn); return () => subscribers.delete(fn); },
+  };
+  document.querySelector('ytmusic-player-queue').queue = { store: { store } };
+  const notifyStore = () => subscribers.forEach(fn => fn());
+  const fire = (name, value) => (listeners[name] || []).forEach(fn => fn(value));
+  const media = type => video.dispatchEvent(new Event(type));
+
+  window.ytcfg = { get: key => (key === 'LOGGED_IN' ? true : undefined) };
+
+  function setState(next) { state = next; fire('onStateChange', next); media(next === 1 ? 'play' : next === 2 ? 'pause' : 'durationchange'); }
+
+  function load(i, autoplay = true) {
+    index = i; time = 0;
+    const t = tracks[i];
+    media('emptied');
+    fire('onVideoDataChange', { type: 'dataupdated' });
+    navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist, album: 'Album', artwork: [{ src: `https://i.ytimg.com/vi/${t.id}/sddefault.jpg`, sizes: '640x480' }] });
+    const syncQueue = () => { queueState.selectedItemIndex = i; notifyStore(); };
+    if (queueLagMs) setTimeout(syncQueue, queueLagMs); else syncQueue();
+    media('loadedmetadata');
+    setState(autoplay ? 1 : 2);
+  }
+
+  const player = document.getElementById('movie_player');
+  Object.assign(player, {
+    addEventListener: (name, fn) => { (listeners[name] ||= []).push(fn); },
+    getPlayerState: () => state,
+    getVideoData: () => (index < 0 ? { video_id: '' } : { video_id: tracks[index].id, title: tracks[index].title + ' (Official Video)', author: tracks[index].artist + ' - Topic' }),
+    getDuration: () => (index < 0 ? 0 : tracks[index].duration),
+    getCurrentTime: () => time,
+    getVolume: () => volume,
+    isMuted: () => muted,
+    setVolume: v => { calls.push(['setVolume', v]); volume = v; fire('onVolumeChange', { volume, muted }); },
+    mute: () => { calls.push(['mute']); muted = true; fire('onVolumeChange', { volume, muted }); },
+    unMute: () => { calls.push(['unMute']); muted = false; fire('onVolumeChange', { volume, muted }); },
+    seekTo: (s) => { calls.push(['seekTo', s]); time = s; media('seeked'); media('timeupdate'); },
+    playVideo: () => { calls.push(['playVideo']); setState(1); },
+    pauseVideo: () => { calls.push(['pauseVideo']); setState(2); },
+  });
+
+  const click = (selector, fn) => bar.querySelector(selector).addEventListener('click', () => { calls.push(['click', selector]); fn(); });
+  click('#play-pause-button', () => setState(state === 1 ? 2 : 1));
+  click('.next-button', () => load((index + 1) % tracks.length));
+  click('.previous-button', () => load(Math.max(0, index - 1)));
+  click('.shuffle', () => { shuffle = !shuffle; queueState.shuffleEnabled = shuffle; bar.setAttribute('shuffle-on', String(shuffle)); notifyStore(); });
+  click('.repeat', () => { queueState.repeatMode = queueState.repeatMode === 'NONE' ? 'ALL' : 'NONE'; notifyStore(); });
+
+  setInterval(() => {
+    if (state !== 1) return;
+    time += 0.25;
+    const t = tracks[index];
+    if (time >= t.duration) { load((index + 1) % tracks.length); return; } // natural handoff
+    media('timeupdate');
+  }, 250);
+
+  window.__fake = {
+    calls, tracks,
+    start: (i = 0) => load(i),
+    /** Jump close to the end to trigger a natural transition quickly. */
+    nearEnd: (seconds = 0.6) => { time = tracks[index].duration - seconds; },
+    setQueueLag: ms => { queueLagMs = ms; },
+    like: status => bar.querySelector('ytmusic-like-button-renderer').setAttribute('like-status', status),
+    get index() { return index; },
+  };
+})();
+</script>
+</body>
+</html>

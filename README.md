@@ -9,8 +9,9 @@ Réécriture complète de la 1.7.x (Electron + TypeScript).
 
 ## Installer (Windows 10/11, 64 bits)
 
-1. Ouvrir la page [**Releases**](https://github.com/noitdecajou/cashew-music-player/releases/latest) et télécharger
-   `MusicPlayer-Setup-<version>.exe`.
+1. Ouvrir la page [**Releases**](https://github.com/noitdecajou/cashew-music-player/releases), prendre la version
+   la plus récente (en haut de la liste ; pendant la bêta, elles sont marquées « Pre-release ») et, dans **Assets**,
+   télécharger `MusicPlayer-Setup-<version>.exe` (pas « Source code »).
 2. Lancer l’installeur. L’application n’étant pas signée, Windows SmartScreen peut afficher « Windows a protégé
    votre ordinateur » : cliquer sur **Informations complémentaires** puis **Exécuter quand même**.
 3. Se connecter à YouTube Music dans le grand lecteur.

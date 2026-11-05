@@ -33,6 +33,9 @@ runner Windows. Les applications installées trouvent la nouvelle version dans l
 Les applications installées en version stable ne proposent que des versions stables ; une préversion
 (`-beta.N`) propose aussi les préversions suivantes.
 
+Le badge « Latest » de GitHub ne désigne que des versions stables : pendant la bêta, le README renvoie à la
+liste des Releases. À la sortie de la 2.0.0, remettre le lien `releases/latest` dans le README.
+
 ## Construire sans publier
 
 Actions → Release → **Run workflow** sans cocher « Publier » : l’installeur est disponible dans les artefacts de l’exécution.

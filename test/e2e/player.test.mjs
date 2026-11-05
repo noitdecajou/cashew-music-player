@@ -100,6 +100,22 @@ test('volume: the speaker opens and closes the panel; mute is a separate button;
   assert.deepEqual(await h.contentSize(), size);
 });
 
+test('volume: in every theme, the panel replaces "up next" instead of overlapping it', async () => {
+  for (const theme of ['modern', 'autoradio', 'hifi', 'autoradio-hf', 'hifi-hf']) {
+    await h.shell.evaluate(t => window.player.setTheme(t), theme);
+    await h.shell.click('#mini .volume-button');
+    await h.until(async () => h.shell.isVisible('#mini .volume-panel'), { message: `${theme}: panel open` });
+    assert.equal(await h.shell.isVisible('#mini .upnext'), false, `${theme}: up next hidden`);
+    const panel = await h.shell.locator('#mini .volume-panel').boundingBox();
+    const slider = await h.shell.locator('#mini .slider.volume').boundingBox();
+    assert.ok(slider.width >= 60, `${theme}: usable slider (${slider.width}px)`);
+    assert.ok(slider.x >= panel.x - 1 && slider.x + slider.width <= panel.x + panel.width + 1, `${theme}: slider inside its area`);
+    await h.shell.click('#mini .volume-button');
+    await h.until(async () => h.shell.isVisible('#mini .upnext'), { message: `${theme}: up next back` });
+  }
+  await h.shell.evaluate(() => window.player.setTheme('modern'));
+});
+
 test('mini sizes: theme size plus the 30 px title bar, which can be hidden', async () => {
   assert.deepEqual(await h.contentSize(), [420, 158]);
   await h.shell.keyboard.press('Control+Shift+B');

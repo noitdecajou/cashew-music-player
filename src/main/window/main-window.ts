@@ -60,7 +60,12 @@ export class MainWindow {
     contents.on('leave-html-full-screen', () => this.setVideoFullscreen(false));
     this.win.on('leave-full-screen', () => { if (this.ui.videoFullscreen) void contents.executeJavaScript('document.exitFullscreen?.().catch(() => {})').catch(() => undefined); });
     // Large mode: the drawer is an overlay; going back to YouTube Music closes it.
-    this.ytm.view.webContents.on('focus', () => { if (!this.ui.mini && this.ui.panel !== 'none') this.setPanel('none'); });
+    // Only a real click in YouTube Music closes the overlay. Focus changes are not
+    // reliable for this: on Windows the view can take focus while the drawer is
+    // being attached, which closed the drawer as soon as it opened.
+    this.ytm.view.webContents.on('before-mouse-event', (_event, mouse) => {
+      if (mouse.type === 'mouseDown' && !this.ui.mini && this.ui.panel !== 'none') this.setPanel('none');
+    });
     this.win.on('closed', () => {
       if (this.drawer && !this.drawer.webContents.isDestroyed()) this.drawer.webContents.close();
       screen.removeListener('display-removed', this.refit);

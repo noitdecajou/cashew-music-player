@@ -1,5 +1,9 @@
 # Historique
 
+## 2.0.0-beta.4
+
+- Panneaux (réglages, file, recherche) : ils ne se ferment plus que sur un vrai clic dans YouTube Music. Auparavant, un simple changement de focus les refermait, ce qui pouvait les faire disparaître dès leur ouverture sous Windows.
+
 ## 2.0.0-beta.3
 
 - Volume dans les mini-players Autoradio et Hi-fi : le réglage remplace « À suivre » au lieu de s’afficher par-dessus.

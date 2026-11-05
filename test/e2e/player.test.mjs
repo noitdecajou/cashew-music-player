@@ -162,7 +162,15 @@ test('large mode: the drawer overlaps YouTube Music without resizing it', async 
   assert.equal(drawer.bounds.x + drawer.bounds.width, before.width, 'anchored to the right edge');
   const page = await h.drawer();
   assert.equal(await page.textContent('.panel-title'), 'Réglages');
-  // Clicking back into YouTube Music closes the overlay.
+  // Focus moving to YouTube Music (as Windows may do) must not close it…
   await h.app.evaluate(({ webContents }) => webContents.getAllWebContents().find(w => w.getURL().startsWith('https://music.youtube.com')).focus());
-  await h.until(async () => !(await h.viewBounds()).some(v => v.url.includes('view=drawer')), { message: 'drawer closed on focus' });
+  await new Promise(r => setTimeout(r, 300));
+  assert.ok((await h.viewBounds()).some(v => v.url.includes('view=drawer')), 'drawer still open after a focus change');
+  // …but a click in YouTube Music does.
+  await h.app.evaluate(({ webContents }) => {
+    const music = webContents.getAllWebContents().find(w => w.getURL().startsWith('https://music.youtube.com'));
+    music.sendInputEvent({ type: 'mouseDown', x: 50, y: 50, button: 'left', clickCount: 1 });
+    music.sendInputEvent({ type: 'mouseUp', x: 50, y: 50, button: 'left', clickCount: 1 });
+  });
+  await h.until(async () => !(await h.viewBounds()).some(v => v.url.includes('view=drawer')), { message: 'drawer closed on click' });
 });

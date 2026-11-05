@@ -4,8 +4,9 @@ body.mini { --mini-height: 128px; }
 body.mini[data-theme="autoradio"], body.mini[data-theme="hifi"] { --mini-height: 168px; }
 body.mini[data-theme="autoradio-hf"], body.mini[data-theme="hifi-hf"] { --mini-height: 192px; }
 
+#mini .face, #mini .screen, #mini .brand-label { display: none; }
 #mini .card {
-  height: var(--mini-height); padding: 10px 12px 6px;
+  position: relative; height: var(--mini-height); padding: 10px 12px 6px;
   display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-rows: 48px 24px 1fr;
   column-gap: 11px; row-gap: 2px; align-items: center;
 }

@@ -3,10 +3,10 @@
 Lecteur desktop **Windows** pour YouTube Music, avec un mini-player à 5 apparences.
 Réécriture complète de la 1.7.x (Electron + TypeScript).
 
-> **Statut : alpha (étapes 1–2 sur 4).** Le pont YouTube Music, le grand lecteur, le mini-player « Actuel »
-> (avec volume et progression glissable), le tray et le déplacement sans barre fonctionnent.
-> La bibliothèque, la file, les réglages, la reprise et le raccourci global arrivent à l’étape 4 ;
-> les 4 autres apparences sont pour l’instant affichées avec la mise en page « Actuel » à leur taille (étape 3).
+> **Statut : bêta (2.0.0-beta.1).** Toutes les fonctions sont en place :
+> mini-player à 5 apparences (volume et progression glissable), panneaux en surimpression
+> (recherche dans ses playlists, ses playlists et tout YouTube Music ; file interactive ; réglages),
+> reprise de la dernière écoute, raccourci global, démarrage avec Windows, plein écran vidéo, hors ligne.
 
 ## Lancer depuis les sources (Windows)
 

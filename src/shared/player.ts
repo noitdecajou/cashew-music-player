@@ -11,6 +11,8 @@ export interface Track {
   artist: string;
   album: string;
   artwork: string;
+  /** Playlist the track is played from ('' when unknown): used to resume. */
+  playlistId: string;
 }
 
 export interface UpNext {
@@ -29,6 +31,8 @@ export interface PlayerSnapshot {
   volume: number; // 0..100
   muted: boolean;
   signedIn: boolean | null;
+  /** SHA-256 of the account id ('' when signed out): scopes caches and resume. */
+  accountKey: string;
 }
 
 /** The clock. Always tagged with the track it belongs to. */
@@ -40,8 +44,21 @@ export interface PlayerProgress {
 
 export const EMPTY_SNAPSHOT: PlayerSnapshot = {
   status: 'idle', track: null, next: null, shuffle: null, repeat: null, like: null,
-  volume: 100, muted: false, signedIn: null,
+  volume: 100, muted: false, signedIn: null, accountKey: '',
 };
+
+export interface QueueItem {
+  videoId: string;
+  title: string;
+  artist: string;
+  artwork: string;
+  duration: string; // "3:45" as displayed by Music
+}
+
+export interface QueueState {
+  items: QueueItem[];
+  current: number; // index of the playing item, -1 when unknown
+}
 
 export type PlayerCommand =
   | { type: 'toggle-play' }
@@ -54,16 +71,22 @@ export type PlayerCommand =
   | { type: 'seek'; trackId: string; position: number }
   | { type: 'volume'; volume: number }
   | { type: 'mute'; muted: boolean }
-  | { type: 'progress-stream'; enabled: boolean };
+  | { type: 'progress-stream'; enabled: boolean }
+  | { type: 'queue-watch'; enabled: boolean }
+  | { type: 'op'; id: number; op: string; payload: unknown };
 
 /** Messages the page agent sends to main. */
 export type AgentMessage =
   | { kind: 'snapshot'; snapshot: PlayerSnapshot }
   | { kind: 'progress'; progress: PlayerProgress }
+  | { kind: 'queue'; queue: QueueState }
+  | { kind: 'op-result'; id: number; ok: boolean; value: unknown; error: string }
   | { kind: 'ready' };
 
-const VIDEO_ID = /^[\w-]{11}$/;
-const str = (value: unknown, max = 500): string => (typeof value === 'string' ? value.slice(0, max) : '');
+export const VIDEO_ID = /^[\w-]{11}$/;
+export const PLAYLIST_ID = /^[\w-]{2,200}$/;
+export const ACCOUNT_KEY = /^[a-f0-9]{64}$/;
+export const str = (value: unknown, max = 500): string => (typeof value === 'string' ? value.slice(0, max) : '');
 const num = (value: unknown, min: number, max: number, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): T | null =>
@@ -85,6 +108,12 @@ export function sanitizeAgentMessage(raw: unknown): AgentMessage | null {
   if (!raw || typeof raw !== 'object') return null;
   const message = raw as Record<string, unknown>;
   if (message.kind === 'ready') return { kind: 'ready' };
+  if (message.kind === 'op-result') {
+    if (!Number.isSafeInteger(message.id)) return null;
+    // The value is validated by the caller, per operation (see shared/ops.ts).
+    return { kind: 'op-result', id: message.id as number, ok: message.ok === true, value: message.value, error: str(message.error, 300) };
+  }
+  if (message.kind === 'queue') return { kind: 'queue', queue: sanitizeQueue(message.queue) };
   if (message.kind === 'progress') {
     const p = message.progress as Record<string, unknown> | undefined;
     if (!p || !VIDEO_ID.test(str(p.trackId))) return null;
@@ -97,7 +126,8 @@ export function sanitizeAgentMessage(raw: unknown): AgentMessage | null {
     const t = s.track as Record<string, unknown> | null | undefined;
     const n = s.next as Record<string, unknown> | null | undefined;
     const track: Track | null = t && VIDEO_ID.test(str(t.id))
-      ? { id: str(t.id), title: str(t.title), artist: str(t.artist), album: str(t.album), artwork: httpsUrl(t.artwork) }
+      ? { id: str(t.id), title: str(t.title), artist: str(t.artist), album: str(t.album), artwork: httpsUrl(t.artwork),
+          playlistId: PLAYLIST_ID.test(str(t.playlistId)) ? str(t.playlistId) : '' }
       : null;
     return {
       kind: 'snapshot',
@@ -111,10 +141,22 @@ export function sanitizeAgentMessage(raw: unknown): AgentMessage | null {
         volume: Math.round(num(s.volume, 0, 100, 100)),
         muted: s.muted === true,
         signedIn: bool(s.signedIn),
+        accountKey: ACCOUNT_KEY.test(str(s.accountKey)) ? str(s.accountKey) : '',
       },
     };
   }
   return null;
+}
+
+export function sanitizeQueue(raw: unknown): QueueState {
+  const q = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const items = (Array.isArray(q.items) ? q.items : []).slice(0, 500).flatMap((value): QueueItem[] => {
+    const i = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+    if (!VIDEO_ID.test(str(i.videoId))) return [];
+    return [{ videoId: str(i.videoId), title: str(i.title), artist: str(i.artist), artwork: httpsUrl(i.artwork), duration: str(i.duration, 12) }];
+  });
+  const current = Number.isInteger(q.current) && (q.current as number) >= 0 && (q.current as number) < items.length ? (q.current as number) : -1;
+  return { items, current };
 }
 
 /** Commands come from the shell renderer: validate before forwarding to the page. */

@@ -22,6 +22,24 @@ Boutons cliqués (pour garder la logique de file de Music) : `#play-pause-button
 `.previous-button`, `.shuffle`, `.repeat`. Attributs : `shuffle-on`, `repeat-mode`.
 `ytmusic-like-button-renderer[like-status]` : `LIKE` / `DISLIKE` / `INDIFFERENT`.
 
+## Requêtes (`ytmusic-app.networkManager.fetch`)
+
+- `/browse {browseId: 'FEmusic_liked_playlists'}` puis `{continuation}` : playlists (`musicTwoRowItemRenderer`, `VL…`).
+- `/browse {browseId: 'VL…'}` : titres dans `musicPlaylistShelfRenderer` ; suite par `continuationItemRenderer`
+  puis `appendContinuationItemsAction`.
+- `/search {query}` : renvoie des puces de filtre (`chipCloudChipRenderer.navigationEndpoint.searchEndpoint.params`).
+  Non connecté depuis le conteneur, il n’y a pas de puce « Songs », seulement « Videos » : l’agent prend « Songs »
+  si elle existe, sinon « Videos ». Résultats : `musicResponsiveListItemRenderer`.
+- `/music/get_queue {queueContextParams, queueInsertPosition: 'INSERT_AFTER_CURRENT_VIDEO', videoIds}`.
+
+## File : actions
+
+- Lire un élément : clic sur `ytmusic-play-button-renderer` de l’élément rendu (`ytmusic-player-queue #contents > *`),
+  dans le même ordre que `items` — vérifié : passage du 1er au 4e titre.
+- Retirer : `queueElement.dispatch({type: 'REMOVE_ITEM', payload: index})`.
+- Insérer : `ADD_ITEMS` avec les éléments renvoyés par `/music/get_queue`.
+- Navigation : `ytmusic-app.dispatchEvent(new CustomEvent('yt-navigate', {bubbles, composed, detail: {endpoint: {watchEndpoint}}}))`.
+
 ## Divers
 
 - `navigator.mediaSession.metadata` : utilisé seulement pour l’album et la pochette de secours, et

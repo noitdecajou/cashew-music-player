@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type IpcMainEvent, WebContentsView, app, ipcMain, net, session } from 'electron';
+import { OP_RESULTS, type OpMap, type OpName } from '../../shared/ops';
 import { type AgentMessage, type PlayerCommand, sanitizeAgentMessage } from '../../shared/player';
 
 export const YTM_ORIGIN = 'https://music.youtube.com';
@@ -39,6 +40,8 @@ export class YtmView {
   readonly view: WebContentsView;
   private readonly listeners = new Set<(message: AgentMessage) => void>();
   private ready = false;
+  private nextOpId = 1;
+  private readonly pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
 
   constructor(onBlockedNavigation: (host: string) => void) {
     const music = session.fromPartition(PARTITION);
@@ -73,7 +76,10 @@ export class YtmView {
       return { action: 'deny' };
     });
     contents.on('did-start-navigation', event => {
-      if (event.isMainFrame && !event.isSameDocument) this.ready = false;
+      if (event.isMainFrame && !event.isSameDocument) {
+        this.ready = false;
+        this.failPending('YouTube Music a été rechargé. Réessaie.');
+      }
     });
 
     ipcMain.on('ytm:message', this.onMessage);
@@ -86,6 +92,14 @@ export class YtmView {
     const message = sanitizeAgentMessage(raw);
     if (!message) return;
     if (message.kind === 'ready') this.ready = true;
+    if (message.kind === 'op-result') {
+      const entry = this.pending.get(message.id);
+      if (!entry) return;
+      this.pending.delete(message.id);
+      clearTimeout(entry.timer);
+      if (message.ok) entry.resolve(message.value); else entry.reject(new Error(message.error || 'Opération impossible.'));
+      return;
+    }
     for (const listener of this.listeners) listener(message);
   };
 
@@ -100,10 +114,27 @@ export class YtmView {
     if (!contents.isDestroyed()) contents.send('ytm:command', command);
   }
 
+  /** Asks the page agent to run an operation; its result is validated here. */
+  async request<K extends OpName>(op: K, payload: OpMap[K]['payload'], timeoutMs = 25000): Promise<OpMap[K]['result']> {
+    if (!this.view.webContents.getURL().startsWith(YTM_ORIGIN + '/')) throw new Error('Connecte-toi à YouTube Music dans le grand lecteur.');
+    const id = this.nextOpId++;
+    const raw = await new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('YouTube Music ne répond pas. Réessaie dans quelques secondes.')); }, timeoutMs);
+      this.pending.set(id, { resolve, reject, timer });
+      this.send({ type: 'op', id, op, payload });
+    });
+    return OP_RESULTS[op](raw) as OpMap[K]['result'];
+  }
+
+  private failPending(message: string): void {
+    for (const [id, entry] of this.pending) { clearTimeout(entry.timer); entry.reject(new Error(message)); this.pending.delete(id); }
+  }
+
   load(): void { void this.view.webContents.loadURL(YTM_HOME); }
   reload(): void { this.view.webContents.reload(); }
 
   dispose(): void {
+    this.failPending('Fermeture.');
     ipcMain.removeListener('ytm:message', this.onMessage);
     if (!this.view.webContents.isDestroyed()) this.view.webContents.close();
   }

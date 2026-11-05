@@ -3,10 +3,11 @@
 <head><meta charset="utf-8"><title>YouTube Music (fixture)</title></head>
 <body>
 <!--
-  Fake music.youtube.com for end-to-end tests. It mimics the API surface
-  observed on the real site (see docs/ytm-bridge.md): #movie_player methods
-  and events, the player bar buttons/attributes, the queue store, mediaSession.
-  Window.__fake exposes controls and a call log to the tests.
+  Fake music.youtube.com for end-to-end tests. It mimics the surface observed
+  on the real site (see docs/ytm-bridge.md): #movie_player methods and events,
+  player bar buttons/attributes, the queue store and its rendered items,
+  networkManager.fetch for /browse, /search and /music/get_queue, yt-navigate.
+  window.__fake exposes controls and a call log to the tests.
 -->
 <ytmusic-app>
   <div id="movie_player"><video></video></div>
@@ -18,47 +19,93 @@
     <button class="repeat"></button>
     <ytmusic-like-button-renderer like-status="INDIFFERENT"></ytmusic-like-button-renderer>
   </ytmusic-player-bar>
-  <ytmusic-player-queue></ytmusic-player-queue>
+  <ytmusic-player-queue><div id="contents"></div></ytmusic-player-queue>
 </ytmusic-app>
 <script>
 (() => {
-  const tracks = [
-    { id: 'AAAAAAAAAAA', title: 'Premier titre', artist: 'Artiste Un', duration: 200 },
-    { id: 'BBBBBBBBBBB', title: 'Deuxième titre', artist: 'Artiste Deux', duration: 150 },
-    { id: 'CCCCCCCCCCC', title: 'Troisième titre', artist: 'Artiste Trois', duration: 180 },
+  const song = (id, title, artist, duration) => ({ id, title, artist, duration });
+  const catalog = [
+    song('AAAAAAAAAAA', 'Premier titre', 'Artiste Un', 200),
+    song('BBBBBBBBBBB', 'Deuxième titre', 'Artiste Deux', 150),
+    song('CCCCCCCCCCC', 'Troisième titre', 'Artiste Trois', 180),
+    song('DDDDDDDDDDD', 'Café crème', 'Élodie Àccent', 210),
+    song('EEEEEEEEEEE', 'Nuit étoilée', 'Artiste Deux', 190),
+    song('FFFFFFFFFFF', 'Hors bibliothèque', 'Artiste Web', 170),
   ];
+  const byId = id => catalog.find(s => s.id === id);
+  const playlists = {
+    PLmorning: { title: 'Matin', ids: ['AAAAAAAAAAA', 'BBBBBBBBBBB', 'CCCCCCCCCCC'] },
+    PLevening: { title: 'Soirée', ids: ['DDDDDDDDDDD', 'EEEEEEEEEEE', 'BBBBBBBBBBB'] },
+  };
+
+  const thumb = id => ({ thumbnails: [{ url: `https://lh3.googleusercontent.com/${id}=w60-h60-l90-rj` }] });
   const row = t => ({ playlistPanelVideoRenderer: {
     videoId: t.id, title: { runs: [{ text: t.title }] }, shortBylineText: { runs: [{ text: t.artist }] },
-    longBylineText: { runs: [{ text: t.artist }, { text: ' • ' }, { text: 'Album' }] },
-    thumbnail: { thumbnails: [{ url: `https://lh3.googleusercontent.com/${t.id}=w60-h60-l90-rj` }] },
+    longBylineText: { runs: [{ text: t.artist }, { text: ' • ' }, { text: 'Album' }] }, thumbnail: thumb(t.id),
+    lengthText: { runs: [{ text: `${Math.floor(t.duration / 60)}:${String(t.duration % 60).padStart(2, '0')}` }] },
+  } });
+  const listItem = t => ({ musicResponsiveListItemRenderer: {
+    playlistItemData: { videoId: t.id },
+    thumbnail: { musicThumbnailRenderer: { thumbnail: thumb(t.id) } },
+    flexColumns: [
+      { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: t.title, navigationEndpoint: { watchEndpoint: { videoId: t.id } } }] } } },
+      { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: 'Titre' }, { text: ' • ' }, { text: t.artist, navigationEndpoint: { browseEndpoint: { browseId: 'UC1', browseEndpointContextSupportedConfigs: { browseEndpointContextMusicConfig: { pageType: 'MUSIC_PAGE_TYPE_ARTIST' } } } } }] } } },
+    ],
   } });
 
   const calls = [];
   const listeners = {};
   const video = document.querySelector('video');
   const bar = document.querySelector('ytmusic-player-bar');
-  let index = -1, state = -1, time = 0, volume = 70, muted = false, shuffle = false;
-  // How late Music's queue store follows the player during a natural handoff.
+  const queueElement = document.querySelector('ytmusic-player-queue');
+  const contents = queueElement.querySelector('#contents');
+  let state = -1, time = 0, volume = 70, muted = false, playlistId = '';
   let queueLagMs = 0;
 
-  const queueState = { items: tracks.map(row), selectedItemIndex: -1, shuffleEnabled: false, repeatMode: 'NONE', automixItems: [] };
+  const queueState = { items: [], selectedItemIndex: -1, shuffleEnabled: false, repeatMode: 'NONE', automixItems: [], queueContextParams: 'ctx', nextQueueItemId: 1 };
   const subscribers = new Set();
   const store = {
     getState: () => ({ queue: { ...queueState } }),
     subscribe: fn => { subscribers.add(fn); return () => subscribers.delete(fn); },
   };
-  document.querySelector('ytmusic-player-queue').queue = { store: { store } };
-  const notifyStore = () => subscribers.forEach(fn => fn());
+  queueElement.queue = { store: { store } };
+  const current = () => byId(queueState.items[queueState.selectedItemIndex]?.playlistPanelVideoRenderer?.videoId ?? '') ?? null;
+  let playing = null; // the track the player has loaded (may lead the queue)
+
+  function renderQueue() {
+    contents.replaceChildren(...queueState.items.map((item, i) => {
+      const r = item.playlistPanelVideoRenderer;
+      const element = document.createElement('ytmusic-player-queue-item');
+      const title = document.createElement('span'); title.className = 'song-title'; title.textContent = r.title.runs[0].text;
+      const play = document.createElement('ytmusic-play-button-renderer');
+      play.addEventListener('click', () => { calls.push(['queue-click', i]); load(i); });
+      element.append(title, play);
+      return element;
+    }));
+  }
+  const notifyStore = () => { renderQueue(); subscribers.forEach(fn => fn()); };
+  queueElement.dispatch = action => {
+    calls.push(['dispatch', action.type]);
+    if (action.type === 'REMOVE_ITEM') {
+      queueState.items = queueState.items.filter((_, i) => i !== action.payload);
+      if (action.payload < queueState.selectedItemIndex) queueState.selectedItemIndex--;
+    }
+    if (action.type === 'ADD_ITEMS') {
+      queueState.items = [...queueState.items.slice(0, action.payload.index), ...action.payload.items, ...queueState.items.slice(action.payload.index)];
+    }
+    notifyStore();
+  };
+
   const fire = (name, value) => (listeners[name] || []).forEach(fn => fn(value));
   const media = type => video.dispatchEvent(new Event(type));
-
-  window.ytcfg = { get: key => (key === 'LOGGED_IN' ? true : undefined) };
+  window.ytcfg = { get: key => ({ LOGGED_IN: true, DATASYNC_ID: 'fixture-account||' })[key] };
 
   function setState(next) { state = next; fire('onStateChange', next); media(next === 1 ? 'play' : next === 2 ? 'pause' : 'durationchange'); }
 
   function load(i, autoplay = true) {
-    index = i; time = 0;
-    const t = tracks[i];
+    const t = byId(queueState.items[i]?.playlistPanelVideoRenderer?.videoId);
+    if (!t) return;
+    playing = t; time = 0;
     media('emptied');
     fire('onVideoDataChange', { type: 'dataupdated' });
     navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist, album: 'Album', artwork: [{ src: `https://i.ytimg.com/vi/${t.id}/sddefault.jpg`, sizes: '640x480' }] });
@@ -68,12 +115,73 @@
     setState(autoplay ? 1 : 2);
   }
 
+  function setQueue(ids, startId, list = '') {
+    playlistId = list;
+    queueState.items = ids.map(id => row(byId(id)));
+    queueState.selectedItemIndex = -1;
+    notifyStore();
+    load(Math.max(0, ids.indexOf(startId)));
+  }
+
+  // In-app navigation, as dispatched by the agent.
+  document.querySelector('ytmusic-app').addEventListener('yt-navigate', event => {
+    const endpoint = event.detail?.endpoint?.watchEndpoint;
+    if (!endpoint) return;
+    calls.push(['navigate', endpoint]);
+    setTimeout(() => {
+      const list = endpoint.playlistId && playlists[endpoint.playlistId];
+      if (list) setQueue(list.ids, endpoint.videoId, endpoint.playlistId);
+      else if (endpoint.videoId) setQueue([endpoint.videoId, ...catalog.map(s => s.id).filter(id => id !== endpoint.videoId).slice(0, 2)], endpoint.videoId);
+    }, 50);
+  });
+
+  // Music's authenticated API client.
+  const pageSize = 2;
+  document.querySelector('ytmusic-app').networkManager = {
+    fetch: async (route, body) => {
+      calls.push(['fetch', route, body]);
+      await new Promise(r => setTimeout(r, 10));
+      if (route === '/browse' && body.browseId === 'FEmusic_liked_playlists') {
+        return { contents: { gridRenderer: { items: Object.entries(playlists).map(([id, p]) => ({ musicTwoRowItemRenderer: {
+          title: { runs: [{ text: p.title }] }, subtitle: { runs: [{ text: `${p.ids.length} titres` }] },
+          navigationEndpoint: { browseEndpoint: { browseId: 'VL' + id } },
+          thumbnailRenderer: { musicThumbnailRenderer: { thumbnail: thumb(id) } } } })) } } };
+      }
+      const pageOf = (id, offset) => {
+        const ids = playlists[id].ids.slice(offset, offset + pageSize);
+        const more = offset + pageSize < playlists[id].ids.length;
+        return { ids, token: more ? `${id}-${offset + pageSize}` : '' };
+      };
+      if (route === '/browse' && body.browseId?.startsWith('VL')) {
+        const { ids, token } = pageOf(body.browseId.slice(2), 0);
+        return { contents: { twoColumnBrowseResultsRenderer: { secondaryContents: { sectionListRenderer: { contents: [
+          { musicPlaylistShelfRenderer: { contents: [...ids.map(id => listItem(byId(id))), ...(token ? [{ continuationItemRenderer: { continuationEndpoint: { continuationCommand: { token } } } }] : [])] } },
+          { musicShelfRenderer: { title: { runs: [{ text: 'Suggestions' }] }, contents: [listItem(byId('FFFFFFFFFFF'))] } },
+        ] } } } } };
+      }
+      if (route === '/browse' && body.continuation) {
+        const [id, offset] = body.continuation.split('-');
+        const { ids, token } = pageOf(id, Number(offset));
+        return { onResponseReceivedActions: [{ appendContinuationItemsAction: { continuationItems: [...ids.map(x => listItem(byId(x))), ...(token ? [{ continuationItemRenderer: { continuationEndpoint: { continuationCommand: { token } } } }] : [])] } }] };
+      }
+      if (route === '/search') {
+        const q = body.query.toLowerCase();
+        const hits = catalog.filter(s => `${s.title} ${s.artist}`.toLowerCase().includes(q));
+        if (!body.params) return { contents: { chips: [{ chipCloudChipRenderer: { uniqueId: 'Songs', text: { runs: [{ text: 'Songs' }] }, navigationEndpoint: { searchEndpoint: { params: 'songs-param' } } } }] } };
+        return { contents: { musicShelfRenderer: { contents: hits.map(listItem) } } };
+      }
+      if (route === '/music/get_queue') return { queueDatas: body.videoIds.map(id => ({ content: row(byId(id)) })) };
+      throw new Error('unknown route ' + route);
+    },
+  };
+
   const player = document.getElementById('movie_player');
   Object.assign(player, {
     addEventListener: (name, fn) => { (listeners[name] ||= []).push(fn); },
     getPlayerState: () => state,
-    getVideoData: () => (index < 0 ? { video_id: '' } : { video_id: tracks[index].id, title: tracks[index].title + ' (Official Video)', author: tracks[index].artist + ' - Topic' }),
-    getDuration: () => (index < 0 ? 0 : tracks[index].duration),
+    getVideoData: () => (playing ? { video_id: playing.id, title: playing.title + ' (Official Video)', author: playing.artist + ' - Topic' } : { video_id: '' }),
+    getPlaylistId: () => playlistId,
+    getDuration: () => (playing ? playing.duration : 0),
     getCurrentTime: () => time,
     getVolume: () => volume,
     isMuted: () => muted,
@@ -87,27 +195,29 @@
 
   const click = (selector, fn) => bar.querySelector(selector).addEventListener('click', () => { calls.push(['click', selector]); fn(); });
   click('#play-pause-button', () => setState(state === 1 ? 2 : 1));
-  click('.next-button', () => load((index + 1) % tracks.length));
-  click('.previous-button', () => load(Math.max(0, index - 1)));
-  click('.shuffle', () => { shuffle = !shuffle; queueState.shuffleEnabled = shuffle; bar.setAttribute('shuffle-on', String(shuffle)); notifyStore(); });
+  click('.next-button', () => load((queueState.selectedItemIndex + 1) % queueState.items.length));
+  click('.previous-button', () => load(Math.max(0, queueState.selectedItemIndex - 1)));
+  click('.shuffle', () => { queueState.shuffleEnabled = !queueState.shuffleEnabled; bar.setAttribute('shuffle-on', String(queueState.shuffleEnabled)); notifyStore(); });
   click('.repeat', () => { queueState.repeatMode = queueState.repeatMode === 'NONE' ? 'ALL' : 'NONE'; notifyStore(); });
 
   setInterval(() => {
-    if (state !== 1) return;
+    if (state !== 1 || !playing) return;
     time += 0.25;
-    const t = tracks[index];
-    if (time >= t.duration) { load((index + 1) % tracks.length); return; } // natural handoff
+    if (time >= playing.duration) { load((queueState.selectedItemIndex + 1) % queueState.items.length); return; } // natural handoff
     media('timeupdate');
   }, 250);
 
   window.__fake = {
-    calls, tracks,
-    start: (i = 0) => load(i),
-    /** Jump close to the end to trigger a natural transition quickly. */
-    nearEnd: (seconds = 0.6) => { time = tracks[index].duration - seconds; },
+    calls, catalog,
+    /** Starts the first three songs as a queue. */
+    start: (i = 0) => setQueue(catalog.slice(0, 3).map(s => s.id), catalog[i].id),
+    nearEnd: (seconds = 0.6) => { time = playing.duration - seconds; },
     setQueueLag: ms => { queueLagMs = ms; },
     like: status => bar.querySelector('ytmusic-like-button-renderer').setAttribute('like-status', status),
-    get index() { return index; },
+    get index() { return queueState.selectedItemIndex; },
+    get playingId() { return playing?.id ?? ''; },
+    get queueIds() { return queueState.items.map(i => i.playlistPanelVideoRenderer.videoId); },
+    get time() { return time; },
   };
 })();
 </script>

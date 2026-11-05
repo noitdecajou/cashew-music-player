@@ -6,6 +6,7 @@
   <title>Music Player</title>
   <link rel="stylesheet" href="./styles/base.css">
   <link rel="stylesheet" href="./styles/mini-modern.css">
+  <link rel="stylesheet" href="./styles/mini-skins.css">
 </head>
 <body class="booting" data-theme="modern">
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -44,6 +45,9 @@
 
   <main id="mini" class="mini-only" aria-label="Mini-player">
     <div class="card">
+      <div class="face" aria-hidden="true"></div>
+      <div class="screen" aria-hidden="true"></div>
+      <span class="brand-label drag-zone" aria-hidden="true"><i class="led"></i>MUSIC PLAYER</span>
       <img class="cover drag-zone" alt="">
       <div class="meta drag-zone"><div class="title truncate"></div><div class="artist truncate"></div></div>
       <div class="tools">
@@ -83,8 +87,41 @@
   </main>
 
   <aside id="panel" hidden>
-    <div class="panel-head"><strong class="panel-title"></strong><button data-window="close-panel" aria-label="Fermer le panneau">✕</button></div>
-    <p class="panel-body">Ce panneau sera reconstruit à l’étape 4 (bibliothèque, file, réglages).</p>
+    <div class="panel-head"><strong class="panel-title"></strong><button data-window="close-panel" class="icon" aria-label="Fermer le panneau" title="Fermer (Échap)">✕</button></div>
+    <div class="panel-notice" role="status" hidden></div>
+
+    <section data-panel="search" hidden>
+      <div class="search-box"><input id="query" type="search" placeholder="Rechercher…" aria-label="Rechercher" autocomplete="off" spellcheck="false"></div>
+      <div class="tabs" role="tablist">
+        <button role="tab" data-scope="library" aria-selected="true">Mes playlists</button>
+        <button role="tab" data-scope="playlists" aria-selected="false">Playlists</button>
+        <button role="tab" data-scope="web" aria-selected="false">YouTube Music</button>
+      </div>
+      <div class="status-line"><span class="library-status"></span><button class="link refresh-library" title="Réindexer mes playlists">Actualiser</button></div>
+      <ol class="results" aria-label="Résultats"></ol>
+    </section>
+
+    <section data-panel="queue" hidden>
+      <div class="status-line"><span class="queue-status"></span></div>
+      <ol class="results queue-list" aria-label="File d’attente"></ol>
+    </section>
+
+    <section data-panel="settings" hidden>
+      <h3>Apparence du mini-player</h3>
+      <div class="theme-grid" role="radiogroup" aria-label="Apparence"></div>
+      <label class="check"><input type="checkbox" id="seamless"> Masquer la barre de fenêtre du mini-player <kbd>Ctrl+Maj+B</kbd></label>
+      <h3>Démarrage</h3>
+      <label class="check"><input type="checkbox" id="startup"> Lancer avec Windows</label>
+      <label class="check"><input type="checkbox" id="quietStartup"> Démarrer discrètement (dans la zone de notification)</label>
+      <h3>Raccourci global</h3>
+      <p class="hint">Affiche ou masque le mini-player depuis n’importe quelle application.</p>
+      <div class="shortcut-row"><input id="shortcut" readonly aria-label="Raccourci global" placeholder="Aucun"><button id="resetShortcut">Par défaut</button><button id="clearShortcut">Désactiver</button></div>
+      <p class="hint shortcut-status"></p>
+      <h3>YouTube Music</h3>
+      <div class="buttons"><button data-window="reload-music">Recharger YouTube Music</button><button id="diagnostics">Mesurer la consommation</button></div>
+      <p class="hint diagnostics-result"></p>
+      <p class="hint version"></p>
+    </section>
   </aside>
 
   <script type="module" src="./src/main.ts"></script>

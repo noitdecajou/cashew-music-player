@@ -7,8 +7,11 @@ const require = createRequire(import.meta.url);
 const root = resolve(import.meta.dirname, '../..');
 const playwright = require('playwright');
 
-export async function launch() {
-  const userData = mkdtempSync(join(tmpdir(), 'mp-e2e-'));
+export const newProfile = () => mkdtempSync(join(tmpdir(), 'mp-e2e-'));
+
+/** Launches the built app against the fake YouTube Music page. Pass `userData` to reuse a profile (kept on close). */
+export async function launch({ userData: profile } = {}) {
+  const userData = profile ?? newProfile();
   const app = await playwright._electron.launch({
     executablePath: require('electron'),
     args: [...(process.getuid?.() === 0 ? ['--no-sandbox'] : []), root],
@@ -38,7 +41,7 @@ export async function launch() {
   };
   const viewBounds = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].contentView.children.map(v => ({ url: v.webContents.getURL(), bounds: v.getBounds() })));
   const drawer = async () => app.windows().find(page => page.url().includes('view=drawer')) ?? app.waitForEvent('window', { predicate: page => page.url().includes('view=drawer') });
-  const close = async () => { await app.close().catch(() => {}); rmSync(userData, { recursive: true, force: true }); };
+  const close = async () => { await app.close().catch(() => {}); if (!profile) rmSync(userData, { recursive: true, force: true }); };
   // Wait for the agent to be up in the fixture page.
   await until(async () => {
     try { return await ytm('window.__musicPlayerAgentInstalled === true'); } catch { return false; }

@@ -14,8 +14,8 @@ describe('sanitizeAgentMessage', () => {
     expect(message).toEqual({
       kind: 'snapshot',
       snapshot: {
-        status: 'playing', track: { id: 'dQw4w9WgXcQ', title: 'T', artist: 'A', album: '', artwork: 'https://i.ytimg.com/x.jpg' },
-        next: { title: 'N', artist: 'B' }, shuffle: false, repeat: 'ALL', like: 'LIKE', volume: 42, muted: false, signedIn: true,
+        status: 'playing', track: { id: 'dQw4w9WgXcQ', title: 'T', artist: 'A', album: '', artwork: 'https://i.ytimg.com/x.jpg', playlistId: '' },
+        next: { title: 'N', artist: 'B' }, shuffle: false, repeat: 'ALL', like: 'LIKE', volume: 42, muted: false, signedIn: true, accountKey: '',
       },
     });
   });
@@ -47,7 +47,8 @@ describe('sanitizeCommand', () => {
   });
   it('refuses the rest, including the internal progress-stream command', () => {
     for (const raw of [null, {}, { type: 'seek', trackId: 'bad', position: 1 }, { type: 'seek', trackId: 'dQw4w9WgXcQ', position: -1 },
-      { type: 'volume', volume: Number.NaN }, { type: 'mute', muted: 'yes' }, { type: 'progress-stream', enabled: false }]) {
+      { type: 'volume', volume: Number.NaN }, { type: 'mute', muted: 'yes' }, { type: 'progress-stream', enabled: false },
+      { type: 'queue-watch', enabled: true }, { type: 'op', id: 1, op: 'resume', payload: {} }]) {
       expect(sanitizeCommand(raw)).toBeNull();
     }
   });

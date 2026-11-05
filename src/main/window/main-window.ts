@@ -39,7 +39,7 @@ export class MainWindow {
     private readonly onDrawerCreated: (contents: Electron.WebContents) => void,
   ) {
     const p = prefs.value;
-    this.ui = { mini: p.mini, theme: p.theme, panel: 'none', pinned: p.pinned, seamless: p.seamless, maximized: false, online: true };
+    this.ui = { mini: p.mini, theme: p.theme, panel: 'none', pinned: p.pinned, seamless: p.seamless, maximized: false, online: true, videoFullscreen: false };
     this.win = new BrowserWindow({
       ...LARGE_DEFAULT, show: false, frame: false, backgroundColor: '#111218', icon: ICON,
       minWidth: 1, minHeight: 1,
@@ -55,6 +55,10 @@ export class MainWindow {
     this.win.on('blur', () => { this.drag = null; });
     screen.on('display-removed', this.refit);
     screen.on('display-metrics-changed', this.refit);
+    const contents = this.ytm.view.webContents;
+    contents.on('enter-html-full-screen', () => this.setVideoFullscreen(true));
+    contents.on('leave-html-full-screen', () => this.setVideoFullscreen(false));
+    this.win.on('leave-full-screen', () => { if (this.ui.videoFullscreen) void contents.executeJavaScript('document.exitFullscreen?.().catch(() => {})').catch(() => undefined); });
     // Large mode: the drawer is an overlay; going back to YouTube Music closes it.
     this.ytm.view.webContents.on('focus', () => { if (!this.ui.mini && this.ui.panel !== 'none') this.setPanel('none'); });
     this.win.on('closed', () => {
@@ -130,11 +134,34 @@ export class MainWindow {
     return this.drawer;
   }
 
+  private restoreFullScreen = false;
+
+  /** YouTube Music's own fullscreen video: the view covers the whole screen. */
+  setVideoFullscreen(active: boolean): void {
+    if (active === this.ui.videoFullscreen || this.win.isDestroyed()) return;
+    if (active) {
+      if (this.ui.mini) return;
+      this.restoreFullScreen = this.win.isFullScreen();
+      this.setUi({ videoFullscreen: true, panel: 'none' });
+      if (!this.restoreFullScreen) this.win.setFullScreen(true);
+    } else {
+      this.setUi({ videoFullscreen: false });
+      if (!this.restoreFullScreen && this.win.isFullScreen()) this.win.setFullScreen(false);
+    }
+    this.layout();
+  }
+
   /** Places (or detaches) the YouTube Music view and the drawer above it. */
   layout(): void {
     if (this.win.isDestroyed()) return;
     const view = this.ytm.view;
     const [width = 0, height = 0] = this.win.getContentSize();
+    if (this.ui.videoFullscreen && !this.ui.mini) {
+      if (!this.attached) { this.win.contentView.addChildView(view); this.attached = true; }
+      view.setBounds({ x: 0, y: 0, width: Math.max(1, width), height: Math.max(1, height) });
+      if (this.drawer && this.drawerAttached) { this.win.contentView.removeChildView(this.drawer); this.drawerAttached = false; }
+      return;
+    }
     if (this.ui.mini) {
       if (this.attached) { this.win.contentView.removeChildView(view); this.attached = false; }
     } else {
@@ -178,6 +205,10 @@ export class MainWindow {
 
   setMini(mini: boolean): void {
     if (mini === this.ui.mini) return;
+    if (this.ui.videoFullscreen) {
+      void this.ytm.view.webContents.executeJavaScript('document.exitFullscreen?.().catch(() => {})').catch(() => undefined);
+      this.setVideoFullscreen(false);
+    }
     this.drag = null;
     this.saveBounds();
     this.setUi({ mini, panel: 'none' });
@@ -186,10 +217,28 @@ export class MainWindow {
   }
 
   setPanel(panel: Panel): void {
-    if (panel === this.ui.panel) return;
+    if (panel === this.ui.panel || (panel !== 'none' && this.ui.videoFullscreen)) return;
     this.drag = null;
     this.setUi({ panel });
     if (this.ui.mini) this.applyMode(); else this.layout();
+    if (panel !== 'none') this.drawerContents?.focus();
+    else if (!this.win.isDestroyed()) this.win.webContents.focus();
+  }
+
+  /** Created ahead of time so the first panel opens instantly. */
+  preloadDrawer(): void { this.ensureDrawer(); }
+
+  setSeamless(seamless: boolean): void {
+    if (seamless === this.ui.seamless) return;
+    this.prefs.update({ seamless });
+    this.setUi({ seamless });
+    if (this.ui.mini) this.applyMode();
+  }
+
+  toggleVisibility(): void {
+    if (this.visible && this.win.isFocused()) { this.win.hide(); return; }
+    this.setMini(true);
+    this.show();
   }
 
   setTheme(theme: MiniTheme): void {
@@ -218,12 +267,7 @@ export class MainWindow {
         this.setUi({ pinned });
         break;
       }
-      case 'toggle-title-bar':
-        if (!this.ui.mini) break;
-        this.prefs.update({ seamless: !this.ui.seamless });
-        this.setUi({ seamless: !this.ui.seamless });
-        this.applyMode();
-        break;
+      case 'toggle-title-bar': if (this.ui.mini) this.setSeamless(!this.ui.seamless); break;
       case 'minimize': this.win.minimize(); break;
       case 'maximize': if (!this.ui.mini) { if (this.win.isMaximized()) this.win.unmaximize(); else this.win.maximize(); } break;
       case 'close': this.win.close(); break;

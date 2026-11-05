@@ -48,10 +48,33 @@
 - Déplacement du mini sans barre : poignée, pochette ou titre (capture du pointeur, positions écran du
   processus principal), flèches du clavier sur la poignée.
 
+## Opérations de page
+
+Main demande des actions à l’agent par `ytm:command` `{type: 'op', id, op, payload}` ; l’agent répond
+`op-result` avec le même `id`. Chaque résultat est validé dans `src/shared/ops.ts` ; une navigation de la
+page fait échouer les opérations en attente, et chacune a un délai maximal.
+
+| Opération | Rôle |
+|---|---|
+| `library-playlists`, `playlist-songs` | Bibliothèque (`/browse`, avec pages suivantes) — seule l’étagère de la playlist est lue, pas les suggestions |
+| `search` | Recherche YouTube Music (`/search`, filtre « Titres » sinon « Vidéos », lu dans la réponse) |
+| `play` | Navigation interne `watchEndpoint` |
+| `queue-play`, `queue-remove`, `queue-insert-next` | File de Music (bouton de l’élément, `REMOVE_ITEM`, `/music/get_queue` + `ADD_ITEMS`), avec vérification de l’index |
+| `resume`, `session` | Reprise à une position ; état courant pour l’enregistrer à la fermeture |
+
+## Services (src/main/services)
+
+- `library.ts` : index des titres de toutes les playlists, par compte (clé = SHA-256 de l’identifiant du compte),
+  enregistré dans `userData/library/`, actualisé après 6 h ; une actualisation incomplète conserve l’ancien index.
+  Favoris de playlists (200 max).
+- `resume.ts` : dernier titre, playlist et position par compte (`userData/sessions/`).
+- `preferences.ts` (+ migration 1.x), `shortcut.ts`, `startup.ts`, `json-file.ts` (écritures atomiques).
+
 ## Tests
 
 - `test/unit` : validation, préférences et migration 1.x, géométrie.
-- `test/e2e` : vrai Electron + `test/fixtures/ytm.html`, une fausse page qui reproduit l’API du lecteur
-  observée sur le vrai site. Couvre l’ordre carte/horloge pendant des enchaînements naturels avec une file
+- `test/e2e` : vrai Electron + `test/fixtures/ytm.html`, une fausse page qui reproduit l’API du lecteur,
+  la file, `networkManager.fetch` et la navigation observés sur le vrai site. `features.test.mjs` couvre
+  bibliothèque, recherche, playlists, file, réglages, plein écran et reprise après redémarrage. Couvre l’ordre carte/horloge pendant des enchaînements naturels avec une file
   en retard, les commandes, le glisser de progression, le volume, les tailles des thèmes et le refus des
   commandes invalides.

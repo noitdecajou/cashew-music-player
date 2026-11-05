@@ -3,15 +3,27 @@
 | Étape | Contenu | État |
 |---|---|---|
 | 1. Squelette | electron-vite, TypeScript strict, main en modules, contrats IPC typés, tests unitaires et e2e | ✅ |
-| 2. Pont YTM | agent de page événementiel, commandes, volume, validation | ✅ (lecture réelle à valider sur Windows) |
-| 3. Mini-players | « Actuel » ✅ avec volume et progression glissable ; Autoradio, Hi-fi, Autoradio HF, Hi-Fi HF à refaire proprement | en cours |
-| 4. Fonctions | bibliothèque et recherche, file interactive, reprise de session, réglages, raccourci global, démarrage Windows, plein écran vidéo, hors ligne | à faire |
+| 2. Pont YTM | agent de page événementiel, commandes, volume, opérations (bibliothèque, recherche, file, reprise), validation | ✅ |
+| 3. Mini-players | Actuel, Autoradio, Hi-fi, Autoradio 2000 (HF), Hi-Fi de salon (HF) ; volume et progression glissable partout | ✅ |
+| 4. Fonctions | bibliothèque indexée et favoris, recherche YouTube Music, file interactive (lire, retirer, « Lire ensuite »), reprise, réglages, raccourci global, démarrage Windows, plein écran vidéo, hors ligne et nouvelles tentatives, menu de la zone de notification | ✅ |
 
-## À valider sur Windows (alpha 1)
+## Vérifié sur le vrai music.youtube.com (non connecté, depuis le conteneur)
 
-- Connexion conservée depuis la 1.x ; lecture, pause, suivant, précédent, aléatoire.
-- Titre, artiste, pochette et « À suivre » justes, y compris lors des enchaînements automatiques.
-- Glisser la progression ; volume (molette, glisser, clic = muet quand le curseur est ouvert).
-- Mini : 420 × 128 (+ 30 avec la barre), Ctrl+Maj+B, déplacement par la poignée/pochette/titre, épinglage.
-- Fermer la fenêtre → la musique continue, tray → Ouvrir / Quitter.
-- Mesure de référence : mémoire et CPU dans le Gestionnaire des tâches, comparées à la 1.7.x.
+Métadonnées, « À suivre », volume, recherche globale (20 résultats avec pochettes), file de 50 titres,
+saut à un titre, retrait, « Lire ensuite ».
+
+## À valider sur Windows (bêta 1)
+
+- Bibliothèque : indexation de **tes** playlists (impossible à tester sans compte), favoris, lecture d’une playlist.
+- Recherche « YouTube Music » connecté : le filtre « Titres » doit être utilisé.
+- Reprise après redémarrage (titre, playlist, position).
+- Les 5 apparences à 100 %, 125 %, 150 % d’échelle Windows ; déplacement sans barre.
+- Plein écran vidéo (bouton de YouTube Music) puis Échap.
+- Raccourci global, démarrage avec Windows (version installée), démarrage discret.
+- Mesure : mémoire et CPU (Réglages → Mesurer la consommation), comparées à la 1.7.x.
+
+## Idées pour la suite
+
+- Boutons de miniature de la barre des tâches (précédent, lecture, suivant).
+- J’aime / Je n’aime pas depuis le mini-player.
+- Défilement des titres longs sur les écrans à matrice de points.

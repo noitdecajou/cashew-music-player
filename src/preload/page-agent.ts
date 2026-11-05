@@ -37,6 +37,10 @@ export function pageAgent(): void {
   let lastSnapshotTrack = '';
   let lastProgressKey = '';
   let scheduled = false;
+  let queueWatching = false;
+  let lastQueueKey = '';
+  let accountKey = '';
+  let accountIdentity: string | null = null;
 
   const emit = (message: unknown): void => {
     try { bridge.emit(message); } catch { /* bridge gone during unload */ }
@@ -116,7 +120,9 @@ export function pageAgent(): void {
       let artwork = bestThumbnail(row?.thumbnail);
       if (!artwork && mediaMatches && media.artwork?.length) artwork = upscale(String(media.artwork[media.artwork.length - 1].src ?? ''));
       if (!artwork) artwork = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-      track = { id, title, artist, album: mediaMatches ? String(media.album ?? '') : '', artwork };
+      let playlistId = call(() => String(player?.getPlaylistId?.() ?? ''), '');
+      if (!playlistId) playlistId = call(() => new URL(location.href).searchParams.get('list') ?? '', '');
+      track = { id, title, artist, album: mediaMatches ? String(media.album ?? '') : '', artwork, playlistId };
     }
 
     let next = null;
@@ -140,7 +146,266 @@ export function pageAgent(): void {
       volume: call(() => player?.getVolume?.(), 100),
       muted: call(() => player?.isMuted?.(), false) === true,
       signedIn: typeof loggedIn === 'boolean' ? loggedIn : null,
+      accountKey: currentAccountKey(loggedIn === true),
     };
+  }
+
+  /** SHA-256 of the account id, computed asynchronously once per identity. */
+  function currentAccountKey(loggedIn: boolean): string {
+    const identity = loggedIn ? String(call(() => w.ytcfg?.get?.('DATASYNC_ID') || w.ytcfg?.get?.('CHANNEL_ID') || '', '')) : '';
+    if (identity !== accountIdentity) {
+      accountIdentity = identity;
+      accountKey = '';
+      if (identity) {
+        void crypto.subtle.digest('SHA-256', new TextEncoder().encode('music-player-account-v2:' + identity)).then(bytes => {
+          if (accountIdentity !== identity) return;
+          accountKey = [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
+          schedule();
+        });
+      }
+    }
+    return accountKey;
+  }
+
+  // ---------------------------------------------------------------- queue --
+  function queueItems(state: any): any[] {
+    return (state?.items ?? []).map((item: any) => {
+      const row = unwrap(item);
+      return row ? { videoId: row.videoId, title: text(row.title), artist: text(row.shortBylineText) || text(row.longBylineText).split(' • ')[0],
+        artwork: bestThumbnail(row.thumbnail), duration: text(row.lengthText) } : { videoId: '' };
+    });
+  }
+
+  function publishQueue(): void {
+    if (!queueWatching) return;
+    const queue = findQueue();
+    const items = queue ? queueItems(queue.state) : [];
+    const id = call(() => player?.getVideoData?.()?.video_id, '');
+    const match = queue && id ? currentRow(queue.state, id) : null;
+    const value = { items, current: match ? match.index : -1 };
+    const key = JSON.stringify(value);
+    if (key === lastQueueKey) return;
+    lastQueueKey = key;
+    emit({ kind: 'queue', queue: value });
+  }
+
+  // ----------------------------------------------------------- operations --
+  const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+  const musicApp = (): any => document.querySelector('ytmusic-app');
+
+  async function request(route: string, body: unknown): Promise<any> {
+    const manager = musicApp()?.networkManager;
+    if (typeof manager?.fetch !== 'function') throw new Error('YouTube Music n’est pas encore prêt. Réessaie dans un instant.');
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        manager.fetch(route, body),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('YouTube Music met trop de temps à répondre.')), 20000); }),
+      ]);
+    } finally { clearTimeout(timer); }
+  }
+
+  function walk(root: any, visit: (node: any) => void): void {
+    const stack = [root];
+    const seen = new Set<any>();
+    while (stack.length) {
+      const node = stack.pop();
+      if (!node || typeof node !== 'object' || seen.has(node)) continue;
+      seen.add(node);
+      visit(node);
+      // Reverse push: nodes are visited in document order (playlists keep their order).
+      const values = Object.values(node);
+      for (let i = values.length - 1; i >= 0; i--) if (values[i] && typeof values[i] === 'object') stack.push(values[i]);
+    }
+  }
+
+  function tokenIn(root: any): string {
+    let token = '';
+    walk(root, node => {
+      token ||= node.nextContinuationData?.continuation ?? node.continuationEndpoint?.continuationCommand?.token ?? node.continuationCommand?.token ?? '';
+    });
+    return token;
+  }
+
+  function songFrom(renderer: any): any {
+    const columns = renderer.flexColumns ?? [];
+    const titleText = columns[0]?.musicResponsiveListItemFlexColumnRenderer?.text;
+    const videoId = renderer.playlistItemData?.videoId
+      ?? titleText?.runs?.find((run: any) => run.navigationEndpoint?.watchEndpoint?.videoId)?.navigationEndpoint.watchEndpoint.videoId
+      ?? renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+    if (!VIDEO_ID.test(videoId ?? '')) return null;
+    const runs: any[] = columns[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs ?? [];
+    const pageType = (run: any): string => run.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType ?? '';
+    const artists = runs.filter(run => /ARTIST|USER_CHANNEL/.test(pageType(run))).map(run => run.text);
+    const artist = artists.length ? artists.join(', ') : (text({ runs }).split(' • ').find(part => !/^(Song|Video|Titre|Vidéo|Chanson)$/i.test(part)) ?? '');
+    return { videoId, title: text(titleText), artist, artwork: bestThumbnail(renderer.thumbnail?.musicThumbnailRenderer?.thumbnail) };
+  }
+
+  /** Rows of the playlist shelf only (not the "suggestions" shelf of the page). */
+  async function playlistSongs(payload: any): Promise<any> {
+    const data = await request('/browse', payload.continuation ? { continuation: payload.continuation } : { browseId: payload.browseId });
+    const containers: any[] = [];
+    walk(data, node => {
+      if (node.musicPlaylistShelfRenderer) containers.push(node.musicPlaylistShelfRenderer);
+      if (node.musicPlaylistShelfContinuation) containers.push(node.musicPlaylistShelfContinuation);
+      if (payload.continuation && node.musicShelfContinuation) containers.push(node.musicShelfContinuation);
+      if (payload.continuation && node.appendContinuationItemsAction) containers.push({ contents: node.appendContinuationItemsAction.continuationItems });
+    });
+    if (!containers.length) throw new Error('Format de playlist YouTube Music non reconnu.');
+    const items: any[] = [];
+    let continuation = '';
+    for (const container of containers) {
+      for (const row of container.contents ?? []) {
+        if (row.musicResponsiveListItemRenderer) { const song = songFrom(row.musicResponsiveListItemRenderer); if (song) items.push(song); }
+        if (row.continuationItemRenderer) continuation ||= tokenIn(row.continuationItemRenderer);
+      }
+      continuation ||= tokenIn(container.continuations);
+    }
+    return { items, continuation };
+  }
+
+  async function libraryPlaylists(payload: any): Promise<any> {
+    const data = await request('/browse', payload.continuation ? { continuation: payload.continuation } : { browseId: 'FEmusic_liked_playlists' });
+    const items = new Map<string, any>();
+    let continuation = '';
+    walk(data, node => {
+      const r = node.musicTwoRowItemRenderer ?? node.gridPlaylistRenderer;
+      if (r) {
+        const id = r.navigationEndpoint?.browseEndpoint?.browseId
+          ?? r.title?.runs?.find((run: any) => run.navigationEndpoint?.browseEndpoint)?.navigationEndpoint.browseEndpoint.browseId;
+        if (typeof id === 'string' && id.startsWith('VL') && !items.has(id)) {
+          items.set(id, { id, title: text(r.title), subtitle: text(r.subtitle), artwork: bestThumbnail(r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail) });
+        }
+      }
+      if (node.gridRenderer || node.gridContinuation || node.appendContinuationItemsAction) {
+        continuation ||= tokenIn((node.gridRenderer ?? node.gridContinuation)?.continuations ?? node.appendContinuationItemsAction?.continuationItems?.at?.(-1));
+      }
+    });
+    return { items: [...items.values()], continuation };
+  }
+
+  async function search(payload: any): Promise<any> {
+    const query = String(payload.query ?? '').slice(0, 200);
+    let data = await request('/search', { query });
+    // Prefer Music's "Songs" filter; it is absent in some regions/sessions, then "Videos".
+    const chips: any[] = [];
+    walk(data, node => { if (node.chipCloudChipRenderer) chips.push(node.chipCloudChipRenderer); });
+    const chip = ['Songs', 'Titres', 'Videos', 'Vidéos'].map(name => chips.find(c => c.uniqueId === name || text(c.text) === name)).find(Boolean);
+    const params = chip?.navigationEndpoint?.searchEndpoint?.params;
+    if (params) data = await request('/search', { query, params });
+    const items: any[] = [];
+    const seen = new Set<string>();
+    walk(data, node => {
+      const song = node.musicResponsiveListItemRenderer ? songFrom(node.musicResponsiveListItemRenderer) : null;
+      if (song && !seen.has(song.videoId)) { seen.add(song.videoId); items.push(song); }
+    });
+    return { items: items.slice(0, 50), continuation: '' };
+  }
+
+  function navigate(endpoint: any): void {
+    const target = musicApp() ?? document;
+    target.dispatchEvent(new CustomEvent('yt-navigate', { bubbles: true, composed: true, detail: { endpoint } }));
+  }
+
+  function queueContext(): { element: any; store: any; state: any } {
+    const element = document.querySelector('ytmusic-player-queue') as any;
+    const queue = findQueue();
+    if (!element || !queue) throw new Error('La file YouTube Music est indisponible. Lance d’abord un morceau.');
+    return { element, store: queue.store, state: queue.state };
+  }
+
+  function checkedIndex(state: any, index: number, videoId: string): void {
+    if (!Number.isInteger(index) || unwrap(state.items?.[index])?.videoId !== videoId) {
+      throw new Error('La file a changé entre-temps. Réessaie.');
+    }
+  }
+
+  async function waitFor<T>(read: () => T | null | undefined | false, timeout: number, message: string): Promise<T> {
+    const end = Date.now() + timeout;
+    for (;;) {
+      const value = read();
+      if (value) return value;
+      if (Date.now() > end) throw new Error(message);
+      await sleep(100);
+    }
+  }
+
+  const operations: Record<string, (payload: any) => Promise<unknown>> = {
+    'library-playlists': libraryPlaylists,
+    'playlist-songs': playlistSongs,
+    search,
+    play: async payload => {
+      const endpoint: any = {};
+      if (payload.videoId) endpoint.videoId = payload.videoId;
+      if (payload.playlistId) endpoint.playlistId = payload.playlistId;
+      navigate({ watchEndpoint: endpoint });
+      return { ok: true };
+    },
+    'queue-play': async payload => {
+      const { element, state } = queueContext();
+      checkedIndex(state, payload.index, payload.videoId);
+      const rendered = element.querySelectorAll('#contents > *')[payload.index];
+      const item = rendered?.matches?.('ytmusic-player-queue-item') ? rendered : rendered?.querySelector?.('ytmusic-player-queue-item');
+      const button = item?.querySelector('ytmusic-play-button-renderer');
+      if (button && item.querySelector('.song-title')?.textContent?.trim() === text(unwrap(state.items[payload.index])?.title)) button.click();
+      else navigate({ watchEndpoint: { videoId: payload.videoId, playlistId: call(() => player?.getPlaylistId?.(), '') || undefined, index: payload.index } });
+      return { ok: true };
+    },
+    'queue-remove': async payload => {
+      const { element, store, state } = queueContext();
+      checkedIndex(state, payload.index, payload.videoId);
+      if (currentRow(state, call(() => player?.getVideoData?.()?.video_id, ''))?.index === payload.index) throw new Error('Impossible de retirer le morceau en cours.');
+      const removed = state.items[payload.index];
+      element.dispatch({ type: 'REMOVE_ITEM', payload: payload.index });
+      if ((store.getState()?.queue?.items ?? []).includes(removed)) throw new Error('Le retrait n’a pas pu être confirmé.');
+      return { ok: true };
+    },
+    'queue-insert-next': async payload => {
+      const { element, store, state } = queueContext();
+      if (typeof element.dispatch !== 'function') throw new Error('La file YouTube Music est inaccessible.');
+      const id = call(() => player?.getVideoData?.()?.video_id, '');
+      const current = id ? currentRow(state, id) : null;
+      if (!current) throw new Error('Lance d’abord un morceau avant d’utiliser « Lire ensuite ».');
+      const data = await request('/music/get_queue', { queueContextParams: state.queueContextParams, queueInsertPosition: 'INSERT_AFTER_CURRENT_VIDEO', videoIds: [payload.videoId] });
+      const items = (data?.queueDatas ?? []).map((entry: any) => entry.content).filter((item: any) => unwrap(item)?.videoId === payload.videoId).slice(0, 1);
+      if (!items.length) throw new Error('YouTube Music n’a pas renvoyé ce morceau.');
+      const fresh = store.getState().queue;
+      const index = currentRow(fresh, id)?.index ?? current.index;
+      element.dispatch({ type: 'ADD_ITEMS', payload: { nextQueueItemId: fresh.nextQueueItemId, index: index + 1, items, shuffleEnabled: !!fresh.shuffleEnabled, shouldAssignIds: true } });
+      if (unwrap(store.getState().queue?.items?.[index + 1])?.videoId !== payload.videoId) throw new Error('L’ajout n’a pas pu être confirmé. Vérifie la file.');
+      return { ok: true };
+    },
+    resume: async payload => {
+      const currentId = (): string => call(() => player?.getVideoData?.()?.video_id, '');
+      if (currentId() !== payload.videoId) {
+        navigate({ watchEndpoint: payload.playlistId ? { videoId: payload.videoId, playlistId: payload.playlistId } : { videoId: payload.videoId } });
+      }
+      await waitFor(() => { attach(); return currentId() === payload.videoId; }, 15000, 'Le morceau à reprendre n’a pas pu être chargé.');
+      if (payload.position > 1) {
+        await waitFor(() => call(() => player.getDuration(), 0) > 0, 10000, 'La durée du morceau est indisponible.');
+        player.seekTo(Math.min(payload.position, player.getDuration() - 1), true);
+      }
+      player.playVideo?.();
+      return { ok: true };
+    },
+    session: async () => ({
+      accountKey,
+      videoId: call(() => player?.getVideoData?.()?.video_id, ''),
+      playlistId: call(() => String(player?.getPlaylistId?.() ?? ''), ''),
+      position: call(() => player?.getCurrentTime?.(), 0),
+    }),
+  };
+
+  async function runOperation(command: any): Promise<void> {
+    const operation = operations[command.op];
+    try {
+      if (!operation) throw new Error('Opération inconnue.');
+      const value = await operation(command.payload ?? {});
+      emit({ kind: 'op-result', id: command.id, ok: true, value, error: '' });
+    } catch (error) {
+      emit({ kind: 'op-result', id: command.id, ok: false, value: null, error: error instanceof Error ? error.message : String(error) });
+    }
+    schedule();
   }
 
   function publishSnapshot(): void {
@@ -157,6 +422,7 @@ export function pageAgent(): void {
   }
 
   function schedule(): void {
+    if (queueWatching) setTimeout(publishQueue, 0);
     if (scheduled) return;
     scheduled = true;
     // Next task, not microtask: the player updates its data after its events.
@@ -224,6 +490,12 @@ export function pageAgent(): void {
   function run(command: any): void {
     attach();
     switch (command?.type) {
+      case 'op': void runOperation(command); return;
+      case 'queue-watch':
+        queueWatching = command.enabled === true;
+        lastQueueKey = '';
+        if (queueWatching) publishQueue();
+        return;
       case 'toggle-play':
         if (!click('#play-pause-button')) {
           if (call(() => player?.getPlayerState?.(), -1) === 1) player?.pauseVideo?.(); else player?.playVideo?.();

@@ -1,4 +1,5 @@
-import type { UiState } from '../../shared/ipc';
+import { type ResumeState, type UiState, errorMessage } from '../../shared/ipc';
+import { formatTime } from './format';
 import { EMPTY_SNAPSHOT, type PlayerCommand, type PlayerSnapshot } from '../../shared/player';
 import { ProgressBar } from './components/progress';
 import { VolumeControl } from './components/volume';
@@ -16,8 +17,17 @@ const setText = (element: Element, value: string): void => { if (element.textCon
 const send = (command: PlayerCommand): void => api.command(command);
 
 // --- Commands -------------------------------------------------------------
+let resume: ResumeState = { available: false, busy: false, error: '', title: '', artist: '', artwork: '', position: 0 };
+const resumeOffered = (): boolean => resume.available && !snapshot.track;
 for (const button of $$('[data-command]')) {
-  button.addEventListener('click', () => send({ type: button.dataset.command as 'toggle-play' }));
+  button.addEventListener('click', () => {
+    // Nothing loaded yet: Play resumes the last session at its position.
+    if (button.dataset.command === 'toggle-play' && resumeOffered()) {
+      void api.resume().catch(error => showNotice(errorMessage(error)));
+      return;
+    }
+    send({ type: button.dataset.command as 'toggle-play' });
+  });
 }
 for (const button of $$('[data-window]')) {
   button.addEventListener('click', () => api.window(button.dataset.window as 'pin'));
@@ -54,42 +64,56 @@ function renderSnapshot(next: PlayerSnapshot): void {
   const track = next.track;
   if ((track?.id ?? '') !== previousId) progress.reset(track?.id ?? '');
 
-  const title = track?.title || (track ? 'Chargement du morceau…' : next.signedIn === false ? 'Non connecté' : 'Aucun morceau en lecture');
-  const artist = track ? track.artist : next.signedIn === false ? 'Connecte-toi dans le grand lecteur' : 'Lance une playlist dans le grand lecteur';
+  const offered = resumeOffered();
+  const title = track?.title || (track ? 'Chargement du morceau…' : offered ? resume.title || 'Dernière écoute' : next.signedIn === false ? 'Non connecté' : 'Aucun morceau en lecture');
+  const artist = track ? track.artist : offered ? resume.artist : next.signedIn === false ? 'Connecte-toi dans le grand lecteur' : 'Lance une playlist dans le grand lecteur';
   for (const root of [mini, $('#toolbar')]) {
     setText($('.title', root), title);
     setText($('.artist', root), artist);
     $('.title', root).title = track?.title ?? '';
     $('.artist', root).title = track?.artist ?? '';
-    renderCover($<HTMLImageElement>('img.cover', root), track?.artwork ?? '');
+    renderCover($<HTMLImageElement>('img.cover', root), track?.artwork ?? (offered ? resume.artwork : ''));
   }
 
   const playing = next.status === 'playing' || next.status === 'buffering';
   const play = $('.play', mini);
   $('use', play).setAttribute('href', playing ? '#i-pause' : '#i-play');
-  play.setAttribute('aria-label', playing ? 'Mettre en pause' : 'Lire');
-  play.title = playing ? 'Pause' : 'Lecture';
+  play.setAttribute('aria-label', offered ? 'Reprendre la dernière écoute' : playing ? 'Mettre en pause' : 'Lire');
+  play.title = offered ? (resume.busy ? 'Reprise en cours…' : 'Reprendre là où tu t’étais arrêté') : playing ? 'Pause' : 'Lecture';
+  (play as HTMLButtonElement).disabled = offered && resume.busy;
 
   const shuffle = $('.shuffle', mini);
   if (next.shuffle === null) shuffle.removeAttribute('aria-pressed'); else shuffle.setAttribute('aria-pressed', String(next.shuffle));
   shuffle.title = next.shuffle ? 'Aléatoire activé' : 'Aléatoire désactivé';
 
-  setText($('.next-title', mini), next.next?.title ?? (track ? 'Rien à suivre' : ''));
-  setText($('.next-artist', mini), next.next?.artist ?? '');
+  setText($('.upnext .label', mini), offered ? 'REPRISE' : 'À SUIVRE');
+  setText($('.next-title', mini), offered ? (resume.busy ? 'Préparation…' : resume.error || `Reprendre à ${formatTime(resume.position)}`) : next.next?.title ?? (track ? 'Rien à suivre' : ''));
+  setText($('.next-artist', mini), offered ? '' : next.next?.artist ?? '');
   $('.upnext', mini).title = next.next ? `À suivre : ${next.next.title} — ${next.next.artist}` : 'Afficher la file';
 
   volume.update(next);
   renderNotice();
 }
 
+function showNotice(value: string): void {
+  notice = value;
+  renderNotice();
+  window.setTimeout(() => { if (notice === value) { notice = ''; renderNotice(); } }, 6000);
+}
+let online = true;
 function renderNotice(): void {
-  const text = notice || (snapshot.signedIn === false ? 'Connecte-toi à YouTube Music pour retrouver tes playlists.' : '');
+  const text = notice || (!online ? 'Hors ligne — la lecture reprendra au retour du réseau.' : snapshot.signedIn === false ? 'Connecte-toi à YouTube Music pour retrouver tes playlists.' : '');
   setText($('#toolbar .notice'), text);
 }
 
 api.on('player:snapshot', renderSnapshot);
 api.on('player:progress', value => progress.update(value));
-api.on('ui:notice', value => { notice = value; renderNotice(); window.setTimeout(() => { if (notice === value) { notice = ''; renderNotice(); } }, 6000); });
+api.on('ui:notice', showNotice);
+api.on('resume:state', value => { resume = value; renderSnapshot(snapshot); });
+const reportNetwork = (): void => api.network(navigator.onLine);
+window.addEventListener('online', reportNetwork);
+window.addEventListener('offline', reportNetwork);
+reportNetwork();
 
 // --- Window state ---------------------------------------------------------
 
@@ -101,7 +125,9 @@ function renderUi(state: UiState): void {
   body.classList.toggle('seamless', state.mini && state.seamless);
   body.classList.toggle('panel-open', state.panel !== 'none');
   body.dataset.theme = state.theme;
+  body.classList.toggle('skin', state.theme !== 'modern');
   body.classList.toggle('offline', !state.online);
+  if (online !== state.online) { online = state.online; renderNotice(); }
   for (const pin of $$('.pin')) {
     pin.setAttribute('aria-pressed', String(state.pinned));
     pin.title = state.pinned ? 'Désépingler' : 'Épingler au premier plan';

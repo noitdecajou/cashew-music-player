@@ -7,6 +7,17 @@ const api: ShellApi = {
   setTheme: theme => ipcRenderer.invoke('shell:set-theme', theme),
   drag: phase => ipcRenderer.send('shell:drag', phase),
   nudge: (dx, dy) => ipcRenderer.send('shell:nudge', dx, dy),
+  search: (query, scope) => ipcRenderer.invoke('library:search', query, scope),
+  refreshLibrary: () => ipcRenderer.invoke('library:refresh'),
+  favorite: (id, favorite) => ipcRenderer.invoke('library:favorite', id, favorite),
+  play: target => ipcRenderer.invoke('player:play', target),
+  queue: action => ipcRenderer.invoke('player:queue', action),
+  resume: () => ipcRenderer.invoke('player:resume'),
+  settings: () => ipcRenderer.invoke('settings:get'),
+  updateSettings: patch => ipcRenderer.invoke('settings:update', patch),
+  captureShortcut: capturing => ipcRenderer.send('settings:capture-shortcut', capturing),
+  network: online => ipcRenderer.send('shell:network', online),
+  diagnostics: () => ipcRenderer.invoke('app:diagnostics'),
   on: (channel, callback) => {
     if (!SHELL_EVENT_CHANNELS.includes(channel)) return () => undefined;
     const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof callback>[0]): void => callback(value);

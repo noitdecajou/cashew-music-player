@@ -1,12 +1,20 @@
 name: Release
 
-# Push a tag such as v2.0.0 to build the Windows installer and publish it as a
-# GitHub Release; installed apps then offer the update. "Run workflow" builds
-# the installer without publishing (downloadable from the run's artifacts).
+# Publishes the Windows installer as a GitHub Release; installed apps then
+# offer the update. Two ways:
+# - push a tag such as v2.0.0 (must match package.json);
+# - Actions > Release > Run workflow with "Publish" ticked: the tag
+#   v<package.json version> is created on the selected commit.
+# "Run workflow" without "Publish" only builds (installer in the run's artifacts).
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publier la version de package.json (crée l’étiquette v<version>)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -36,16 +44,21 @@ jobs:
       # own publishing raced and created duplicate releases). Versions with a
       # suffix (-beta.N) are prereleases: stable installs never get them.
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.publish
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          tag="v$version"
+          if [ "$GITHUB_REF_TYPE" != "tag" ] && git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "La version $version est déjà publiée : change la version dans package.json."; exit 1
+          fi
           awk -v v="$version" '$0 == "## " v {found=1; next} /^## / && found {exit} found' CHANGELOG.md > notes.md
           [ -s notes.md ] || echo "Music Player $version" > notes.md
           prerelease=""; [[ "$version" == *-* ]] && prerelease="--prerelease"
-          gh release create "$GITHUB_REF_NAME" --verify-tag --title "Music Player $version" --notes-file notes.md $prerelease \
+          target=""; [ "$GITHUB_REF_TYPE" = "tag" ] && target="--verify-tag" || target="--target $GITHUB_SHA"
+          gh release create "$tag" $target --title "Music Player $version" --notes-file notes.md $prerelease \
             "dist/MusicPlayer-Setup-$version.exe" "dist/MusicPlayer-Setup-$version.exe.blockmap" dist/latest.yml
       - uses: actions/upload-artifact@v4
         with:

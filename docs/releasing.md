@@ -16,7 +16,9 @@ runner Windows. Les applications installées trouvent la nouvelle version dans l
 1. Mettre à jour `CHANGELOG.md`.
 2. Changer la version dans `package.json` (par exemple `2.0.0`, ou `2.1.0-beta.1` pour une préversion), puis
    `npm.cmd install --package-lock-only`.
-3. Commit, puis créer et pousser l’étiquette correspondante :
+3. Commit et push sur `main`, puis **au choix** :
+   - sur GitHub : **Actions → Release → Run workflow**, cocher **Publier**, puis **Run workflow** ;
+   - ou en ligne de commande, créer et pousser l’étiquette :
 
    ```powershell
    git commit -am "Version 2.0.0"
@@ -24,7 +26,7 @@ runner Windows. Les applications installées trouvent la nouvelle version dans l
    git push origin main v2.0.0
    ```
 
-4. Le workflow vérifie que l’étiquette correspond à `package.json`, lance les tests, construit
+4. Le workflow vérifie que l’étiquette correspond à `package.json` (et qu’elle n’existe pas déjà), lance les tests, construit
    `MusicPlayer-Setup-2.0.0.exe` et publie la Release, avec la section correspondante de `CHANGELOG.md`
    comme notes. Une version avec suffixe (`-beta.N`) est publiée comme préversion.
 
@@ -33,7 +35,7 @@ Les applications installées en version stable ne proposent que des versions sta
 
 ## Construire sans publier
 
-Actions → Release → **Run workflow** : l’installeur est disponible dans les artefacts de l’exécution.
+Actions → Release → **Run workflow** sans cocher « Publier » : l’installeur est disponible dans les artefacts de l’exécution.
 En local : `npm.cmd run dist:win` (sortie dans `dist/`).
 
 ## Signature

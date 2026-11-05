@@ -22,6 +22,16 @@ saut à un titre, retrait, « Lire ensuite ».
 - Raccourci global, démarrage avec Windows (version installée), démarrage discret.
 - Mesure : mémoire et CPU (Réglages → Mesurer la consommation), comparées à la 1.7.x.
 
+## Distribution
+
+| Élément | État |
+|---|---|
+| Installeur Windows (NSIS) construit par GitHub Actions sur étiquette `v*` | ✅ |
+| Publication dans GitHub Releases + `latest.yml` | ✅ |
+| Mises à jour dans l’application (vérifier, télécharger à la demande, redémarrer) | ✅ |
+| Dépôt public (nécessaire pour télécharger et mettre à jour) | à faire par le propriétaire |
+| Signature de l’installeur (supprime l’avertissement SmartScreen) | plus tard |
+
 ## Idées pour la suite
 
 - Boutons de miniature de la barre des tâches (précédent, lecture, suivant).

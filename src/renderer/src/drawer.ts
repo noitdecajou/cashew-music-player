@@ -1,4 +1,4 @@
-import { type LibraryStatus, type Panel, type PlaylistResult, type SearchScope, type Settings, type SongResult, errorMessage } from '../../shared/ipc';
+import { type LibraryStatus, type Panel, type PlaylistResult, type SearchScope, type Settings, type SongResult, type UpdateState, errorMessage } from '../../shared/ipc';
 import type { QueueState } from '../../shared/player';
 import { MINI_THEMES, type MiniTheme } from '../../shared/themes';
 import { $, $$, coverImage, el, setText } from './dom';
@@ -274,6 +274,41 @@ function setupSettings(notice: (message: string) => void): { open(): void; theme
       setText($('.diagnostics-result'), `Mémoire : ${d.memoryMB} Mo · CPU : ${d.cpu} % · ${d.processes} processus (Electron ${d.electron})`);
     } catch (error) { notice(errorMessage(error)); }
   });
+
+  // Updates
+  const updateStatus = $('.update-status');
+  const updateButton = $<HTMLButtonElement>('#updateAction');
+  const updateBar = $('.update-progress');
+  let updateState: UpdateState | null = null;
+  function renderUpdate(state: UpdateState): void {
+    updateState = state;
+    const texts: Record<UpdateState['status'], string> = {
+      unsupported: `Version ${state.current}. Les mises à jour automatiques fonctionnent dans la version installée.`,
+      idle: `Version ${state.current}.`,
+      checking: 'Recherche d’une mise à jour…',
+      'up-to-date': `Version ${state.current} : à jour.`,
+      available: `La version ${state.version} est disponible (actuelle : ${state.current}).`,
+      downloading: `Téléchargement de la version ${state.version}… ${state.percent} %`,
+      ready: `La version ${state.version} est prête. Le lecteur redémarre pour l’installer (quelques secondes).`,
+      error: state.error,
+    };
+    setText(updateStatus, texts[state.status]);
+    const actions: Partial<Record<UpdateState['status'], string>> = {
+      idle: 'Rechercher', 'up-to-date': 'Rechercher', error: 'Réessayer', available: 'Télécharger et installer', ready: 'Redémarrer et installer',
+    };
+    const label = actions[state.status];
+    updateButton.hidden = !label;
+    if (label) setText(updateButton, label);
+    updateButton.classList.toggle('primary', state.status === 'available' || state.status === 'ready');
+    updateBar.hidden = state.status !== 'downloading';
+    ($('.fill', updateBar) as HTMLElement).style.width = `${state.percent}%`;
+  }
+  updateButton.addEventListener('click', async () => {
+    const action = updateState?.status === 'available' ? 'download' : updateState?.status === 'ready' ? 'install' : 'check';
+    updateButton.disabled = true;
+    try { renderUpdate(await api.update(action)); } catch (error) { notice(errorMessage(error)); } finally { updateButton.disabled = false; }
+  });
+  api.on('update:state', renderUpdate);
 
   return {
     open: () => { void api.settings().then(render).catch(error => notice(errorMessage(error))); },

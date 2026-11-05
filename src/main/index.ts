@@ -8,6 +8,7 @@ import { Library } from './services/library';
 import { PreferenceStore } from './services/preferences';
 import { ResumeStore, type SavedSession, resumeState } from './services/resume';
 import { GlobalShortcut } from './services/shortcut';
+import { Updater, fakeEngine } from './services/updater';
 import { setStartup, startupState } from './services/startup';
 import { createTray } from './tray';
 import { MainWindow } from './window/main-window';
@@ -48,6 +49,7 @@ function main(): void {
         drawer.send('ui:state', window.state);
         drawer.send('player:snapshot', snapshot);
         drawer.send('library:status', library.currentStatus);
+        drawer.send('update:state', updater.state);
       });
     });
     const shell = window.win.webContents;
@@ -254,6 +256,25 @@ function main(): void {
       };
     });
 
+    // --- Updates (GitHub Releases) -------------------------------------------
+    let updater: Updater;
+    {
+      // Real updates only for the installed app; tests may inject a fake.
+      const engine = app.isPackaged ? (require('electron-updater') as typeof import('electron-updater')).autoUpdater
+        : process.env.MP_FAKE_UPDATER ? fakeEngine() : null;
+      updater = new Updater(engine, app.getVersion(), state => {
+        send('update:state', state);
+        if (state.status === 'available') notice(`Mise à jour ${state.version} disponible : Réglages → Mises à jour.`);
+        tray.setUpdate(state);
+      }, () => { quitting = true; quitReady = true; window.saveBounds(); prefs.flush(); });
+    }
+    handle('app:update', async action => {
+      if (action === 'check') return updater.check(true);
+      if (action === 'download') return updater.download();
+      if (action === 'install') { updater.install(); return updater.state; }
+      throw new Error('Action invalide');
+    });
+
     // --- Network: retry when YouTube Music cannot load --------------------
     let loadedOnce = false;
     let retryCount = 0;
@@ -278,12 +299,14 @@ function main(): void {
       toggleMini: () => { window.setMini(!window.state.mini); window.show(); },
       command: type => ytm.send({ type }),
       quit: () => app.quit(),
+      update: () => { window.setMini(false); window.show(); window.setPanel('settings'); },
     });
 
     shell.on('did-finish-load', () => {
       send('ui:state', window.state);
       send('player:snapshot', snapshot);
       send('library:status', library.currentStatus);
+      send('update:state', updater.state);
       publishResume();
     });
 
@@ -309,7 +332,8 @@ function main(): void {
         : Promise.resolve();
       void capture.then(() => pendingWrites()).finally(() => { quitReady = true; app.quit(); });
     });
-    app.on('will-quit', () => { shortcut.dispose(); tray.destroy(); ytm.dispose(); });
+    app.on('will-quit', () => { updater.dispose(); shortcut.dispose(); tray.destroy(); ytm.dispose(); });
+    updater.start();
 
     window.win.once('ready-to-show', () => {
       const quiet = process.argv.includes('--startup') && prefs.value.quietStartup;

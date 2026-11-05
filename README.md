@@ -3,12 +3,23 @@
 Lecteur desktop **Windows** pour YouTube Music, avec un mini-player à 5 apparences.
 Réécriture complète de la 1.7.x (Electron + TypeScript).
 
-> **Statut : bêta (2.0.0-beta.1).** Toutes les fonctions sont en place :
-> mini-player à 5 apparences (volume et progression glissable), panneaux en surimpression
-> (recherche dans ses playlists, ses playlists et tout YouTube Music ; file interactive ; réglages),
-> reprise de la dernière écoute, raccourci global, démarrage avec Windows, plein écran vidéo, hors ligne.
+> **Statut : bêta.** Mini-player à 5 apparences (volume, progression glissable), recherche dans ses playlists
+> et dans tout YouTube Music, file interactive, reprise de la dernière écoute, raccourci global,
+> démarrage avec Windows, plein écran vidéo, mises à jour automatiques.
 
-## Lancer depuis les sources (Windows)
+## Installer (Windows 10/11, 64 bits)
+
+1. Ouvrir la page [**Releases**](https://github.com/noitdecajou/cashew-music-player/releases/latest) et télécharger
+   `MusicPlayer-Setup-<version>.exe`.
+2. Lancer l’installeur. L’application n’étant pas signée, Windows SmartScreen peut afficher « Windows a protégé
+   votre ordinateur » : cliquer sur **Informations complémentaires** puis **Exécuter quand même**.
+3. Se connecter à YouTube Music dans le grand lecteur.
+
+**Mises à jour :** l’application vérifie au démarrage puis toutes les 6 heures. Quand une version est disponible,
+un message l’annonce ; **Réglages → Mises à jour → Télécharger et installer**, puis **Redémarrer et installer**.
+Rien n’est téléchargé sans ton accord.
+
+## Développer (depuis les sources)
 
 Quitter d’abord la 1.x (icône de notification → Quitter). Dans le dossier du projet :
 
@@ -28,10 +39,12 @@ La 2.x réutilise la session de connexion (`persist:music`), l’identifiant Win
 | `npm.cmd test` | Tests unitaires (Vitest) |
 | `npm.cmd run test:e2e` | Tests de bout en bout dans un vrai Electron, contre une fausse page YouTube Music |
 | `npm.cmd run typecheck` | Vérification TypeScript |
-| `npm.cmd run dist:win` / `dist:portable` | Installeur NSIS / exécutable portable |
+| `npm.cmd run dist:win` | Installeur NSIS local, sans publication (`dist/`) |
 
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) : processus, flux de données, sécurité.
 - [docs/ytm-bridge.md](docs/ytm-bridge.md) : ce qu’on utilise de YouTube Music, vérifié sur le vrai site.
 - [docs/roadmap.md](docs/roadmap.md) : étapes et suivi.
+- [docs/releasing.md](docs/releasing.md) : publier une version.
+- [CHANGELOG.md](CHANGELOG.md) : historique des versions.

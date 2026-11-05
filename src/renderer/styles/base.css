@@ -123,3 +123,11 @@ kbd { font: 10px 'Segoe UI', sans-serif; color: var(--muted); border: 1px solid 
 .theme-modern .swatch { background: linear-gradient(135deg, #20222c, #111218); box-shadow: inset 0 -6px #c9b9ff; }
 .theme-autoradio .swatch, .theme-autoradio-hf .swatch { background: linear-gradient(#262c33, #0b0e11); box-shadow: inset 0 0 0 1px #4aa3ff66, inset 30px 0 0 -14px #4aa3ff; }
 .theme-hifi .swatch, .theme-hifi-hf .swatch { background: repeating-linear-gradient(0deg, #ffffff07 0 1px, transparent 1px 3px), linear-gradient(#6b6253, #3a352d); box-shadow: inset 0 -6px #f0a64a; }
+
+.update-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.update-row .update-status { flex: 1; }
+#panel button.primary { background: #e9e3ff; color: var(--accent-ink); font-weight: 600; }
+#panel button[hidden] { display: none; }
+.update-progress { height: 4px; border-radius: 2px; background: #3a3d49; overflow: hidden; }
+.update-progress[hidden] { display: none; }
+.update-progress .fill { height: 100%; width: 0; background: var(--accent); transition: width .2s; }

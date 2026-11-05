@@ -18,6 +18,7 @@ const api: ShellApi = {
   captureShortcut: capturing => ipcRenderer.send('settings:capture-shortcut', capturing),
   network: online => ipcRenderer.send('shell:network', online),
   diagnostics: () => ipcRenderer.invoke('app:diagnostics'),
+  update: action => ipcRenderer.invoke('app:update', action),
   on: (channel, callback) => {
     if (!SHELL_EVENT_CHANNELS.includes(channel)) return () => undefined;
     const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof callback>[0]): void => callback(value);

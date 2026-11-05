@@ -8,14 +8,24 @@ files:
   - resources/**
   - package.json
 win:
-  target: nsis
+  target:
+    - target: nsis
+      arch: [x64]
   icon: build/icon.ico
 nsis:
   oneClick: false
+  perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Music Player
   artifactName: MusicPlayer-Setup-${version}.exe
+  deleteAppDataOnUninstall: false
 portable:
   artifactName: MusicPlayer-Portable-${version}.exe
+# Releases and automatic updates come from GitHub Releases of this repository.
+publish:
+  provider: github
+  owner: noitdecajou
+  repo: cashew-music-player
+  releaseType: release

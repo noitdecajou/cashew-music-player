@@ -93,7 +93,22 @@ function renderSnapshot(next: PlayerSnapshot): void {
 
   volume.update(next);
   renderNotice();
+  updateMarquee();
 }
+
+/** Dot-matrix screens: a title too long for the display scrolls back and forth. */
+function updateMarquee(): void {
+  const title = $('.title', mini);
+  title.classList.remove('marquee');
+  title.style.removeProperty('--marquee-distance');
+  if (!document.body.classList.contains('mini') || !/^autoradio/.test(document.body.dataset.theme ?? '')) return;
+  const overflow = title.scrollWidth - title.clientWidth;
+  if (overflow <= 2) return;
+  title.style.setProperty('--marquee-distance', `${overflow + 8}px`);
+  title.style.setProperty('--marquee-duration', `${Math.max(6, overflow / 18 + 4)}s`);
+  title.classList.add('marquee');
+}
+document.fonts?.ready.then(updateMarquee).catch(() => undefined);
 
 function showNotice(value: string): void {
   notice = value;
@@ -128,9 +143,12 @@ function renderUi(state: UiState): void {
   body.classList.toggle('skin', state.theme !== 'modern');
   body.classList.toggle('offline', !state.online);
   if (online !== state.online) { online = state.online; renderNotice(); }
+  requestAnimationFrame(updateMarquee);
   for (const pin of $$('.pin')) {
     pin.setAttribute('aria-pressed', String(state.pinned));
     pin.title = state.pinned ? 'Désépingler' : 'Épingler au premier plan';
+    pin.setAttribute('aria-label', pin.title);
+    pin.querySelector('use')?.setAttribute('href', state.pinned ? '#i-pin-on' : '#i-pin');
   }
   for (const toggle of $$('.titlebar-toggle')) {
     toggle.setAttribute('aria-pressed', String(state.seamless));

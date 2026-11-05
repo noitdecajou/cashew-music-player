@@ -46,6 +46,14 @@ export type SettingsPatch = Partial<{ startup: boolean; quietStartup: boolean; s
 
 export interface Diagnostics { version: string; electron: string; memoryMB: number; cpu: number; processes: number; userData: string }
 
+export interface UpdateState {
+  status: 'unsupported' | 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'ready' | 'error';
+  current: string;
+  version: string; // available / downloaded version
+  percent: number;
+  error: string;
+}
+
 export type QueueAction = { action: 'play' | 'remove'; index: number; videoId: string } | { action: 'insert-next'; videoId: string };
 
 /** main -> renderer pages */
@@ -57,6 +65,7 @@ export interface ShellEvents {
   'library:status': LibraryStatus;
   'queue:state': QueueState;
   'resume:state': ResumeState;
+  'update:state': UpdateState;
 }
 
 /** The API exposed to our renderer pages as window.player. */
@@ -77,11 +86,12 @@ export interface ShellApi {
   captureShortcut(capturing: boolean): void;
   network(online: boolean): void;
   diagnostics(): Promise<Diagnostics>;
+  update(action: 'check' | 'download' | 'install'): Promise<UpdateState>;
   on<K extends keyof ShellEvents>(channel: K, listener: (value: ShellEvents[K]) => void): () => void;
 }
 
 export const SHELL_EVENT_CHANNELS: readonly (keyof ShellEvents)[] = [
-  'player:snapshot', 'player:progress', 'ui:state', 'ui:notice', 'library:status', 'queue:state', 'resume:state',
+  'player:snapshot', 'player:progress', 'ui:state', 'ui:notice', 'library:status', 'queue:state', 'resume:state', 'update:state',
 ];
 
 /** Errors thrown in main arrive prefixed by Electron: keep only our message. */

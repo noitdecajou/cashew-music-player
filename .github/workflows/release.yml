@@ -1,0 +1,43 @@
+name: Release
+
+# Push a tag such as v2.0.0 to build the Windows installer and publish it as a
+# GitHub Release; installed apps then offer the update. "Run workflow" builds
+# the installer without publishing (downloadable from the run's artifacts).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tag must match package.json
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then echo "Tag $GITHUB_REF_NAME != $version"; exit 1; fi
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx electron-vite build
+      - name: Build installer (and publish on tags)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicPlayer-Setup
+          path: |
+            dist/*.exe
+            dist/latest.yml
+          if-no-files-found: error

@@ -38,8 +38,11 @@
 
 ## Fenêtre
 
-- Grand lecteur : barre de titre (30 px) + barre d’outils (52 px) ; YouTube Music en dessous ;
-  les panneaux s’ouvrent à droite (380 px) sans quitter le grand lecteur.
+- Grand lecteur : barre de titre (30 px) + barre d’outils (52 px) ; YouTube Music en dessous.
+- Panneaux (recherche, file, réglages) : une page du renderer (`?view=drawer`) dans sa propre vue native,
+  empilée au-dessus de YouTube Music. En grand lecteur, elle recouvre les 380 px de droite sans
+  redimensionner YouTube Music et se ferme quand on revient dans YouTube Music ; en mini, elle occupe
+  l’espace sous la carte (hauteur totale 450).
 - Mini : taille de contenu fixée par le thème (`src/shared/themes.ts`), + 30 px si la barre de titre
   est visible ; panneau ouvert = hauteur totale 450. La vue YouTube Music est détachée et continue de jouer.
 - Déplacement du mini sans barre : poignée, pochette ou titre (capture du pointeur, positions écran du

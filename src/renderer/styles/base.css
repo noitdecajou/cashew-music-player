@@ -42,10 +42,13 @@ body.seamless #titlebar { display: none; }
 #toolbar button.primary { background: #e9e3ff; color: var(--accent-ink); font-weight: 600; }
 .pin[aria-pressed="true"] { color: var(--accent); }
 
-/* Panels -------------------------------------------------------------------*/
-#panel { background: var(--surface); padding: 12px; }
-body.large #panel { position: fixed; right: 0; top: calc(var(--titlebar) + var(--toolbar)); bottom: 0; width: var(--side-panel); border-left: 1px solid var(--line); }
-body.mini #panel { height: calc(100vh - var(--titlebar) - var(--mini-height)); border-top: 1px solid var(--line); }
+/* Panels: rendered by the drawer page, a native view stacked over the player --*/
+#panel[hidden] { display: none; }
+body.drawer-view { padding-top: 0; background: var(--surface); }
+body.drawer-view > :not(#panel) { display: none !important; }
+body.drawer-view #panel { position: fixed; inset: 0; padding: 12px 14px; overflow: auto; }
+body.drawer-view.large #panel { border-left: 1px solid var(--line); box-shadow: inset 6px 0 10px -8px #000; }
+body.drawer-view.mini #panel { border-top: 1px solid var(--line); }
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .panel-head button { width: 28px; height: 28px; }
 .panel-body { color: var(--muted); }

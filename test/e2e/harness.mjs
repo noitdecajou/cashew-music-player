@@ -21,7 +21,7 @@ export async function launch() {
     ipcMain.on('ytm:message', (_event, message) => globalThis.__agentLog.push(message));
   });
   // WebContentsViews are listed as windows too: pick our shell explicitly.
-  const isShell = page => page.url().includes('/renderer/index.html');
+  const isShell = page => page.url().includes('/renderer/index.html') && !page.url().includes('view=drawer');
   const shell = app.windows().find(isShell) ?? await app.waitForEvent('window', { predicate: isShell });
   await shell.waitForSelector('body:not(.booting)');
   const ytm = async (code) => app.evaluate(async ({ webContents }, source) => {
@@ -36,10 +36,12 @@ export async function launch() {
     while (Date.now() < end) { last = await fn(); if (last) return last; await new Promise(r => setTimeout(r, 50)); }
     throw new Error(`timeout waiting for ${message} (last: ${JSON.stringify(last)})`);
   };
+  const viewBounds = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].contentView.children.map(v => ({ url: v.webContents.getURL(), bounds: v.getBounds() })));
+  const drawer = async () => app.windows().find(page => page.url().includes('view=drawer')) ?? app.waitForEvent('window', { predicate: page => page.url().includes('view=drawer') });
   const close = async () => { await app.close().catch(() => {}); rmSync(userData, { recursive: true, force: true }); };
   // Wait for the agent to be up in the fixture page.
   await until(async () => {
     try { return await ytm('window.__musicPlayerAgentInstalled === true'); } catch { return false; }
   }, { timeout: 15000, message: 'agent installed' });
-  return { app, shell, ytm, log, contentSize, until, close };
+  return { app, shell, ytm, log, contentSize, viewBounds, drawer, until, close };
 }

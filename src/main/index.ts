@@ -28,15 +28,27 @@ function main(): void {
 
     const prefs = new PreferenceStore(app.getPath('userData'));
     const ytm = new YtmView(host => send('ui:notice', `Navigation bloquée : ${host}`));
-    const window = new MainWindow(prefs, ytm);
-    const shell = window.win.webContents;
     let snapshot: PlayerSnapshot = EMPTY_SNAPSHOT;
+    const loadRenderer = (contents: Electron.WebContents, view?: 'drawer'): void => {
+      const search = view ? `view=${view}` : '';
+      if (process.env.ELECTRON_RENDERER_URL && !app.isPackaged) void contents.loadURL(process.env.ELECTRON_RENDERER_URL + (search ? `?${search}` : ''));
+      else void contents.loadFile(join(__dirname, '../renderer/index.html'), { search });
+    };
+    const window = new MainWindow(prefs, ytm, loadRenderer, drawer => {
+      drawer.on('did-finish-load', () => {
+        drawer.send('ui:state', window.state);
+        drawer.send('player:snapshot', snapshot);
+      });
+    });
+    const shell = window.win.webContents;
 
+    /** Our own UI: the window shell and the drawer view. */
+    const uiContents = (): Electron.WebContents[] => [shell, window.drawerContents].filter((c): c is Electron.WebContents => !!c && !c.isDestroyed());
     function send(channel: string, value: unknown): void {
-      if (!shell.isDestroyed()) shell.send(channel, value);
+      for (const contents of uiContents()) contents.send(channel, value);
     }
     const fromShell = (event: IpcMainEvent | IpcMainInvokeEvent): boolean =>
-      event.sender === shell && event.senderFrame === shell.mainFrame;
+      uiContents().some(contents => event.sender === contents && event.senderFrame === contents.mainFrame);
 
     // The page streams its clock only while someone can see it.
     let streaming: boolean | null = null;
@@ -109,8 +121,7 @@ function main(): void {
       if (!quiet) window.show();
     });
 
-    if (process.env.ELECTRON_RENDERER_URL && !app.isPackaged) void window.win.loadURL(process.env.ELECTRON_RENDERER_URL);
-    else void window.win.loadFile(join(__dirname, '../renderer/index.html'));
+    loadRenderer(shell);
     ytm.load();
   });
 

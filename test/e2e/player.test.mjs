@@ -66,12 +66,14 @@ test('dragging the progress bar seeks once, on release, to the released position
   assert.ok(Math.abs(seeks[0][1] - 120) < 4, `seek near 120 s, got ${seeks[0][1]}`);
 });
 
-test('volume: wheel and slider set the volume without resizing the mini player', async () => {
+test('volume: the speaker opens and closes the panel; mute is a separate button; size unchanged', async () => {
   const size = await h.contentSize();
+  const isOpen = () => h.shell.isVisible('#mini .volume-panel');
   await h.shell.hover('#mini .volume-button');
   await h.shell.mouse.wheel(0, -100); // up: +5
   await h.until(async () => (await h.ytm('__fake.calls')).some(c => c[0] === 'setVolume' && c[1] === 75), { message: 'wheel +5' });
-  assert.ok(await h.shell.isVisible('#mini .slider.volume'), 'slider replaces the up-next area');
+  assert.ok(await isOpen(), 'panel replaces the up-next area');
+  assert.equal(await h.shell.textContent('#mini .volume-value'), '75');
   const box = await h.shell.locator('#mini .slider.volume').boundingBox();
   await h.shell.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
   await h.shell.mouse.down();
@@ -80,9 +82,21 @@ test('volume: wheel and slider set the volume without resizing the mini player',
   await h.until(async () => {
     const last = (await h.ytm('__fake.calls')).filter(c => c[0] === 'setVolume').at(-1);
     return last && Math.abs(last[1] - 30) <= 2;
-  }, { message: 'slider ~30' }).catch(async e => { throw new Error(e.message + ' calls=' + JSON.stringify((await h.ytm('__fake.calls')).filter(c => c[0] === 'setVolume'))); });
-  await h.shell.click('#mini .volume-button'); // open: click toggles mute
-  await h.until(async () => (await h.shell.getAttribute('#mini .volume-button', 'data-level')) === '0', { message: 'muted icon' });
+  }, { message: 'slider ~30' });
+  await h.shell.click('#mini .volume-mute');
+  await h.until(async () => (await h.shell.getAttribute('#mini .volume-mute', 'aria-pressed')) === 'true', { message: 'muted' });
+  assert.ok(await isOpen(), 'muting keeps the panel open');
+  await h.shell.click('#mini .volume-button');
+  await h.until(async () => !(await isOpen()), { message: 'speaker closes the panel' });
+  assert.ok(await h.shell.isVisible('#mini .upnext'), 'up next is visible again');
+  assert.equal((await h.ytm('__fake.calls')).filter(c => c[0] === 'mute').length, 1, 'closing does not mute');
+  await h.shell.click('#mini .volume-button');
+  await h.until(isOpen, { message: 'reopened' });
+  await h.shell.click('#mini .title');
+  await h.until(async () => !(await isOpen()), { message: 'click elsewhere closes' });
+  await h.shell.click('#mini .volume-button');
+  await h.shell.click('#mini .volume-mute'); // unmute for the next tests
+  await h.shell.keyboard.press('Escape');
   assert.deepEqual(await h.contentSize(), size);
 });
 
@@ -94,7 +108,11 @@ test('mini sizes: theme size plus the 30 px title bar, which can be hidden', asy
   await h.until(async () => JSON.stringify(await h.contentSize()) === '[720,192]', { message: 'HF 720x192' });
   await h.shell.click('#mini [data-window="toggle-search"]');
   await h.until(async () => JSON.stringify(await h.contentSize()) === '[720,450]', { message: 'panel 450' });
-  await h.shell.keyboard.press('Escape');
+  const drawerView = await h.until(async () => (await h.viewBounds()).find(v => v.url.includes('view=drawer')), { message: 'drawer view' });
+  assert.deepEqual(drawerView.bounds, { x: 0, y: 192, width: 720, height: 258 }, 'drawer below the card');
+  const drawer = await h.drawer();
+  await drawer.waitForSelector('body:not(.booting)');
+  await drawer.keyboard.press('Escape');
   await h.until(async () => JSON.stringify(await h.contentSize()) === '[720,192]', { message: 'panel closed' });
 });
 
@@ -111,4 +129,24 @@ test('the page cannot spoof the shell, and invalid commands are dropped', async 
   // The YouTube Music page has no access to the shell API.
   assert.equal(await h.ytm('typeof window.player'), 'undefined');
   assert.equal(await h.ytm('typeof require'), 'undefined');
+});
+
+test('large mode: the drawer overlaps YouTube Music without resizing it', async () => {
+  await h.shell.evaluate(() => window.player.window('toggle-mini'));
+  await h.shell.waitForSelector('body.large');
+  const ytmBounds = async () => (await h.viewBounds()).find(v => v.url.startsWith('https://music.youtube.com')).bounds;
+  const before = await ytmBounds();
+  await h.shell.click('#toolbar [data-window="toggle-settings"]');
+  await h.until(async () => (await h.viewBounds()).some(v => v.url.includes('view=drawer')), { message: 'drawer attached' });
+  assert.deepEqual(await ytmBounds(), before, 'YouTube Music keeps its size');
+  const views = await h.viewBounds();
+  const drawer = views.find(v => v.url.includes('view=drawer'));
+  assert.ok(views.indexOf(drawer) > views.findIndex(v => v.url.startsWith('https://music.youtube.com')), 'drawer stacked on top');
+  assert.equal(drawer.bounds.width, 380);
+  assert.equal(drawer.bounds.x + drawer.bounds.width, before.width, 'anchored to the right edge');
+  const page = await h.drawer();
+  assert.equal(await page.textContent('.panel-title'), 'Réglages');
+  // Clicking back into YouTube Music closes the overlay.
+  await h.app.evaluate(({ webContents }) => webContents.getAllWebContents().find(w => w.getURL().startsWith('https://music.youtube.com')).focus());
+  await h.until(async () => !(await h.viewBounds()).some(v => v.url.includes('view=drawer')), { message: 'drawer closed on focus' });
 });

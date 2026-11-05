@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, WebContentsView, screen } from 'electron';
 import type { Panel, UiState, WindowAction } from '../../shared/ipc';
 import { LARGE_TOOLBAR_HEIGHT, type MiniTheme, TITLE_BAR_HEIGHT, miniContentSize } from '../../shared/themes';
 import type { PreferenceStore, Rect } from '../services/preferences';
@@ -27,7 +27,17 @@ export class MainWindow {
   private saveTimer: NodeJS.Timeout | null = null;
   private readonly listeners = new Set<(state: UiState) => void>();
 
-  constructor(private readonly prefs: PreferenceStore, private readonly ytm: YtmView) {
+  /** Panels (search, queue, settings) live in their own native view so they can
+   *  overlap the YouTube Music view instead of resizing it. Created on first use. */
+  private drawer: WebContentsView | null = null;
+  private drawerAttached = false;
+
+  constructor(
+    private readonly prefs: PreferenceStore,
+    private readonly ytm: YtmView,
+    private readonly loadRenderer: (contents: Electron.WebContents, view?: 'drawer') => void,
+    private readonly onDrawerCreated: (contents: Electron.WebContents) => void,
+  ) {
     const p = prefs.value;
     this.ui = { mini: p.mini, theme: p.theme, panel: 'none', pinned: p.pinned, seamless: p.seamless, maximized: false, online: true };
     this.win = new BrowserWindow({
@@ -45,7 +55,10 @@ export class MainWindow {
     this.win.on('blur', () => { this.drag = null; });
     screen.on('display-removed', this.refit);
     screen.on('display-metrics-changed', this.refit);
+    // Large mode: the drawer is an overlay; going back to YouTube Music closes it.
+    this.ytm.view.webContents.on('focus', () => { if (!this.ui.mini && this.ui.panel !== 'none') this.setPanel('none'); });
     this.win.on('closed', () => {
+      if (this.drawer && !this.drawer.webContents.isDestroyed()) this.drawer.webContents.close();
       screen.removeListener('display-removed', this.refit);
       screen.removeListener('display-metrics-changed', this.refit);
     });
@@ -102,19 +115,52 @@ export class MainWindow {
   }
   private readonly refit = (): void => { if (this.ui.mini) this.applyMode(); };
 
-  /** Places (or detaches) the YouTube Music view. */
+  get drawerContents(): Electron.WebContents | null {
+    return this.drawer && !this.drawer.webContents.isDestroyed() ? this.drawer.webContents : null;
+  }
+
+  private ensureDrawer(): WebContentsView {
+    if (this.drawer) return this.drawer;
+    this.drawer = new WebContentsView({
+      webPreferences: { preload: join(__dirname, '../preload/shell.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false },
+    });
+    this.drawer.setBackgroundColor('#1a1c24');
+    this.onDrawerCreated(this.drawer.webContents);
+    this.loadRenderer(this.drawer.webContents, 'drawer');
+    return this.drawer;
+  }
+
+  /** Places (or detaches) the YouTube Music view and the drawer above it. */
   layout(): void {
     if (this.win.isDestroyed()) return;
     const view = this.ytm.view;
+    const [width = 0, height = 0] = this.win.getContentSize();
     if (this.ui.mini) {
       if (this.attached) { this.win.contentView.removeChildView(view); this.attached = false; }
+    } else {
+      if (!this.attached) {
+        this.win.contentView.addChildView(view);
+        this.attached = true;
+        // Keep the drawer on top of the YouTube Music view.
+        if (this.drawer && this.drawerAttached) this.win.contentView.addChildView(this.drawer);
+      }
+      const top = TITLE_BAR_HEIGHT + LARGE_TOOLBAR_HEIGHT;
+      view.setBounds({ x: 0, y: top, width: Math.max(1, width), height: Math.max(1, height - top) });
+    }
+
+    if (this.ui.panel === 'none') {
+      if (this.drawer && this.drawerAttached) { this.win.contentView.removeChildView(this.drawer); this.drawerAttached = false; }
       return;
     }
-    if (!this.attached) { this.win.contentView.addChildView(view); this.attached = true; }
-    const [width = 0, height = 0] = this.win.getContentSize();
-    const top = TITLE_BAR_HEIGHT + LARGE_TOOLBAR_HEIGHT;
-    const side = this.ui.panel === 'none' ? 0 : SIDE_PANEL_WIDTH;
-    view.setBounds({ x: 0, y: top, width: Math.max(1, width - side), height: Math.max(1, height - top) });
+    const drawer = this.ensureDrawer();
+    if (!this.drawerAttached) { this.win.contentView.addChildView(drawer); this.drawerAttached = true; }
+    if (this.ui.mini) {
+      const top = this.titleBarHeight() + miniContentSize(this.ui.theme, false).height;
+      drawer.setBounds({ x: 0, y: top, width: Math.max(1, width), height: Math.max(1, height - top) });
+    } else {
+      const top = TITLE_BAR_HEIGHT + LARGE_TOOLBAR_HEIGHT;
+      drawer.setBounds({ x: Math.max(0, width - SIDE_PANEL_WIDTH), y: top, width: Math.min(width, SIDE_PANEL_WIDTH), height: Math.max(1, height - top) });
+    }
   }
 
   private scheduleSave(): void {

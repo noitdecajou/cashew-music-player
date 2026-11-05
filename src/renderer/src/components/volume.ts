@@ -1,12 +1,22 @@
 import type { PlayerCommand, PlayerSnapshot } from '../../../shared/player';
 import { Slider } from './slider';
 
-const CLOSE_AFTER_MS = 3500;
+const CLOSE_AFTER_MS = 4000;
+
+export interface VolumeElements {
+  host: HTMLElement; // gets .volume-open
+  button: HTMLButtonElement; // opens / closes
+  mute: HTMLButtonElement; // mute toggle inside the panel
+  track: HTMLElement; // slider
+  value: HTMLElement; // "42"
+}
 
 /**
- * Volume without growing the mini player: the button opens a slider that
- * temporarily covers the "up next" area. Wheel over the button or slider
- * changes the volume by 5; clicking the button while open toggles mute.
+ * Volume without growing the mini player: the speaker button opens a panel
+ * (slider, value, mute) that temporarily covers the "up next" area.
+ * The speaker button closes it again, as do Escape, a click elsewhere, and
+ * a few seconds without interaction. The wheel over the speaker or the panel
+ * changes the volume by 5.
  */
 export class VolumeControl {
   private readonly slider: Slider;
@@ -17,26 +27,20 @@ export class VolumeControl {
   private lastSent = 0;
   private sendTimer: number | undefined;
 
-  constructor(
-    private readonly host: HTMLElement, // element that gets .volume-open
-    private readonly button: HTMLButtonElement,
-    private readonly track: HTMLElement,
-    private readonly send: (command: PlayerCommand) => void,
-  ) {
+  constructor(private readonly el: VolumeElements, private readonly send: (command: PlayerCommand) => void) {
     this.slider = new Slider({
-      element: track,
-      fill: track.querySelector('.fill') as HTMLElement,
-      thumb: track.querySelector('.thumb') as HTMLElement,
+      element: el.track,
+      fill: el.track.querySelector('.fill') as HTMLElement,
+      thumb: el.track.querySelector('.thumb') as HTMLElement,
       step: () => 0.05,
       live: true,
       commit: ratio => this.setVolume(Math.round(ratio * 100)),
     });
-    button.addEventListener('click', () => {
-      if (!this.open) this.show();
-      else this.send({ type: 'mute', muted: !this.muted });
-      this.armClose();
-    });
-    for (const element of [button, track]) {
+    const panel = el.track.parentElement as HTMLElement;
+
+    el.button.addEventListener('click', () => { if (this.open) this.hide(); else this.show(); });
+    el.mute.addEventListener('click', () => { this.send({ type: 'mute', muted: !this.muted }); this.armClose(); });
+    for (const element of [el.button, panel]) {
       element.addEventListener('wheel', event => {
         event.preventDefault();
         if (!this.open) this.show();
@@ -45,8 +49,17 @@ export class VolumeControl {
         this.armClose();
       }, { passive: false });
     }
-    track.addEventListener('pointerdown', () => this.armClose());
-    track.addEventListener('keydown', event => { if (event.key === 'Escape') this.hide(); else this.armClose(); });
+    panel.addEventListener('pointerdown', () => this.armClose());
+    panel.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.stopPropagation(); this.hide(); el.button.focus(); } else this.armClose();
+    });
+    // A click anywhere else closes the panel.
+    document.addEventListener('pointerdown', event => {
+      if (!this.open) return;
+      const target = event.target as Node;
+      if (!panel.contains(target) && !el.button.contains(target)) this.hide();
+    }, true);
+    window.addEventListener('blur', () => this.hide());
   }
 
   private setVolume(volume: number): void {
@@ -61,22 +74,25 @@ export class VolumeControl {
 
   private show(): void {
     this.open = true;
-    this.host.classList.add('volume-open');
-    this.button.setAttribute('aria-expanded', 'true');
+    this.el.host.classList.add('volume-open');
+    this.el.button.setAttribute('aria-expanded', 'true');
     this.slider.set(this.volume / 100);
+    this.armClose();
   }
 
   hide(): void {
+    if (!this.open) return;
     this.open = false;
     window.clearTimeout(this.closeTimer);
-    this.host.classList.remove('volume-open');
-    this.button.setAttribute('aria-expanded', 'false');
+    this.el.host.classList.remove('volume-open');
+    this.el.button.setAttribute('aria-expanded', 'false');
   }
 
   private armClose(): void {
     window.clearTimeout(this.closeTimer);
     this.closeTimer = window.setTimeout(() => {
-      if (this.slider.isDragging || this.track.matches(':hover') || this.button.matches(':hover')) this.armClose();
+      const panel = this.el.track.parentElement as HTMLElement;
+      if (this.slider.isDragging || panel.matches(':hover') || this.el.button.matches(':hover')) this.armClose();
       else this.hide();
     }, CLOSE_AFTER_MS);
   }
@@ -90,12 +106,18 @@ export class VolumeControl {
   private render(): void {
     const silent = this.muted || this.volume === 0;
     const level = silent ? 0 : this.volume < 34 ? 1 : this.volume < 67 ? 2 : 3;
-    this.button.dataset.level = String(level);
+    const { button, mute, track, value } = this.el;
+    button.dataset.level = String(level);
+    button.querySelector('use')?.setAttribute('href', level === 0 ? '#i-mute' : level === 1 ? '#i-vol-1' : '#i-vol-3');
     const label = this.muted ? `Son coupé (volume ${this.volume} %)` : `Volume ${this.volume} %`;
-    this.button.title = `${label} — molette pour régler`;
-    this.button.setAttribute('aria-label', label);
-    this.track.setAttribute('aria-valuetext', `${this.volume} %${this.muted ? ', son coupé' : ''}`);
-    this.track.classList.toggle('muted', this.muted);
+    button.setAttribute('aria-label', label);
+    button.title = `${label} — clic pour ouvrir/fermer, molette pour régler`;
+    mute.setAttribute('aria-pressed', String(this.muted));
+    mute.title = this.muted ? 'Rétablir le son' : 'Couper le son';
+    mute.setAttribute('aria-label', mute.title);
+    value.textContent = String(this.volume);
+    track.setAttribute('aria-valuetext', `${this.volume} %${this.muted ? ', son coupé' : ''}`);
+    track.classList.toggle('muted', this.muted);
     if (!this.slider.isDragging) this.slider.set(this.volume / 100);
   }
 }

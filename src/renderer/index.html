@@ -19,8 +19,10 @@
     <symbol id="i-expand" viewBox="0 0 24 24"><path d="M13 5h6v6M19 5l-7 7M11 19H5v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-compact" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="12" width="7" height="5" rx="1"/></symbol>
     <symbol id="i-bar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 9h16" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="m16 9.5 5 5m0-5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-grip" viewBox="0 0 24 24"><g><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></g></symbol>
-    <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="w1" d="M16 9.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path class="w2" d="M18.5 7a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path class="x" d="m16 9.5 5 5m0-5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-vol-1" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-vol-3" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
   <div id="titlebar" role="toolbar" aria-label="Fenêtre">
@@ -64,11 +66,15 @@
           <button data-command="toggle-play" class="play" aria-label="Lire"><svg><use href="#i-play"/></svg></button>
           <button data-command="next" aria-label="Suivant" title="Suivant"><svg><use href="#i-next"/></svg></button>
         </div>
-        <button class="volume-button" aria-expanded="false" aria-label="Volume"><svg><use href="#i-vol"/></svg></button>
+        <button class="volume-button" aria-expanded="false" aria-label="Volume" title="Volume — molette pour régler"><svg><use href="#i-vol-3"/></svg></button>
         <div class="slot">
           <button class="upnext" data-window="toggle-queue" title="Afficher la file"><span class="label">À SUIVRE</span><span class="next-title truncate"></span><span class="next-artist truncate"></span></button>
-          <div class="slider volume" role="slider" tabindex="0" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
-            <div class="rail"><div class="fill"></div></div><div class="thumb"></div>
+          <div class="volume-panel">
+            <div class="slider volume" role="slider" tabindex="0" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+              <div class="rail"><div class="fill"></div></div><div class="thumb"></div>
+            </div>
+            <span class="volume-value">100</span>
+            <button class="volume-mute" aria-pressed="false" aria-label="Couper le son" title="Couper le son"><svg><use href="#i-mute"/></svg></button>
           </div>
         </div>
         <button class="grip" aria-label="Déplacer le lecteur" title="Déplacer : glisser, ou flèches du clavier"><svg><use href="#i-grip"/></svg></button>

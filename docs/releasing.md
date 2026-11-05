@@ -25,7 +25,8 @@ runner Windows. Les applications installées trouvent la nouvelle version dans l
    ```
 
 4. Le workflow vérifie que l’étiquette correspond à `package.json`, lance les tests, construit
-   `MusicPlayer-Setup-2.0.0.exe` et publie la Release. Compléter ensuite ses notes sur GitHub si besoin.
+   `MusicPlayer-Setup-2.0.0.exe` et publie la Release, avec la section correspondante de `CHANGELOG.md`
+   comme notes. Une version avec suffixe (`-beta.N`) est publiée comme préversion.
 
 Les applications installées en version stable ne proposent que des versions stables ; une préversion
 (`-beta.N`) propose aussi les préversions suivantes.

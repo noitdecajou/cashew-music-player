@@ -1,10 +1,14 @@
 # Historique
 
+## 2.0.0-beta.3
+
+- Volume dans les mini-players Autoradio et Hi-fi : le réglage remplace « À suivre » au lieu de s’afficher par-dessus.
+- Publication : une seule Release par version, marquée « préversion » pour les bêtas (les installations stables ne reçoivent pas les bêtas).
+
 ## 2.0.0-beta.2
 
 - Mises à jour automatiques depuis GitHub Releases (vérification au démarrage puis toutes les 6 h, téléchargement à la demande, redémarrage pour installer) ; installeur Windows construit et publié par GitHub Actions.
 - Épingle pleine quand la fenêtre est épinglée.
-- Volume dans les mini-players Autoradio et Hi-fi : le réglage remplace « À suivre » au lieu de s’afficher par-dessus.
 - Autoradio : titre lisible sur toute la largeur de l’écran, défilement des titres longs, « À suivre » sur une ligne, commandes sans contour.
 - Autoradio 2000 (HF) : titre plus petit, commandes sans contour.
 - Police à matrice de points remplacée par Doto (licence OFL), qui affiche les accents.

@@ -30,14 +30,28 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npx electron-vite build
-      - name: Build installer (and publish on tags)
+      - name: Build installer
+        run: npx electron-builder --win --publish never
+      # One release, created in a single step with every file (electron-builder's
+      # own publishing raced and created duplicate releases). Versions with a
+      # suffix (-beta.N) are prereleases: stable installs never get them.
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '$0 == "## " v {found=1; next} /^## / && found {exit} found' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Music Player $version" > notes.md
+          prerelease=""; [[ "$version" == *-* ]] && prerelease="--prerelease"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "Music Player $version" --notes-file notes.md $prerelease \
+            "dist/MusicPlayer-Setup-$version.exe" "dist/MusicPlayer-Setup-$version.exe.blockmap" dist/latest.yml
       - uses: actions/upload-artifact@v4
         with:
           name: MusicPlayer-Setup
           path: |
             dist/*.exe
+            dist/*.blockmap
             dist/latest.yml
           if-no-files-found: error

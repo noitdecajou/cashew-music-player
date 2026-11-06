@@ -1,5 +1,17 @@
 # Historique
 
+## 2.0.0-beta.8
+
+Audit de sécurité (méthode Cloudflare *security-audit-skill*) et correctifs : voir `docs/security.md`.
+
+- YouTube Music n’a plus accès à la caméra ni au micro (ils étaient accordés sans demande, à toute page affichée dans le lecteur) ; seuls le plein écran vidéo et la copie restent permis, et uniquement pour music.youtube.com.
+- Navigation : les faux domaines du type `accounts.google.exemple-pirate.com` sont bloqués.
+- Mises à jour : dès que les versions seront signées, l’application n’installera plus qu’une mise à jour signée par le même éditeur.
+- Installation : toujours pour l’utilisateur courant, dans son dossier (`%LOCALAPPDATA%\Programs`) ; plus d’installation « pour tous les utilisateurs » ni de dossier au choix.
+- Application durcie : l’exécutable ne peut plus servir à lancer du code Node.js ou à être débogué en ligne de commande ; il ne charge que son propre code, vérifié ; les cookies de session Google sont chiffrés sur le disque (Windows). Une fois cette version installée, revenir à une version antérieure obligerait à se reconnecter à YouTube Music.
+- Divers : plein écran vidéo refusé en mini-player ; la position de reprise n’est plus enregistrée dans la session d’un autre compte.
+- Projet : mises à jour des dépendances proposées chaque semaine (Dependabot), actions épinglées, publication réservée à `main`, contrôle du code (oxlint) et du formatage (Prettier) en CI.
+
 ## 2.0.0-beta.7
 
 - Identité **cashew** : glyphe et nom dans la barre de titre, la fenêtre, la zone de notification et les raccourcis (« Cashew Music Player ») ; nouvelle icône d’application.

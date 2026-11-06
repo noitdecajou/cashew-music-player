@@ -10,12 +10,12 @@ const playwright = require('playwright');
 export const newProfile = () => mkdtempSync(join(tmpdir(), 'mp-e2e-'));
 
 /** Launches the built app against the fake YouTube Music page. Pass `userData` to reuse a profile (kept on close). */
-export async function launch({ userData: profile, env = {} } = {}) {
+export async function launch({ userData: profile, env = {}, args = [] } = {}) {
   const userData = profile ?? newProfile();
   const app = await playwright._electron.launch({
     executablePath: require('electron'),
     // Root (containers) and CI runners cannot use Chromium's Linux sandbox.
-    args: [...(process.getuid?.() === 0 || process.env.CI ? ['--no-sandbox'] : []), root],
+    args: [...(process.getuid?.() === 0 || process.env.CI ? ['--no-sandbox'] : []), ...args, root],
     cwd: root,
     env: { ...process.env, MP_USER_DATA: userData, MP_YTM_FIXTURE: join(root, 'test/fixtures/ytm.html'), ...env },
   });

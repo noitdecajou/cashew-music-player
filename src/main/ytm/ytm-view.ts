@@ -33,7 +33,13 @@ function installFixture(target: Electron.Session): void {
       if (delay) await new Promise(resolve => setTimeout(resolve, delay));
       return new Response(readFileSync(fixture), { headers: { 'content-type': 'text/html; charset=utf-8' } });
     }
-    if (url.hostname === 'i.ytimg.com' || url.hostname === 'lh3.googleusercontent.com') return new Response('', { status: 404 });
+    if (url.hostname === 'lh3.googleusercontent.com') {
+      // Distinct, generated artwork per track (screenshots); real requests never reach here.
+      const hue = [...url.pathname].reduce((sum, c) => (sum * 31 + c.charCodeAt(0)) % 360, 7);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="hsl(${hue} 55% 55%)"/><stop offset="1" stop-color="hsl(${(hue + 60) % 360} 50% 28%)"/></linearGradient></defs><rect width="10" height="10" fill="url(#g)"/><circle cx="6.5" cy="4" r="2.2" fill="hsl(${(hue + 180) % 360} 60% 75% / .55)"/></svg>`;
+      return new Response(svg, { headers: { 'content-type': 'image/svg+xml' } });
+    }
+    if (url.hostname === 'i.ytimg.com') return new Response('', { status: 404 });
     return net.fetch(request, { bypassCustomProtocolHandlers: true });
   });
 }
@@ -48,6 +54,7 @@ export class YtmView {
   constructor(onBlockedNavigation: (host: string) => void) {
     const music = session.fromPartition(PARTITION);
     installFixture(music);
+    installFixture(session.defaultSession); // our pages load the artwork too
     // Only what playback needs. Everything else (notifications, geolocation...) is refused.
     music.setPermissionRequestHandler((_wc, permission, callback) => {
       callback(['fullscreen', 'media', 'clipboard-sanitized-write'].includes(permission));

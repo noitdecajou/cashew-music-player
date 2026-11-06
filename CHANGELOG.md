@@ -1,5 +1,12 @@
 # Historique
 
+## 2.0.0-beta.7
+
+- Identité **cashew** : glyphe et nom dans la barre de titre, la fenêtre, la zone de notification et les raccourcis (« Cashew Music Player ») ; nouvelle icône d’application.
+- Mini-players : libellé « CASHEW » ; le glyphe remplace la poignée (Actuel, Autoradio) ou la LED (Hi-fi), dans la couleur de chaque apparence ; « cashew » à l’écran de l’Autoradio au repos.
+- Pochette vide : glyphe en ton sourd ; pied des Réglages avec la version ; écran de démarrage pendant le chargement de YouTube Music.
+- Licence MIT ; vérification hebdomadaire automatique contre le vrai YouTube Music ; signature SignPath préparée.
+
 ## 2.0.0-beta.6
 
 - Fichiers supprimés ou modifiés après l’installation (typiquement mis en quarantaine par un antivirus) : au lieu d’une fenêtre vide, un message explique la situation et propose de télécharger l’installeur ou d’ouvrir Sécurité Windows. L’installeur contient désormais l’inventaire de ses fichiers, vérifié à chaque démarrage.

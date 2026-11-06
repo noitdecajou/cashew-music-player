@@ -8,7 +8,13 @@ une file d’attente interactive, la reprise de la dernière écoute et un racco
 
 > **Statut : bêta.** Les versions sont publiées comme « Pre-release » tant que la 2.0.0 n’est pas sortie.
 
-<!-- Captures des 5 apparences : ajoutées avec l’identité visuelle cashew. -->
+| Actuel | Autoradio | Hi-fi |
+|---|---|---|
+| ![Mini-player Actuel](docs/screenshots/mini-modern.png) | ![Mini-player Autoradio](docs/screenshots/mini-autoradio.png) | ![Mini-player Hi-fi](docs/screenshots/mini-hifi.png) |
+
+![Mini-player Autoradio 2000 (HF)](docs/screenshots/mini-autoradio-hf.png)
+
+![Mini-player Hi-Fi de salon (HF)](docs/screenshots/mini-hifi-hf.png)
 
 ## Fonctions
 

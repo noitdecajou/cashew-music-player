@@ -1,5 +1,6 @@
 appId: local.musicplayer.desktop
 productName: Music Player
+afterPack: build/after-pack.cjs
 directories:
   output: dist
   buildResources: build

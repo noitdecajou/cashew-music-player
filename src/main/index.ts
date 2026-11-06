@@ -1,5 +1,6 @@
 import { join } from 'node:path';
-import { type IpcMainEvent, type IpcMainInvokeEvent, Menu, app, shell as electronShell, ipcMain, powerMonitor } from 'electron';
+import { dirname } from 'node:path';
+import { type IpcMainEvent, type IpcMainInvokeEvent, Menu, app, dialog, shell as electronShell, ipcMain, powerMonitor } from 'electron';
 import type { Diagnostics, QueueAction, SearchResponse, SearchScope, Settings, SettingsPatch, UiState, WindowAction } from '../shared/ipc';
 import { EMPTY_SNAPSHOT, PLAYLIST_ID, type PlayerSnapshot, VIDEO_ID, sanitizeCommand, str } from '../shared/player';
 import { isMiniTheme } from '../shared/themes';
@@ -10,6 +11,7 @@ import { ResumeStore, type SavedSession, resumeState } from './services/resume';
 import { GlobalShortcut } from './services/shortcut';
 import { Updater, fakeEngine } from './services/updater';
 import { setStartup, startupState } from './services/startup';
+import { checkIntegrity, describe as describeIntegrity, readManifest } from './services/integrity';
 import { initLog, log } from './services/log';
 import { createTray } from './tray';
 import { watchPage } from './watchdog';
@@ -27,6 +29,42 @@ const WINDOW_ACTIONS: readonly WindowAction[] = [
 ];
 const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000];
 
+const RELEASES_URL = 'https://github.com/noitdecajou/cashew-music-player/releases';
+
+/**
+ * Installed files removed or altered (typically quarantined by an antivirus)
+ * leave a window that cannot draw anything. Say so instead of a blank window.
+ */
+function checkInstallation(): void {
+  const root = dirname(process.execPath);
+  // Electron's fs presents .asar archives as folders: read real file sizes.
+  const noAsar = process.noAsar;
+  process.noAsar = true;
+  let report;
+  try { report = checkIntegrity(root, readManifest(root)); } finally { process.noAsar = noAsar; }
+  if (!report) { log('integrity: no manifest'); return; }
+  if (!report.missing.length && !report.changed.length) { log('integrity: ok'); return; }
+  log('integrity: problem', report);
+  if (process.env.MP_INTEGRITY_NO_DIALOG) return; // tests of the packaged app
+  const choice = dialog.showMessageBoxSync({
+    type: 'warning',
+    title: 'Music Player — fichiers manquants',
+    message: 'Des fichiers de Music Player ont été supprimés ou modifiés depuis l’installation.',
+    detail: 'C’est généralement un antivirus (Windows Defender) qui les a mis en quarantaine par erreur. '
+      + 'Sans eux, la fenêtre peut rester vide.\n\n'
+      + 'Pour réparer : réinstalle Music Player (tes réglages et ta connexion sont conservés), ou restaure les fichiers '
+      + 'depuis Sécurité Windows → Protection contre les virus et menaces → Historique de protection.\n\n'
+      + `Fichiers concernés :\n${describeIntegrity(report)}`,
+    buttons: ['Télécharger l’installeur', 'Ouvrir Sécurité Windows', 'Continuer quand même', 'Quitter'],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true,
+  });
+  if (choice === 0) void electronShell.openExternal(RELEASES_URL);
+  if (choice === 1) void electronShell.openExternal('windowsdefender://threat/');
+  if (choice === 0 || choice === 1 || choice === 3) app.exit(0);
+}
+
 function main(): void {
   if (!app.requestSingleInstanceLock()) { app.quit(); return; }
   let quitting = false;
@@ -42,6 +80,7 @@ function main(): void {
     process.on('uncaughtException', error => log('main: uncaught exception', error));
     process.on('unhandledRejection', reason => log('main: unhandled rejection', reason));
     app.on('child-process-gone', (_event, details) => log('child process gone', details));
+    if (app.isPackaged) checkInstallation();
     const prefs = new PreferenceStore(userData);
     const ytm = new YtmView(host => notice(`Navigation bloquée : ${host}`));
     let snapshot: PlayerSnapshot = EMPTY_SNAPSHOT;

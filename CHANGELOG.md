@@ -1,5 +1,9 @@
 # Historique
 
+## 2.0.0-beta.6
+
+- Fichiers supprimés ou modifiés après l’installation (typiquement mis en quarantaine par un antivirus) : au lieu d’une fenêtre vide, un message explique la situation et propose de télécharger l’installeur ou d’ouvrir Sécurité Windows. L’installeur contient désormais l’inventaire de ses fichiers, vérifié à chaque démarrage.
+
 ## 2.0.0-beta.5
 
 - Interface qui reste vide : surveillance automatique — si une page n’a pas reçu son état quelques secondes après son chargement, ou si son processus plante, l’état lui est renvoyé, puis la page est rechargée.

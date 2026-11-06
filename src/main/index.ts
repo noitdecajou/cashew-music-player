@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { type IpcMainEvent, type IpcMainInvokeEvent, Menu, app, ipcMain, powerMonitor } from 'electron';
+import { type IpcMainEvent, type IpcMainInvokeEvent, Menu, app, shell as electronShell, ipcMain, powerMonitor } from 'electron';
 import type { Diagnostics, QueueAction, SearchResponse, SearchScope, Settings, SettingsPatch, UiState, WindowAction } from '../shared/ipc';
 import { EMPTY_SNAPSHOT, PLAYLIST_ID, type PlayerSnapshot, VIDEO_ID, sanitizeCommand, str } from '../shared/player';
 import { isMiniTheme } from '../shared/themes';
@@ -10,7 +10,9 @@ import { ResumeStore, type SavedSession, resumeState } from './services/resume';
 import { GlobalShortcut } from './services/shortcut';
 import { Updater, fakeEngine } from './services/updater';
 import { setStartup, startupState } from './services/startup';
+import { initLog, log } from './services/log';
 import { createTray } from './tray';
+import { watchPage } from './watchdog';
 import { MainWindow } from './window/main-window';
 import { YtmView } from './ytm/ytm-view';
 
@@ -21,7 +23,7 @@ if (!app.isPackaged && process.env.MP_USER_DATA) app.setPath('userData', process
 
 const WINDOW_ACTIONS: readonly WindowAction[] = [
   'toggle-mini', 'pin', 'toggle-title-bar', 'minimize', 'maximize', 'close',
-  'toggle-search', 'toggle-queue', 'toggle-settings', 'close-panel', 'reload-music',
+  'toggle-search', 'toggle-queue', 'toggle-settings', 'close-panel', 'reload-music', 'repair-display',
 ];
 const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000];
 
@@ -35,6 +37,11 @@ function main(): void {
     Menu.setApplicationMenu(null);
 
     const userData = app.getPath('userData');
+    const logDirectory = initLog(userData);
+    log(`start ${app.getVersion()} electron ${process.versions.electron} ${process.platform} args=${process.argv.slice(1).join(' ')}`);
+    process.on('uncaughtException', error => log('main: uncaught exception', error));
+    process.on('unhandledRejection', reason => log('main: unhandled rejection', reason));
+    app.on('child-process-gone', (_event, details) => log('child process gone', details));
     const prefs = new PreferenceStore(userData);
     const ytm = new YtmView(host => notice(`Navigation bloquée : ${host}`));
     let snapshot: PlayerSnapshot = EMPTY_SNAPSHOT;
@@ -45,6 +52,7 @@ function main(): void {
       else void contents.loadFile(join(__dirname, '../renderer/index.html'), { search });
     };
     const window = new MainWindow(prefs, ytm, loadRenderer, drawer => {
+      watchPage('drawer', drawer, () => drawer.send('ui:state', window.state));
       drawer.on('did-finish-load', () => {
         drawer.send('ui:state', window.state);
         drawer.send('player:snapshot', snapshot);
@@ -152,7 +160,8 @@ function main(): void {
       if (command) ytm.send(command);
     });
     ipcMain.on('shell:window', (event, action) => {
-      if (fromUi(event) && WINDOW_ACTIONS.includes(action)) window.action(action);
+      if (!fromUi(event) || !WINDOW_ACTIONS.includes(action)) return;
+      if (action === 'repair-display') repairDisplay(); else window.action(action);
     });
     ipcMain.on('shell:drag', (event, phase) => {
       if (fromUi(event) && ['start', 'move', 'end', 'cancel'].includes(phase)) window.dragPhase(phase);
@@ -300,15 +309,30 @@ function main(): void {
       command: type => ytm.send({ type }),
       quit: () => app.quit(),
       update: () => { window.setMini(false); window.show(); window.setPanel('settings'); },
+      repair: () => repairDisplay(),
+      openLogs: () => { void electronShell.openPath(logDirectory); },
     });
 
-    shell.on('did-finish-load', () => {
+    /** Back to a known-good display: large player with its title bar, pages reloaded. */
+    function repairDisplay(): void {
+      log('repair display requested');
+      window.setPanel('none');
+      window.setSeamless(false);
+      window.setMini(false);
+      shell.reloadIgnoringCache();
+      window.drawerContents?.reloadIgnoringCache();
+      window.show();
+    }
+
+    const sendInitialState = (): void => {
       send('ui:state', window.state);
       send('player:snapshot', snapshot);
       send('library:status', library.currentStatus);
       send('update:state', updater.state);
       publishResume();
-    });
+    };
+    shell.on('did-finish-load', sendInitialState);
+    watchPage('shell', shell, sendInitialState);
 
     window.win.on('close', event => {
       window.saveBounds();

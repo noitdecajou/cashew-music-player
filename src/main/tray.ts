@@ -8,6 +8,8 @@ export interface TrayActions {
   command(type: 'toggle-play' | 'next' | 'previous'): void;
   quit(): void;
   update(): void;
+  repair(): void;
+  openLogs(): void;
 }
 
 export interface AppTray { setUpdate(state: UpdateState): void; destroy(): void; isDestroyed(): boolean }
@@ -28,6 +30,10 @@ export function createTray(actions: TrayActions): AppTray {
     { label: 'Suivant', click: () => actions.command('next') },
     { label: 'Précédent', click: () => actions.command('previous') },
     { type: 'separator' },
+    { label: 'Dépannage', submenu: [
+      { label: 'Réparer l’affichage (grand lecteur, pages rechargées)', click: actions.repair },
+      { label: 'Ouvrir le dossier des journaux', click: actions.openLogs },
+    ] },
     { label: 'Quitter', click: actions.quit },
   ]));
   build();

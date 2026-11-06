@@ -1,5 +1,11 @@
 # Historique
 
+## 2.0.0-beta.5
+
+- Interface qui reste vide : surveillance automatique — si une page n’a pas reçu son état quelques secondes après son chargement, ou si son processus plante, l’état lui est renvoyé, puis la page est rechargée.
+- Dépannage : « Réparer l’affichage » (menu de la zone de notification → Dépannage, et Réglages) repasse en grand lecteur avec sa barre et recharge l’interface.
+- Journal de diagnostic dans le dossier de l’application (`logs/main.log`), ouvrable depuis le menu Dépannage.
+
 ## 2.0.0-beta.4
 
 - Panneaux (réglages, file, recherche) : ils ne se ferment plus que sur un vrai clic dans YouTube Music. Auparavant, un simple changement de focus les refermait, ce qui pouvait les faire disparaître dès leur ouverture sous Windows.

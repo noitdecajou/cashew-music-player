@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { launch } from './harness.mjs';
 
@@ -25,4 +27,19 @@ test('updates: check, download with progress, restart to install; pin icon fills
   await h.until(async () => (await h.shell.getAttribute('#toolbar .pin use', 'href')) === '#i-pin-on', { message: 'filled pin' });
   await h.shell.evaluate(() => window.player.window('pin'));
   await h.until(async () => (await h.shell.getAttribute('#toolbar .pin use', 'href')) === '#i-pin', { message: 'outline pin' });
+});
+
+test('repair display: back to the large player with its title bar, page reloaded, logged', async () => {
+  await h.shell.evaluate(() => window.player.window('close-panel'));
+  await h.shell.evaluate(() => window.player.window('toggle-mini'));
+  await h.shell.waitForSelector('body.mini');
+  await h.shell.keyboard.press('Control+Shift+B');
+  await h.shell.waitForSelector('body.seamless');
+  await h.shell.evaluate(() => { window.__beforeRepair = true; window.player.window('repair-display'); });
+  await h.until(async () => (await h.shell.evaluate(() => window.__beforeRepair !== true).catch(() => false)), { message: 'page reloaded' });
+  await h.shell.waitForSelector('body.large:not(.booting):not(.seamless)');
+  const userData = await h.app.evaluate(({ app }) => app.getPath('userData'));
+  const logText = readFileSync(join(userData, 'logs', 'main.log'), 'utf8');
+  assert.match(logText, /start \d+\.\d+\.\d+/);
+  assert.match(logText, /repair display requested/);
 });

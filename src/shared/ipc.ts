@@ -16,7 +16,7 @@ export interface UiState {
 
 export type WindowAction =
   | 'toggle-mini' | 'pin' | 'toggle-title-bar' | 'minimize' | 'maximize' | 'close'
-  | 'toggle-search' | 'toggle-queue' | 'toggle-settings' | 'close-panel' | 'reload-music';
+  | 'toggle-search' | 'toggle-queue' | 'toggle-settings' | 'close-panel' | 'reload-music' | 'repair-display';
 
 export interface LibraryStatus {
   state: 'idle' | 'indexing' | 'ready' | 'error';

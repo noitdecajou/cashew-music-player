@@ -281,6 +281,7 @@ export class MainWindow {
       case 'toggle-settings': this.setPanel(this.ui.panel === 'settings' ? 'none' : 'settings'); break;
       case 'close-panel': this.setPanel('none'); break;
       case 'reload-music': this.ytm.reload(); break;
+      case 'repair-display': break; // handled by the app (reloads our pages)
     }
   }
 

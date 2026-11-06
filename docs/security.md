@@ -27,10 +27,19 @@ et seul chargé, cookies chiffrés), aucune permission ni aucun téléchargement
 téléchargement depuis la vue YouTube Music, CI en lecture seule, actions épinglées par SHA, publication
 réservée à `main`, Dependabot, oxlint.
 
-Restent à faire côté propriétaire : protéger les étiquettes `v*` et garder le droit d’écriture du dépôt
-pour soi ; à l’activation de SignPath, définir `SIGNPATH_PUBLISHER_NAME`.
+Restent à faire côté propriétaire :
+- garder le droit d’écriture du dépôt pour soi (Settings → Collaborators) ;
+- au passage du dépôt en public : protéger les étiquettes `v*` (ruleset décrit dans `docs/signing.md`,
+  « Qui peut publier ») et activer le signalement privé des failles (ci-dessous) ; sur un compte gratuit,
+  ces deux réglages n’existent pas pour un dépôt privé ;
+- à l’activation de SignPath : définir `SIGNPATH_PUBLISHER_NAME`.
 
 ## Signaler une faille
 
 Ouvre un signalement privé : onglet **Security** du dépôt → **Report a vulnerability**. Merci de ne pas
 publier les détails avant qu’un correctif soit disponible.
+
+Pour le propriétaire : ce bouton n’existe qu’une fois le signalement privé activé, ce que GitHub ne
+propose que pour les dépôts publics. Après le passage en public : Settings → section **Security**
+(**Advanced Security** ou **Code security** selon l’interface) → **Private vulnerability reporting** →
+**Enable**.

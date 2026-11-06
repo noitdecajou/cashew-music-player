@@ -65,8 +65,18 @@ ici non plus : ce sont des fichiers tiers, que SignPath Foundation ne signe pas 
 
 - Le workflow ne publie que des commits de `main` (lancé depuis `main`, ou étiquette posée sur un commit de
   `main`).
-- Toute personne ayant le droit d’écriture sur le dépôt peut lancer Release : garder ce droit pour soi, et
-  idéalement protéger les étiquettes `v*` (Settings → Rules → Rulesets → Tag rules).
+- Toute personne ayant le droit d’écriture sur le dépôt peut lancer Release : garder ce droit pour soi
+  (Settings → Collaborators).
+- Protéger les étiquettes `v*`, pour qu’une version publiée ne puisse être ni déplacée ni supprimée :
+  Settings → **Rules** → **Rulesets** → **New ruleset** → **New tag ruleset** :
+  - nom : `versions` ; **Enforcement status** : **Active** ;
+  - **Target tags** → **Add target** → **Include by pattern** → `v*` ;
+  - règles : **Restrict updates** et **Restrict deletions** ;
+  - ne **pas** cocher **Restrict creations** : le workflow crée lui-même l’étiquette quand « Publier » est
+    coché, et cette règle le bloquerait.
+
+  Sur un compte GitHub gratuit, les rulesets ne s’appliquent qu’aux dépôts **publics** : à faire au
+  passage du dépôt en public.
 - Optionnel, pour exiger une approbation avant chaque publication : créer un environnement `release`
   (Settings → Environments) avec « Required reviewers », y déplacer `SIGNPATH_API_TOKEN`, et ajouter
   `environment: release` au job du workflow.

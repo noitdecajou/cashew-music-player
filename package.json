@@ -1,7 +1,7 @@
 {
   "name": "music-player",
   "productName": "Music Player",
-  "version": "2.0.0-beta.9",
+  "version": "2.0.0",
   "private": true,
   "description": "Lecteur YouTube Music avec mini-player pour Windows",
   "license": "MIT",

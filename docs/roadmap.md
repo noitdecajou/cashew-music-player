@@ -29,8 +29,9 @@ saut à un titre, retrait, « Lire ensuite ».
 | Installeur Windows (NSIS) construit par GitHub Actions sur étiquette `v*` | ✅ |
 | Publication dans GitHub Releases + `latest.yml` | ✅ |
 | Mises à jour dans l’application (vérifier, télécharger à la demande, redémarrer) | ✅ |
-| Dépôt public (nécessaire pour télécharger et mettre à jour) | à faire par le propriétaire |
-| Signature de l’installeur (supprime l’avertissement SmartScreen) | plus tard |
+| Dépôt public (nécessaire pour télécharger et mettre à jour) | ✅ |
+| Version stable 2.0.0 | ✅ |
+| Signature de l’installeur (supprime l’avertissement SmartScreen) | plus tard : SignPath demande un projet déjà connu (`docs/signing.md`) |
 
 ## Idées pour la suite
 

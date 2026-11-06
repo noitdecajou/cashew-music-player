@@ -6,8 +6,6 @@ cashew affiche le site officiel de YouTube Music dans une fenêtre dédiée et y
 à un onglet de navigateur : un mini-player compact à 5 apparences, une recherche rapide dans tes playlists,
 une file d’attente interactive, la reprise de la dernière écoute et un raccourci global.
 
-> **Statut : bêta.** Les versions sont publiées comme « Pre-release » tant que la 2.0.0 n’est pas sortie.
-
 | Actuel | Autoradio | Hi-fi |
 |---|---|---|
 | ![Mini-player Actuel](docs/screenshots/mini-modern.png) | ![Mini-player Autoradio](docs/screenshots/mini-autoradio.png) | ![Mini-player Hi-fi](docs/screenshots/mini-hifi.png) |

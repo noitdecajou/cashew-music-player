@@ -1,5 +1,19 @@
 # Historique
 
+## 2.0.0
+
+Première version stable de **cashew**, réécriture complète du lecteur 1.x (Electron + TypeScript). Depuis la 1.7 :
+
+- **Mini-players** : 5 apparences (Actuel, Autoradio, Hi-fi, Autoradio 2000, Hi-Fi de salon), avec volume et barre de progression glissable dans chacune.
+- **Bibliothèque et recherche** : recherche rapide dans tes playlists (sans accents ni majuscules), favoris, recherche dans tout YouTube Music.
+- **File d’attente** interactive (lire, retirer, « Lire ensuite »), **reprise** de la dernière écoute à sa position.
+- **Réglages** : raccourci global, démarrage avec Windows (discret ou non), épingler au premier plan.
+- **Mises à jour** depuis l’application, sans rien télécharger sans ton accord.
+- **Fiabilité** : détection des fichiers mis en quarantaine par un antivirus, réparation de l’affichage, journal de diagnostic.
+- **Sécurité** : audit complet et correctifs (caméra et micro jamais accordés, navigation limitée à YouTube Music et Google, application et installation durcies) — voir `docs/security.md`.
+
+Les installations bêta reçoivent cette version comme mise à jour ; ensuite, seules les versions stables sont proposées.
+
 ## 2.0.0-beta.9
 
 - Dépôt GitHub recréé (historique nettoyé des données personnelles) : cette version republie la beta.8 à l’identique, pour que les applications installées retrouvent leurs mises à jour. Aucun changement dans l’application.

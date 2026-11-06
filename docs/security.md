@@ -27,12 +27,13 @@ et seul chargé, cookies chiffrés), aucune permission ni aucun téléchargement
 téléchargement depuis la vue YouTube Music, CI en lecture seule, actions épinglées par SHA, publication
 réservée à `main`, Dependabot, oxlint.
 
-Restent à faire côté propriétaire :
-- garder le droit d’écriture du dépôt pour soi (Settings → Collaborators) ;
-- au passage du dépôt en public : protéger les étiquettes `v*` (ruleset décrit dans `docs/signing.md`,
-  « Qui peut publier ») et activer le signalement privé des failles (ci-dessous) ; sur un compte gratuit,
-  ces deux réglages n’existent pas pour un dépôt privé ;
-- à l’activation de SignPath : définir `SIGNPATH_PUBLISHER_NAME`.
+Réglages du dépôt en place (novembre 2026) : dépôt public, étiquettes `v*` protégées (ruleset décrit dans
+`docs/signing.md`, « Qui peut publier »), signalement privé des failles activé, double authentification sur
+le compte du propriétaire, droit d’écriture réservé au propriétaire.
+
+Versions non signées pour l’instant (`docs/signing.md`) : l’authenticité des mises à jour repose donc sur
+le compte GitHub du propriétaire, seul à pouvoir publier une Release. À l’activation de SignPath, définir
+`SIGNPATH_PUBLISHER_NAME` pour que les applications n’acceptent plus que des mises à jour signées.
 
 ## Signaler une faille
 

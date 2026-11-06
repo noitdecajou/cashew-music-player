@@ -8,6 +8,10 @@ Le workflow Release est **déjà prêt** : tant que SignPath n’est pas configu
 sans signature. Dès que les réglages ci-dessous existent sur GitHub, chaque version **publiée** est signée.
 Les simples constructions de contrôle ne sont pas signées.
 
+**État (novembre 2026)** : demande refusée faute de réputation (SignPath Foundation demande un projet qui
+a déjà une audience : utilisateurs, étoiles, téléchargements). Les versions sont publiées sans signature ;
+refaire la demande quand le projet sera connu. Rien d’autre n’est à changer d’ici là.
+
 ## Ce que fait le workflow
 
 1. construit l’application (`dist/win-unpacked`) ;

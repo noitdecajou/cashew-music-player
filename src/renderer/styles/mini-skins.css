@@ -35,6 +35,7 @@ body.mini:is([data-theme="autoradio"], [data-theme="autoradio-hf"]) {
   --glow: #4aa8ff; --glow-soft: #4aa8ff55; --lcd: #c8e6ff; --lcd-dim: #6f93b3;
   --accent: var(--glow); background: #07090b;
 }
+body.mini:is([data-theme="autoradio"], [data-theme="autoradio-hf"]) #mini { --cover-empty-bg: #0a1520; --cover-empty-glyph: #2b5578; }
 body.mini:is([data-theme="autoradio"], [data-theme="autoradio-hf"]) #mini .face {
   border-radius: 6px;
   background: linear-gradient(180deg, #2a3036 0, #161a1e 6%, #0e1114 70%, #090b0d 100%);
@@ -145,6 +146,7 @@ body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) {
   --amber: #f3b25c; --cream: #f6e6c8; --metal-ink: #c9bba3;
   --accent: var(--amber); background: #1c1915;
 }
+body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini { --cover-empty-bg: #2b2620; --cover-empty-glyph: #7d5a32; }
 body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .face {
   border-radius: 6px;
   background: repeating-linear-gradient(0deg, #ffffff06 0 1px, transparent 1px 2px, #00000008 2px 3px), linear-gradient(180deg, #5e574b, #3e3930 55%, #2c2822);

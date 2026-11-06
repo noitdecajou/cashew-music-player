@@ -26,9 +26,11 @@ export function isAllowedNavigation(value: string): boolean {
 function installFixture(target: Electron.Session): void {
   const fixture = process.env.MP_YTM_FIXTURE;
   if (!fixture || app.isPackaged) return;
-  target.protocol.handle('https', request => {
+  const delay = Number(process.env.MP_YTM_FIXTURE_DELAY) || 0;
+  target.protocol.handle('https', async request => {
     const url = new URL(request.url);
     if (url.hostname === 'music.youtube.com') {
+      if (delay) await new Promise(resolve => setTimeout(resolve, delay));
       return new Response(readFileSync(fixture), { headers: { 'content-type': 'text/html; charset=utf-8' } });
     }
     if (url.hostname === 'i.ytimg.com' || url.hostname === 'lh3.googleusercontent.com') return new Response('', { status: 404 });

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { BrowserWindow, WebContentsView, screen } from 'electron';
+import { BrowserWindow, WebContentsView, screen, shell } from 'electron';
 import type { Panel, UiState, WindowAction } from '../../shared/ipc';
 import { LARGE_TOOLBAR_HEIGHT, type MiniTheme, TITLE_BAR_HEIGHT, miniContentSize } from '../../shared/themes';
 import type { PreferenceStore, Rect } from '../services/preferences';
@@ -39,13 +39,14 @@ export class MainWindow {
     private readonly onDrawerCreated: (contents: Electron.WebContents) => void,
   ) {
     const p = prefs.value;
-    this.ui = { mini: p.mini, theme: p.theme, panel: 'none', pinned: p.pinned, seamless: p.seamless, maximized: false, online: true, videoFullscreen: false };
+    this.ui = { mini: p.mini, theme: p.theme, panel: 'none', pinned: p.pinned, seamless: p.seamless, maximized: false, online: true, videoFullscreen: false, musicLoading: true };
     this.win = new BrowserWindow({
       ...LARGE_DEFAULT, show: false, frame: false, backgroundColor: '#111218', icon: ICON,
       minWidth: 1, minHeight: 1,
       webPreferences: { preload: join(__dirname, '../preload/shell.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false },
     });
     if (p.pinned) this.win.setAlwaysOnTop(true, 'normal');
+    guardPage(this.win.webContents);
     this.applyMode(true);
 
     this.win.on('resize', () => { this.layout(); this.scheduleSave(); });
@@ -56,6 +57,10 @@ export class MainWindow {
     screen.on('display-removed', this.refit);
     screen.on('display-metrics-changed', this.refit);
     const contents = this.ytm.view.webContents;
+    // Splash while YouTube Music really loads (full page loads only, no fixed delay).
+    contents.on('did-start-navigation', event => { if (event.isMainFrame && !event.isSameDocument) this.setMusicLoading(true); });
+    contents.on('did-finish-load', () => this.setMusicLoading(false));
+    contents.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => { if (isMainFrame && code !== -3) this.setMusicLoading(false); });
     contents.on('enter-html-full-screen', () => this.setVideoFullscreen(true));
     contents.on('leave-html-full-screen', () => this.setVideoFullscreen(false));
     this.win.on('leave-full-screen', () => { if (this.ui.videoFullscreen) void contents.executeJavaScript('document.exitFullscreen?.().catch(() => {})').catch(() => undefined); });
@@ -134,6 +139,7 @@ export class MainWindow {
       webPreferences: { preload: join(__dirname, '../preload/shell.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false },
     });
     this.drawer.setBackgroundColor('#1a1c24');
+    guardPage(this.drawer.webContents);
     this.onDrawerCreated(this.drawer.webContents);
     this.loadRenderer(this.drawer.webContents, 'drawer');
     return this.drawer;
@@ -156,6 +162,12 @@ export class MainWindow {
     this.layout();
   }
 
+  private setMusicLoading(loading: boolean): void {
+    if (loading === this.ui.musicLoading) return;
+    this.setUi({ musicLoading: loading });
+    this.layout();
+  }
+
   /** Places (or detaches) the YouTube Music view and the drawer above it. */
   layout(): void {
     if (this.win.isDestroyed()) return;
@@ -167,7 +179,8 @@ export class MainWindow {
       if (this.drawer && this.drawerAttached) { this.win.contentView.removeChildView(this.drawer); this.drawerAttached = false; }
       return;
     }
-    if (this.ui.mini) {
+    if (this.ui.mini || this.ui.musicLoading) {
+      // Mini: the page keeps playing detached. Loading: the shell shows the splash.
       if (this.attached) { this.win.contentView.removeChildView(view); this.attached = false; }
     } else {
       if (!this.attached) {
@@ -313,4 +326,13 @@ export class MainWindow {
     this.win.setBounds(fitInside(target, this.workAreaFor(target)));
     this.saveBounds();
   }
+}
+
+/** Our pages never navigate away nor open windows: GitHub links open in the browser. */
+function guardPage(contents: Electron.WebContents): void {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\/github\.com\/noitdecajou\/cashew-music-player(\/|$)/.test(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  contents.on('will-navigate', event => event.preventDefault());
 }

@@ -1,4 +1,5 @@
 import { type ResumeState, type UiState, errorMessage } from '../../shared/ipc';
+import { glyphTile } from './brand';
 import { formatTime } from './format';
 import { EMPTY_SNAPSHOT, type PlayerCommand, type PlayerSnapshot } from '../../shared/player';
 import { ProgressBar } from './components/progress';
@@ -47,15 +48,21 @@ const volume = new VolumeControl({
 let snapshot: PlayerSnapshot = EMPTY_SNAPSHOT;
 let notice = '';
 
+/** No artwork (or it failed): the glyph in the muted tones of the current skin. */
+function emptyCover(img: HTMLImageElement): string {
+  const style = getComputedStyle(img);
+  return glyphTile(style.getPropertyValue('--cover-empty-glyph').trim() || '#6E5B44', style.getPropertyValue('--cover-empty-bg').trim() || '#26231F');
+}
 function renderCover(img: HTMLImageElement, url: string): void {
-  if (img.dataset.src === url) return;
-  img.dataset.src = url;
+  const key = url || `empty:${document.body.dataset.theme}:${document.body.classList.contains('mini')}`;
+  if (img.dataset.src === key) return;
+  img.dataset.src = key;
   img.classList.remove('loaded');
-  if (url) img.src = url; else img.removeAttribute('src');
+  img.src = url || emptyCover(img);
 }
 for (const img of $$('img.cover') as HTMLImageElement[]) {
   img.addEventListener('load', () => img.classList.toggle('loaded', img.naturalWidth > 0));
-  img.addEventListener('error', () => img.classList.remove('loaded'));
+  img.addEventListener('error', () => { if (!img.src.startsWith('data:')) img.src = emptyCover(img); });
 }
 
 function renderSnapshot(next: PlayerSnapshot): void {
@@ -159,7 +166,10 @@ function renderUi(state: UiState): void {
   const maximize = $('[data-window="maximize"]');
   maximize.title = state.maximized ? 'Restaurer' : 'Agrandir';
   panelOpen = state.panel !== 'none';
-  if (themeChanged) renderSnapshot(snapshot);
+  const modeChanged = body.dataset.mode !== (state.mini ? 'mini' : 'large');
+  body.dataset.mode = state.mini ? 'mini' : 'large';
+  if (themeChanged || modeChanged) renderSnapshot(snapshot);
+  body.classList.toggle('music-loading', state.musicLoading);
   volume.hide();
 }
 let panelOpen = false;

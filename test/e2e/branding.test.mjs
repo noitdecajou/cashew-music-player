@@ -66,8 +66,24 @@ test('B · skins: CASHEW label, glyph in the skin accent, grip still a drag hand
   assert.equal(await color('#mini .led'), 'rgb(255, 138, 42)', 'same orange as the LED');
   assert.ok(await visible('#mini .grip .grip-dots'), 'Hi-fi grip unchanged');
 
+  // C · empty cover: the glyph in the muted tones of the skin.
+  const cover = await h.shell.getAttribute('#mini img.cover', 'src');
+  assert.match(cover, /^data:image\/svg\+xml/);
+  assert.match(decodeURIComponent(cover), /#7d5a32/, 'Hi-fi muted orange');
+
   // A track replaces the idle wordmark on the Autoradio screen.
   await h.shell.evaluate(() => window.player.setTheme('autoradio-hf'));
   await h.ytm('__fake.start(0)');
   await h.until(async () => (await h.shell.textContent('#mini .title')) === 'Premier titre', { message: 'track title' });
+});
+
+test('C · settings footer: glyph, wordmark and the app version', async () => {
+  await h.shell.evaluate(() => window.player.window('toggle-settings'));
+  const drawer = await h.drawer();
+  await drawer.waitForSelector('section[data-panel="settings"]:not([hidden])');
+  const version = await h.app.evaluate(({ app }) => app.getVersion());
+  await h.until(async () => (await drawer.textContent('.about .version')) === `version ${version}`, { message: 'version from the app' });
+  assert.equal(await drawer.textContent('.about .wordmark'), 'cashew');
+  assert.equal(await drawer.getAttribute('.about .glyph use', 'href'), '#i-cashew');
+  await drawer.keyboard.press('Escape');
 });

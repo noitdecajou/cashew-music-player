@@ -12,6 +12,8 @@ export interface UiState {
   maximized: boolean;
   online: boolean;
   videoFullscreen: boolean;
+  /** YouTube Music is loading: large mode shows the splash instead of a blank view. */
+  musicLoading: boolean;
 }
 
 export type WindowAction =

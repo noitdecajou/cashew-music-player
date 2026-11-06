@@ -245,7 +245,7 @@ function setupSettings(notice: (message: string) => void): { open(): void; theme
     quiet.checked = settings.quietStartup;
     shortcut.value = settings.shortcut;
     setText(shortcutStatus, settings.shortcutError || (settings.shortcut ? 'Actif, même depuis une autre application.' : 'Désactivé.'));
-    setText($('.version'), `Music Player ${settings.version}`);
+    setText($('.version'), `version ${settings.version}`);
   }
   async function update(patch: Parameters<typeof api.updateSettings>[0]): Promise<void> {
     try { render(await api.updateSettings(patch)); } catch (error) { notice(errorMessage(error)); render(await api.settings()); }

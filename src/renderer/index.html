@@ -44,6 +44,12 @@
     <button data-window="toggle-mini" class="primary" title="Passer en mini-player">Mini-player <svg><use href="#i-compact"/></svg></button>
   </header>
 
+  <div id="splash" class="large-only" role="status" aria-label="Chargement de YouTube Music">
+    <svg class="glyph" width="88" height="88" aria-hidden="true"><use href="#i-cashew-ridge"/></svg>
+    <span class="wordmark">cashew</span>
+    <span class="bar" aria-hidden="true"><span></span></span>
+  </div>
+
   <main id="mini" class="mini-only" aria-label="Mini-player">
     <div class="card">
       <div class="face" aria-hidden="true"></div>
@@ -124,7 +130,11 @@
       <h3>YouTube Music</h3>
       <div class="buttons"><button data-window="reload-music">Recharger YouTube Music</button><button data-window="repair-display" title="Repasse en grand lecteur avec sa barre et recharge l’interface">Réparer l’affichage</button><button id="diagnostics">Mesurer la consommation</button></div>
       <p class="hint diagnostics-result"></p>
-      <p class="hint version"></p>
+      <footer class="about">
+        <svg class="glyph" width="22" height="22" aria-hidden="true"><use href="#i-cashew"/></svg>
+        <div><div class="wordmark">cashew</div><div class="hint version"></div></div>
+        <a class="link" href="https://github.com/noitdecajou/cashew-music-player/releases" target="_blank" rel="noreferrer">Notes de version</a>
+      </footer>
     </section>
   </aside>
 

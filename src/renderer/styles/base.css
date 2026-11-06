@@ -27,6 +27,8 @@ button:hover { background: #ffffff12; }
 button:focus-visible, [role="slider"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 svg { width: 18px; height: 18px; fill: currentColor; }
 .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Empty cover art: muted glyph (the mini-player skins override these). */
+:root { --cover-empty-bg: #26231F; --cover-empty-glyph: #6E5B44; }
 img.cover { object-fit: cover; background: linear-gradient(135deg, #5d4d8f, #2b3040); color: transparent; }
 img.cover:not(.loaded) { content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); }
 
@@ -55,6 +57,16 @@ body.seamless #titlebar { display: none; }
 #toolbar button.primary { background: var(--cashew-100); color: var(--cashew-ink); font-weight: 600; }
 #toolbar button.primary:hover { background: #f6e8d2; }
 .pin[aria-pressed="true"] { color: var(--accent); }
+
+/* Splash (large mode, while YouTube Music loads) ----------------------------*/
+#splash { display: none; position: fixed; left: 0; right: 0; bottom: 0; top: calc(var(--titlebar) + var(--toolbar)); flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(circle at 50% 40%, #241f19, var(--bg) 70%); }
+body.large.music-loading:not(.video-fullscreen) #splash { display: flex; }
+#splash .glyph { width: 88px; height: 88px; color: var(--cashew-500); }
+#splash .wordmark { font-size: 32px; color: #edeae4; }
+#splash .bar { width: 120px; height: 3px; border-radius: 2px; background: #2a2620; overflow: hidden; }
+#splash .bar span { display: block; width: 40%; height: 100%; border-radius: 2px; background: var(--cashew-500); animation: splash-bar 1.2s ease-in-out infinite; }
+@keyframes splash-bar { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) { #splash .bar span { animation: none; width: 100%; opacity: .6; } }
 
 /* Panels: rendered by the drawer page, a native view stacked over the player --*/
 #panel[hidden] { display: none; }
@@ -138,6 +150,12 @@ kbd { font: 10px 'Segoe UI', sans-serif; color: var(--muted); border: 1px solid 
 .theme-autoradio .swatch, .theme-autoradio-hf .swatch { background: linear-gradient(#262c33, #0b0e11); box-shadow: inset 0 0 0 1px #4aa3ff66, inset 30px 0 0 -14px #4aa3ff; }
 .theme-hifi .swatch, .theme-hifi-hf .swatch { background: repeating-linear-gradient(0deg, #ffffff07 0 1px, transparent 1px 3px), linear-gradient(#6b6253, #3a352d); box-shadow: inset 0 -6px #f0a64a; }
 
+#panel .about { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+#panel .about .glyph { width: 22px; height: 22px; color: var(--cashew-500); }
+#panel .about .wordmark { font-size: 15px; color: var(--text); }
+#panel .about > div { flex: 1; }
+#panel .about .link { color: var(--cashew-500); font-size: 12px; text-decoration: none; }
+#panel .about .link:hover { text-decoration: underline; }
 .update-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .update-row .update-status { flex: 1; }
 #panel button.primary { background: #e9e3ff; color: var(--accent-ink); font-weight: 600; }

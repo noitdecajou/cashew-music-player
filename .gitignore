@@ -4,3 +4,10 @@ dist/
 test-results/
 *.log
 live-report.md
+
+# Secrets never belong in the repository
+.env*
+*.pem
+*.key
+*.pfx
+*.p12

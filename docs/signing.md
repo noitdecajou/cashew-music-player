@@ -43,13 +43,30 @@ ici non plus : ce sont des fichiers tiers, que SignPath Foundation ne signe pas 
    - onglet **Variables** :
      - `SIGNPATH_ORGANIZATION_ID` = l’identifiant de l’organisation SignPath,
      - `SIGNPATH_PROJECT_SLUG` = le slug du projet,
-     - `SIGNPATH_SIGNING_POLICY_SLUG` = le slug de la signing policy.
+     - `SIGNPATH_SIGNING_POLICY_SLUG` = le slug de la signing policy,
+     - `SIGNPATH_PUBLISHER_NAME` = le nom (CN) du certificat qui signe, tel qu’il apparaît dans les
+       propriétés de l’installeur signé → Signatures numériques (pour SignPath Foundation :
+       `SignPath Foundation`). **Obligatoire** : sans elle, le workflow refuse de publier une version
+       signée.
 6. Publier une version comme d’habitude (docs/releasing.md). Selon la politique choisie, SignPath peut
    demander une **approbation manuelle** de chaque signature : le workflow attend alors ta validation sur
    le site de SignPath.
 
 ## Après la première version signée
 
-- Les versions signées vérifient l’éditeur des mises à jour : toutes les versions suivantes doivent être
-  signées avec le même certificat.
+- Les versions signées inscrivent `SIGNPATH_PUBLISHER_NAME` dans `resources/app-update.yml` : elles
+  n’installent plus qu’une mise à jour signée par cet éditeur (vérification Authenticode d’electron-updater).
+  Sans cela, la seule vérification était l’empreinte de `latest.yml`, publiée au même endroit que
+  l’installeur (audit de sécurité, 2.0.0-beta.8). Toutes les versions suivantes doivent donc être signées
+  avec le même certificat.
 - Les applications déjà installées (non signées) acceptent la première version signée normalement.
+
+## Qui peut publier
+
+- Le workflow ne publie que des commits de `main` (lancé depuis `main`, ou étiquette posée sur un commit de
+  `main`).
+- Toute personne ayant le droit d’écriture sur le dépôt peut lancer Release : garder ce droit pour soi, et
+  idéalement protéger les étiquettes `v*` (Settings → Rules → Rulesets → Tag rules).
+- Optionnel, pour exiger une approbation avant chaque publication : créer un environnement `release`
+  (Settings → Environments) avec « Required reviewers », y déplacer `SIGNPATH_API_TOKEN`, et ajouter
+  `environment: release` au job du workflow.

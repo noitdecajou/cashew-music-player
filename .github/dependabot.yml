@@ -1,0 +1,18 @@
+# Weekly update proposals (pull requests) for npm packages and GitHub Actions.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the build/test tooling, one per runtime-relevant package.
+      tooling:
+        patterns: ['@types/*', 'electron-vite', 'vite', 'vitest', 'typescript', 'playwright', 'eslint', '@eslint/*', 'typescript-eslint', 'prettier', 'globals']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { dirname } from 'node:path';
-import { type IpcMainEvent, type IpcMainInvokeEvent, Menu, app, dialog, shell as electronShell, ipcMain, powerMonitor } from 'electron';
+import { type IpcMainEvent, type IpcMainInvokeEvent, Menu, app, dialog, shell as electronShell, ipcMain, powerMonitor, session as electronSession } from 'electron';
 import type { Diagnostics, QueueAction, SearchResponse, SearchScope, Settings, SettingsPatch, UiState, WindowAction } from '../shared/ipc';
 import { EMPTY_SNAPSHOT, PLAYLIST_ID, type PlayerSnapshot, VIDEO_ID, sanitizeCommand, str } from '../shared/player';
 import { isMiniTheme } from '../shared/themes';
@@ -45,7 +45,6 @@ function checkInstallation(): void {
   if (!report) { log('integrity: no manifest'); return; }
   if (!report.missing.length && !report.changed.length) { log('integrity: ok'); return; }
   log('integrity: problem', report);
-  if (process.env.MP_INTEGRITY_NO_DIALOG) return; // tests of the packaged app
   const choice = dialog.showMessageBoxSync({
     type: 'warning',
     title: 'cashew — fichiers manquants',
@@ -73,6 +72,10 @@ function main(): void {
   app.whenReady().then(() => {
     if (process.platform === 'win32') app.setAppUserModelId(app.isPackaged ? APP_ID : `${APP_ID}.development`);
     Menu.setApplicationMenu(null);
+    // Our own pages (title bar, drawer) need no permission and download nothing.
+    electronSession.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+    electronSession.defaultSession.setPermissionCheckHandler(() => false);
+    electronSession.defaultSession.on('will-download', event => event.preventDefault());
 
     const userData = app.getPath('userData');
     const logDirectory = initLog(userData);
@@ -173,7 +176,9 @@ function main(): void {
         case 'progress':
           if (message.progress.trackId === snapshot.track?.id) {
             lastPosition = message.progress.position;
-            if (saved && Date.now() - lastSaveAt > 15000) { saved.position = lastPosition; rememberTrack(); }
+            // Only the saved track of this account (after an account switch, `saved` is the
+            // other account's track until a new one starts).
+            if (saved?.videoId === message.progress.trackId && Date.now() - lastSaveAt > 15000) { saved.position = lastPosition; rememberTrack(); }
           }
           if (window.visible) send('player:progress', message.progress);
           return;

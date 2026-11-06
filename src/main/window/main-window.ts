@@ -151,7 +151,13 @@ export class MainWindow {
   setVideoFullscreen(active: boolean): void {
     if (active === this.ui.videoFullscreen || this.win.isDestroyed()) return;
     if (active) {
-      if (this.ui.mini) return;
+      if (this.ui.mini) {
+        // The mini-player has no room for video: refuse it (Electron already made the
+        // window fullscreen for the page).
+        void this.ytm.view.webContents.executeJavaScript('document.exitFullscreen?.().catch(() => {})').catch(() => undefined);
+        if (this.win.isFullScreen()) this.win.setFullScreen(false);
+        return;
+      }
       this.restoreFullScreen = this.win.isFullScreen();
       this.setUi({ videoFullscreen: true, panel: 'none' });
       if (!this.restoreFullScreen) this.win.setFullScreen(true);

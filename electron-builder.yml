@@ -13,15 +13,30 @@ win:
     - target: nsis
       arch: [x64]
   icon: build/icon.ico
+# Per-user install in %LOCALAPPDATA%\Programs only: no admin install and no custom
+# folder, so other Windows accounts can never write the files this account runs
+# (security audit, 2.0.0-beta.8).
 nsis:
   oneClick: false
   perMachine: false
-  allowToChangeInstallationDirectory: true
+  allowElevation: false
+  allowToChangeInstallationDirectory: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Cashew Music Player
   artifactName: MusicPlayer-Setup-${version}.exe
   deleteAppDataOnUninstall: false
+# Electron fuses, flipped in the executable before signing: it cannot be used as a
+# plain Node.js runtime or debugged from the command line, it only loads its own
+# verified app.asar, and the Google session cookies are encrypted on disk (DPAPI;
+# existing cookies are re-encrypted on write, there is no going back).
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
 portable:
   artifactName: MusicPlayer-Portable-${version}.exe
 # Releases and automatic updates come from GitHub Releases of this repository.

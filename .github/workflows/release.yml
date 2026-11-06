@@ -27,8 +27,10 @@ jobs:
       # for builds that are published.
       SIGN: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && (startsWith(github.ref, 'refs/tags/') || inputs.publish == true) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # to check that a published commit is on main
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -39,11 +41,29 @@ jobs:
         run: |
           version="v$(node -p "require('./package.json').version")"
           if [ "$version" != "$GITHUB_REF_NAME" ]; then echo "Tag $GITHUB_REF_NAME != $version"; exit 1; fi
+      - name: Only commits of main are published
+        if: startsWith(github.ref, 'refs/tags/') || inputs.publish
+        shell: bash
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Seuls les commits de main peuvent être publiés (lance le workflow depuis main)."; exit 1
+          fi
       - run: npm run typecheck
       - run: npm test
       - run: npx electron-vite build
+      # Signed releases name their publisher in app-update.yml: installed apps then
+      # refuse an update that is not signed by it (electron-updater checks Authenticode).
       - name: Build installer
-        run: npx electron-builder --win --publish never
+        shell: bash
+        env:
+          PUBLISHER: ${{ vars.SIGNPATH_PUBLISHER_NAME }}
+        run: |
+          if [ "$SIGN" = "true" ]; then
+            if [ -z "$PUBLISHER" ]; then echo "Signature active : définis la variable SIGNPATH_PUBLISHER_NAME (docs/signing.md)."; exit 1; fi
+            npx electron-builder --win --publish never "-c.win.signtoolOptions.publisherName=$PUBLISHER"
+          else
+            npx electron-builder --win --publish never
+          fi
       - name: Check the packaged files against their integrity manifest
         env:
           MP_PACKAGE_DIR: dist/win-unpacked
@@ -54,14 +74,14 @@ jobs:
       - name: "Signing: upload the app"
         if: env.SIGN == 'true'
         id: unsigned-app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: unsigned-app
           path: dist/win-unpacked
           if-no-files-found: error
       - name: "Signing: sign the app"
         if: env.SIGN == 'true'
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@ced31329c0317e779dad2eec2a7c3bb46ea1343e # v1.3
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
@@ -80,14 +100,14 @@ jobs:
       - name: "Signing: upload the installer"
         if: env.SIGN == 'true'
         id: unsigned-installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: unsigned-installer
           path: dist/*.exe
           if-no-files-found: error
       - name: "Signing: sign the installer"
         if: env.SIGN == 'true'
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@ced31329c0317e779dad2eec2a7c3bb46ea1343e # v1.3
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
@@ -124,7 +144,7 @@ jobs:
           target=""; [ "$GITHUB_REF_TYPE" = "tag" ] && target="--verify-tag" || target="--target $GITHUB_SHA"
           gh release create "$tag" $target --title "Music Player $version" --notes-file notes.md $prerelease \
             "dist/MusicPlayer-Setup-$version.exe" "dist/MusicPlayer-Setup-$version.exe.blockmap" dist/latest.yml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: MusicPlayer-Setup
           path: |

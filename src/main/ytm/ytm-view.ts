@@ -3,24 +3,11 @@ import { join } from 'node:path';
 import { type IpcMainEvent, WebContentsView, app, ipcMain, net, session } from 'electron';
 import { OP_RESULTS, type OpMap, type OpName } from '../../shared/ops';
 import { type AgentMessage, type PlayerCommand, sanitizeAgentMessage } from '../../shared/player';
+import { YTM_ORIGIN, YTM_PERMISSIONS, isAllowedNavigation, isYtmUrl } from './navigation';
 
-export const YTM_ORIGIN = 'https://music.youtube.com';
+export { YTM_ORIGIN, isAllowedNavigation } from './navigation';
 export const YTM_HOME = `${YTM_ORIGIN}/`;
 const PARTITION = 'persist:music'; // same as 1.x: keeps the user signed in
-
-const ALLOWED_HOSTS = new Set([
-  'music.youtube.com', 'accounts.google.com', 'accounts.youtube.com',
-  'consent.youtube.com', 'consent.google.com', 'www.youtube.com',
-]);
-
-export function isAllowedNavigation(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' && (ALLOWED_HOSTS.has(url.hostname) || /^accounts\.google\.[a-z.]+$/.test(url.hostname));
-  } catch {
-    return false;
-  }
-}
 
 /** Test-only: serve a fake music.youtube.com page. Never active in a packaged app. */
 function installFixture(target: Electron.Session): void {
@@ -55,10 +42,16 @@ export class YtmView {
     const music = session.fromPartition(PARTITION);
     installFixture(music);
     installFixture(session.defaultSession); // our pages load the artwork too
-    // Only what playback needs. Everything else (notifications, geolocation...) is refused.
-    music.setPermissionRequestHandler((_wc, permission, callback) => {
-      callback(['fullscreen', 'media', 'clipboard-sanitized-write'].includes(permission));
+    // Only what playback needs, and only for music.youtube.com itself in our view: never
+    // camera or microphone, nothing for Google pages or frames from elsewhere.
+    music.setPermissionRequestHandler((wc, permission, callback, details) => {
+      callback(wc === this.view?.webContents && details.isMainFrame && isYtmUrl(details.requestingUrl)
+        && YTM_PERMISSIONS.includes(permission));
     });
+    music.setPermissionCheckHandler((wc, permission, requestingOrigin) =>
+      wc === this.view?.webContents && isYtmUrl(requestingOrigin) && YTM_PERMISSIONS.includes(permission));
+    // Nothing is downloaded from the music view.
+    music.on('will-download', event => event.preventDefault());
 
     this.view = new WebContentsView({
       webPreferences: {

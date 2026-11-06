@@ -27,12 +27,12 @@
     "test:live": "electron-vite build && node test/live/ytm-live.mjs"
   },
   "devDependencies": {
-    "@types/node": "22.20.5",
+    "@types/node": "26.6.6",
     "electron": "45.2.3",
     "electron-builder": "26.18.0",
     "electron-vite": "6.0.0",
-    "oxlint": "1.89.0",
-    "playwright": "1.63.0",
+    "oxlint": "1.91.0",
+    "playwright": "1.64.1",
     "prettier": "3.9.10",
     "typescript": "7.0.2",
     "vite": "8.3.6",

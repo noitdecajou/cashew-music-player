@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
-  <title>Music Player</title>
+  <title>cashew</title>
   <link rel="stylesheet" href="./styles/base.css">
   <link rel="stylesheet" href="./styles/mini-modern.css">
   <link rel="stylesheet" href="./styles/mini-skins.css">
 </head>
 <body class="booting" data-theme="modern">
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <svg id="sprite" width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
     <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></symbol>
     <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 6v12z"/></symbol>
@@ -27,8 +27,8 @@
     <symbol id="i-vol-3" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
-  <div id="titlebar" role="toolbar" aria-label="Fenêtre">
-    <span class="brand"><img src="./icon.png" alt="">Music Player</span>
+  <div id="titlebar" role="toolbar" aria-label="Fenêtre cashew">
+    <span class="brand"><svg class="glyph" width="16" height="16"><use href="#i-cashew"/></svg><span class="wordmark">cashew</span></span>
     <button data-window="minimize" title="Réduire" aria-label="Réduire"><svg viewBox="0 0 16 16"><path d="M3 8h10"/></svg></button>
     <button data-window="maximize" class="large-only" title="Agrandir" aria-label="Agrandir"><svg viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9"/></svg></button>
     <button data-window="close" class="close" title="Masquer (la musique continue)" aria-label="Masquer dans la zone de notification"><svg viewBox="0 0 16 16"><path d="m4 4 8 8m0-8-8 8"/></svg></button>
@@ -82,7 +82,7 @@
             <button class="volume-mute" aria-pressed="false" aria-label="Couper le son" title="Couper le son"><svg><use href="#i-mute"/></svg></button>
           </div>
         </div>
-        <button class="grip" aria-label="Déplacer le lecteur" title="Déplacer : glisser, ou flèches du clavier"><svg><use href="#i-grip"/></svg></button>
+        <button class="grip" aria-label="Déplacer le lecteur" title="Déplacer : glisser, ou flèches du clavier"><svg class="grip-dots"><use href="#i-grip"/></svg><svg class="grip-glyph glyph"><use href="#i-cashew"/></svg><svg class="grip-outline glyph"><use href="#i-cashew-outline"/></svg></button>
       </div>
     </div>
   </main>

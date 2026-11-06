@@ -48,11 +48,11 @@ function checkInstallation(): void {
   if (process.env.MP_INTEGRITY_NO_DIALOG) return; // tests of the packaged app
   const choice = dialog.showMessageBoxSync({
     type: 'warning',
-    title: 'Music Player — fichiers manquants',
-    message: 'Des fichiers de Music Player ont été supprimés ou modifiés depuis l’installation.',
+    title: 'cashew — fichiers manquants',
+    message: 'Des fichiers de cashew ont été supprimés ou modifiés depuis l’installation.',
     detail: 'C’est généralement un antivirus (Windows Defender) qui les a mis en quarantaine par erreur. '
       + 'Sans eux, la fenêtre peut rester vide.\n\n'
-      + 'Pour réparer : réinstalle Music Player (tes réglages et ta connexion sont conservés), ou restaure les fichiers '
+      + 'Pour réparer : réinstalle cashew (tes réglages et ta connexion sont conservés), ou restaure les fichiers '
       + 'depuis Sécurité Windows → Protection contre les virus et menaces → Historique de protection.\n\n'
       + `Fichiers concernés :\n${describeIntegrity(report)}`,
     buttons: ['Télécharger l’installeur', 'Ouvrir Sécurité Windows', 'Continuer quand même', 'Quitter'],

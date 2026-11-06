@@ -54,3 +54,6 @@ body.mini[data-theme="autoradio-hf"], body.mini[data-theme="hifi-hf"] { --mini-h
 
 #mini .grip { width: 22px; height: 28px; flex: none; color: var(--faint); }
 #mini .grip svg { width: 16px; height: 16px; }
+#mini .grip :is(.grip-glyph, .grip-outline) { display: none; }
+body.mini[data-theme="modern"] #mini .grip .grip-dots { display: none; }
+body.mini[data-theme="modern"] #mini .grip .grip-glyph { display: block; width: 14px; height: 14px; color: var(--accent); }

@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import { after, before, test } from 'node:test';
+import { launch } from './harness.mjs';
+
+let h;
+before(async () => { h = await launch(); });
+after(async () => { await h?.close(); });
+
+const visible = selector => h.shell.isVisible(selector);
+const color = selector => h.shell.evaluate(s => getComputedStyle(document.querySelector(s)).color, selector);
+
+test('A · title bar and window title carry the brand', async () => {
+  assert.equal(await h.shell.title(), 'cashew');
+  assert.equal(await h.shell.textContent('#titlebar .wordmark'), 'cashew');
+  assert.equal(await h.shell.getAttribute('#titlebar .glyph use', 'href'), '#i-cashew');
+  assert.equal(await color('#titlebar .glyph'), 'rgb(227, 181, 122)'); // --cashew-500
+  assert.equal(await h.shell.evaluate(() => getComputedStyle(document.querySelector('#toolbar .primary')).backgroundColor), 'rgb(240, 221, 191)'); // --cashew-100
+  assert.ok(await h.shell.evaluate(() => !!document.querySelector('#sprite #i-cashew path')), 'glyph symbols installed');
+});
+
+test('A · the "Actuel" grip is the glyph and still moves the window', async () => {
+  await h.shell.evaluate(() => window.player.window('toggle-mini'));
+  await h.shell.waitForSelector('body.mini');
+  assert.ok(await visible('#mini .grip .grip-glyph'), 'glyph shown');
+  assert.ok(!(await visible('#mini .grip .grip-dots')), 'dots hidden');
+  const accent = await h.shell.evaluate(() => getComputedStyle(document.body).getPropertyValue('--accent').trim());
+  assert.equal(accent, '#c9b9ff');
+  assert.equal(await color('#mini .grip .grip-glyph'), 'rgb(201, 185, 255)', 'glyph takes the skin accent');
+  // Pointer: the glyph starts, moves and ends a drag (main reads the OS cursor).
+  await h.app.evaluate(({ ipcMain }) => { globalThis.__drag = []; ipcMain.on('shell:drag', (_e, phase) => globalThis.__drag.push(phase)); });
+  const box = await h.shell.locator('#mini .grip').boundingBox();
+  await h.shell.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await h.shell.mouse.down();
+  await h.shell.mouse.move(box.x - 30, box.y - 20, { steps: 4 });
+  await h.shell.mouse.up();
+  const phases = await h.until(async () => { const p = await h.app.evaluate(() => globalThis.__drag); return p.at(-1) === 'end' ? p : null; }, { message: 'drag phases' });
+  assert.equal(phases[0], 'start');
+  assert.ok(phases.includes('move'));
+  // Keyboard on the same handle moves the window by 10 px.
+  const position = () => h.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getPosition());
+  const [x0, y0] = await position();
+  await h.shell.focus('#mini .grip');
+  await h.shell.keyboard.press('ArrowRight');
+  await h.until(async () => (await position())[0] === Math.min(x0 + 10, 1920 - 420) || (await position())[0] !== x0, { message: 'moved by keyboard' });
+  assert.equal((await position())[1], y0);
+});

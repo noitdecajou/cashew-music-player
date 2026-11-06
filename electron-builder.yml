@@ -19,7 +19,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Music Player
+  shortcutName: Cashew Music Player
   artifactName: MusicPlayer-Setup-${version}.exe
   deleteAppDataOnUninstall: false
 portable:

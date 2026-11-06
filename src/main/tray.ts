@@ -17,13 +17,13 @@ export interface AppTray { setUpdate(state: UpdateState): void; destroy(): void;
 export function createTray(actions: TrayActions): AppTray {
   const icon = join(__dirname, '../../resources', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
   const tray = new Tray(nativeImage.createFromPath(icon));
-  tray.setToolTip('Music Player');
+  tray.setToolTip('cashew');
   let update: UpdateState | null = null;
   const build = (): void => tray.setContextMenu(Menu.buildFromTemplate([
     ...(update && ['available', 'downloading', 'ready'].includes(update.status)
       ? [{ label: update.status === 'ready' ? `Redémarrer pour installer ${update.version}` : `Mise à jour ${update.version} disponible…`, click: actions.update }, { type: 'separator' as const }]
       : []),
-    { label: 'Ouvrir Music Player', click: actions.open },
+    { label: 'Ouvrir cashew', click: actions.open },
     { label: 'Mini-player / Grand lecteur', click: actions.toggleMini },
     { type: 'separator' },
     { label: 'Lecture / Pause', click: () => actions.command('toggle-play') },

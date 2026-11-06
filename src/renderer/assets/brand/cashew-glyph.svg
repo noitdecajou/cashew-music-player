@@ -1,0 +1,8 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <!-- Provisional cashew glyph: the ONLY copy. The app builds every variant
+       (filled, outline, with ridge, muted empty cover, app icons) from these
+       two paths: replace them here to change the logo everywhere. -->
+  <path id="body" d="M7 3.5C3.5 5 2 9 3 13c1.2 5 6 8.5 11.5 7.8 4-.5 7-3.3 6.7-5.6-.2-1.6-1.9-2.4-3.6-1.7-1.8.8-4 1-5.8-.3-2.2-1.6-2.6-4.4-1.4-6.6.8-1.6-.2-3.4-1.8-3.4-.6 0-1.1.1-1.6.3z" fill="currentColor"/>
+  <!-- Ridge: large sizes only (32 px and up). -->
+  <path id="ridge" d="M6.2 7.5c-1 2.6-.6 6 1.6 8.6" fill="none" stroke="#A86F35" stroke-width="1.1" stroke-linecap="round"/>
+</svg>

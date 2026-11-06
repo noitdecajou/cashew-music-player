@@ -16,7 +16,7 @@ body.mini.skin #mini :where(.controls button, .volume-button, .grip) { display: 
 body.mini.skin #mini .tools { display: flex; gap: 2px; }
 body.mini.skin #mini .face { inset: 0; pointer-events: none; }
 body.mini.skin #mini .brand-label { font-size: 9px; letter-spacing: .16em; display: flex; align-items: center; gap: 7px; white-space: nowrap; }
-body.mini.skin #mini .led { display: none; width: 6px; height: 6px; border-radius: 50%; }
+body.mini.skin #mini .led { display: none; width: 12px; height: 12px; }
 body.mini.skin #mini .time { font-size: 10px; width: 44px; }
 body.mini.skin #mini .meta { min-width: 0; }
 body.mini.skin #mini .upnext { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; padding: 2px 0 0 10px; border-radius: 0; }
@@ -86,6 +86,8 @@ body.mini:is([data-theme="autoradio"], [data-theme="autoradio-hf"]) #mini .title
 @keyframes marquee { 0%, 12% { text-indent: 0; } 88%, 100% { text-indent: calc(-1 * var(--marquee-distance, 0px)); } }
 @media (prefers-reduced-motion: reduce) { body.mini #mini .title.marquee { animation: none; text-overflow: ellipsis; } }
 body.mini:is([data-theme="autoradio"], [data-theme="autoradio-hf"]) #mini .grip { color: #4b5a68; }
+body.mini:is([data-theme="autoradio"], [data-theme="autoradio-hf"]) #mini .grip .grip-dots { display: none; }
+body.mini:is([data-theme="autoradio"], [data-theme="autoradio-hf"]) #mini .grip .grip-outline { display: block; width: 16px; height: 16px; color: var(--glow); }
 
 /* Autoradio 420 × 168 */
 body.mini[data-theme="autoradio"] #mini .face::before { left: 8px; top: 8px; width: 124px; height: 152px; }
@@ -153,7 +155,7 @@ body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .face::before { 
 body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .face::after { content: ""; position: absolute; width: 1px; background: #00000055; box-shadow: 1px 0 #ffffff1a; }
 body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .screen { display: none; }
 body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .brand-label { color: var(--metal-ink); }
-body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .led { display: inline-block; background: #ff8a2a; box-shadow: 0 0 6px #ff8a2a; }
+body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .led { display: block; color: #ff8a2a; filter: drop-shadow(0 0 3px #ff8a2a); }
 body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .title { color: var(--cream); font-weight: 500; }
 body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini .artist { color: var(--amber); }
 body.mini:is([data-theme="hifi"], [data-theme="hifi-hf"]) #mini :is(.time, .volume-value) { color: var(--metal-ink); }

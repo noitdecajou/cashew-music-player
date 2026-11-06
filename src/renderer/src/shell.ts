@@ -65,10 +65,11 @@ function renderSnapshot(next: PlayerSnapshot): void {
   if ((track?.id ?? '') !== previousId) progress.reset(track?.id ?? '');
 
   const offered = resumeOffered();
+  const lcdIdle = !track && !offered && /^autoradio/.test(document.body.dataset.theme ?? '');
   const title = track?.title || (track ? 'Chargement du morceau…' : offered ? resume.title || 'Dernière écoute' : next.signedIn === false ? 'Non connecté' : 'Aucun morceau en lecture');
   const artist = track ? track.artist : offered ? resume.artist : next.signedIn === false ? 'Connecte-toi dans le grand lecteur' : 'Lance une playlist dans le grand lecteur';
   for (const root of [mini, $('#toolbar')]) {
-    setText($('.title', root), title);
+    setText($('.title', root), root === mini && lcdIdle ? 'cashew' : title);
     setText($('.artist', root), artist);
     $('.title', root).title = track?.title ?? '';
     $('.artist', root).title = track?.artist ?? '';
@@ -139,6 +140,7 @@ function renderUi(state: UiState): void {
   body.classList.toggle('large', !state.mini);
   body.classList.toggle('seamless', state.mini && state.seamless);
   body.classList.toggle('panel-open', state.panel !== 'none');
+  const themeChanged = body.dataset.theme !== state.theme;
   body.dataset.theme = state.theme;
   body.classList.toggle('skin', state.theme !== 'modern');
   body.classList.toggle('offline', !state.online);
@@ -157,6 +159,7 @@ function renderUi(state: UiState): void {
   const maximize = $('[data-window="maximize"]');
   maximize.title = state.maximized ? 'Restaurer' : 'Agrandir';
   panelOpen = state.panel !== 'none';
+  if (themeChanged) renderSnapshot(snapshot);
   volume.hide();
 }
 let panelOpen = false;

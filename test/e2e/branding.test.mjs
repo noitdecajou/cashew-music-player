@@ -44,3 +44,30 @@ test('A · the "Actuel" grip is the glyph and still moves the window', async () 
   await h.until(async () => (await position())[0] === Math.min(x0 + 10, 1920 - 420) || (await position())[0] !== x0, { message: 'moved by keyboard' });
   assert.equal((await position())[1], y0);
 });
+
+test('B · skins: CASHEW label, glyph in the skin accent, grip still a drag handle', async () => {
+  // Nothing playing yet in this app: the Autoradio screen shows "cashew" at rest.
+  await h.shell.evaluate(() => window.player.setTheme('autoradio'));
+  await h.until(async () => (await h.shell.textContent('#mini .title')) === 'cashew', { message: 'LCD idle wordmark' });
+  assert.equal((await h.shell.textContent('#mini .brand-label')).trim(), 'CASHEW');
+  assert.ok(await visible('#mini .grip .grip-outline'), 'outline glyph in place of the dots');
+  assert.equal(await color('#mini .grip .grip-outline'), 'rgb(74, 168, 255)', 'Autoradio blue');
+  await h.app.evaluate(() => { globalThis.__drag = []; });
+  const box = await h.shell.locator('#mini .grip').boundingBox();
+  await h.shell.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await h.shell.mouse.down();
+  await h.shell.mouse.move(box.x + 40, box.y + 30, { steps: 3 });
+  await h.shell.mouse.up();
+  await h.until(async () => (await h.app.evaluate(() => globalThis.__drag)).at(-1) === 'end', { message: 'Autoradio grip drags' });
+
+  await h.shell.evaluate(() => window.player.setTheme('hifi-hf'));
+  await h.until(async () => (await h.shell.textContent('#mini .title')) !== 'cashew', { message: 'regular idle text outside Autoradio' });
+  assert.ok(await visible('#mini .led'), 'glyph in place of the LED');
+  assert.equal(await color('#mini .led'), 'rgb(255, 138, 42)', 'same orange as the LED');
+  assert.ok(await visible('#mini .grip .grip-dots'), 'Hi-fi grip unchanged');
+
+  // A track replaces the idle wordmark on the Autoradio screen.
+  await h.shell.evaluate(() => window.player.setTheme('autoradio-hf'));
+  await h.ytm('__fake.start(0)');
+  await h.until(async () => (await h.shell.textContent('#mini .title')) === 'Premier titre', { message: 'track title' });
+});

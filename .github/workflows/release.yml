@@ -75,7 +75,7 @@ jobs:
       - name: 'Signing: upload the app'
         if: env.SIGN == 'true'
         id: unsigned-app
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-app
           path: dist/win-unpacked
@@ -101,7 +101,7 @@ jobs:
       - name: 'Signing: upload the installer'
         if: env.SIGN == 'true'
         id: unsigned-installer
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-installer
           path: dist/*.exe
@@ -145,7 +145,7 @@ jobs:
           target=""; [ "$GITHUB_REF_TYPE" = "tag" ] && target="--verify-tag" || target="--target $GITHUB_SHA"
           gh release create "$tag" $target --title "Music Player $version" --notes-file notes.md $prerelease \
             "dist/MusicPlayer-Setup-$version.exe" "dist/MusicPlayer-Setup-$version.exe.blockmap" dist/latest.yml
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: MusicPlayer-Setup
           path: |

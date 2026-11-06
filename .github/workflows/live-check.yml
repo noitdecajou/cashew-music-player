@@ -1,0 +1,41 @@
+name: YouTube Music check
+
+# Every week, runs the app against the real music.youtube.com (signed out) to
+# detect changes of the site the app depends on, before users notice.
+# A failure opens (or updates) an issue labelled "youtube-music".
+on:
+  schedule:
+    - cron: '23 5 * * 1' # Mondays, 05:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx electron-vite build
+      - name: Check the real YouTube Music (one retry)
+        id: check
+        run: xvfb-run -a node test/live/ytm-live.mjs || (sleep 60 && xvfb-run -a node test/live/ytm-live.mjs)
+      - name: Report in the job summary
+        if: always()
+        run: cat live-report.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Open or update an issue
+        if: failure() && steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create youtube-music --color D93F0B --description "Changement de YouTube Music" --force
+          echo -e "\n[Exécution](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})" >> live-report.md
+          existing=$(gh issue list --label youtube-music --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then gh issue comment "$existing" --body-file live-report.md
+          else gh issue create --title "YouTube Music a changé : vérification hebdomadaire en échec" --label youtube-music --body-file live-report.md; fi

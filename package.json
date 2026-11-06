@@ -4,6 +4,12 @@
   "version": "2.0.0-beta.6",
   "private": true,
   "description": "Lecteur YouTube Music avec mini-player pour Windows",
+  "license": "MIT",
+  "author": "Ben Deurveilher",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noitdecajou/cashew-music-player.git"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "postinstall": "node -e \"require('electron')\"",
@@ -14,7 +20,8 @@
     "test": "vitest run",
     "test:e2e": "electron-vite build && node test/e2e/run.mjs",
     "dist:win": "electron-vite build && electron-builder --win --publish never",
-    "dist:portable": "electron-vite build && electron-builder --win portable --x64"
+    "dist:portable": "electron-vite build && electron-builder --win portable --x64",
+    "test:live": "electron-vite build && node test/live/ytm-live.mjs"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

@@ -40,6 +40,10 @@ jobs:
       - run: npx electron-vite build
       - name: Build installer
         run: npx electron-builder --win --publish never
+      - name: Check the packaged files against their integrity manifest
+        env:
+          MP_PACKAGE_DIR: dist/win-unpacked
+        run: npx vitest run test/unit/package.test.ts
       # One release, created in a single step with every file (electron-builder's
       # own publishing raced and created duplicate releases). Versions with a
       # suffix (-beta.N) are prereleases: stable installs never get them.

@@ -1,7 +1,26 @@
 import { join } from 'node:path';
 import { dirname } from 'node:path';
-import { type IpcMainEvent, type IpcMainInvokeEvent, Menu, app, dialog, shell as electronShell, ipcMain, powerMonitor, session as electronSession } from 'electron';
-import type { Diagnostics, QueueAction, SearchResponse, SearchScope, Settings, SettingsPatch, UiState, WindowAction } from '../shared/ipc';
+import {
+  type IpcMainEvent,
+  type IpcMainInvokeEvent,
+  Menu,
+  app,
+  dialog,
+  shell as electronShell,
+  ipcMain,
+  powerMonitor,
+  session as electronSession,
+} from 'electron';
+import type {
+  Diagnostics,
+  QueueAction,
+  SearchResponse,
+  SearchScope,
+  Settings,
+  SettingsPatch,
+  UiState,
+  WindowAction,
+} from '../shared/ipc';
 import { EMPTY_SNAPSHOT, PLAYLIST_ID, type PlayerSnapshot, VIDEO_ID, sanitizeCommand, str } from '../shared/player';
 import { isMiniTheme } from '../shared/themes';
 import { pendingWrites } from './services/json-file';
@@ -24,8 +43,18 @@ const APP_ID = 'local.musicplayer.desktop'; // same as 1.x: keeps taskbar pins
 if (!app.isPackaged && process.env.MP_USER_DATA) app.setPath('userData', process.env.MP_USER_DATA);
 
 const WINDOW_ACTIONS: readonly WindowAction[] = [
-  'toggle-mini', 'pin', 'toggle-title-bar', 'minimize', 'maximize', 'close',
-  'toggle-search', 'toggle-queue', 'toggle-settings', 'close-panel', 'reload-music', 'repair-display',
+  'toggle-mini',
+  'pin',
+  'toggle-title-bar',
+  'minimize',
+  'maximize',
+  'close',
+  'toggle-search',
+  'toggle-queue',
+  'toggle-settings',
+  'close-panel',
+  'reload-music',
+  'repair-display',
 ];
 const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000];
 
@@ -41,19 +70,30 @@ function checkInstallation(): void {
   const noAsar = process.noAsar;
   process.noAsar = true;
   let report;
-  try { report = checkIntegrity(root, readManifest(root)); } finally { process.noAsar = noAsar; }
-  if (!report) { log('integrity: no manifest'); return; }
-  if (!report.missing.length && !report.changed.length) { log('integrity: ok'); return; }
+  try {
+    report = checkIntegrity(root, readManifest(root));
+  } finally {
+    process.noAsar = noAsar;
+  }
+  if (!report) {
+    log('integrity: no manifest');
+    return;
+  }
+  if (!report.missing.length && !report.changed.length) {
+    log('integrity: ok');
+    return;
+  }
   log('integrity: problem', report);
   const choice = dialog.showMessageBoxSync({
     type: 'warning',
     title: 'cashew — fichiers manquants',
     message: 'Des fichiers de cashew ont été supprimés ou modifiés depuis l’installation.',
-    detail: 'C’est généralement un antivirus (Windows Defender) qui les a mis en quarantaine par erreur. '
-      + 'Sans eux, la fenêtre peut rester vide.\n\n'
-      + 'Pour réparer : réinstalle cashew (tes réglages et ta connexion sont conservés), ou restaure les fichiers '
-      + 'depuis Sécurité Windows → Protection contre les virus et menaces → Historique de protection.\n\n'
-      + `Fichiers concernés :\n${describeIntegrity(report)}`,
+    detail:
+      'C’est généralement un antivirus (Windows Defender) qui les a mis en quarantaine par erreur. ' +
+      'Sans eux, la fenêtre peut rester vide.\n\n' +
+      'Pour réparer : réinstalle cashew (tes réglages et ta connexion sont conservés), ou restaure les fichiers ' +
+      'depuis Sécurité Windows → Protection contre les virus et menaces → Historique de protection.\n\n' +
+      `Fichiers concernés :\n${describeIntegrity(report)}`,
     buttons: ['Télécharger l’installeur', 'Ouvrir Sécurité Windows', 'Continuer quand même', 'Quitter'],
     defaultId: 0,
     cancelId: 2,
@@ -65,7 +105,10 @@ function checkInstallation(): void {
 }
 
 function main(): void {
-  if (!app.requestSingleInstanceLock()) { app.quit(); return; }
+  if (!app.requestSingleInstanceLock()) {
+    app.quit();
+    return;
+  }
   let quitting = false;
   let quitReady = false;
 
@@ -79,7 +122,9 @@ function main(): void {
 
     const userData = app.getPath('userData');
     const logDirectory = initLog(userData);
-    log(`start ${app.getVersion()} electron ${process.versions.electron} ${process.platform} args=${process.argv.slice(1).join(' ')}`);
+    log(
+      `start ${app.getVersion()} electron ${process.versions.electron} ${process.platform} args=${process.argv.slice(1).join(' ')}`,
+    );
     process.on('uncaughtException', error => log('main: uncaught exception', error));
     process.on('unhandledRejection', reason => log('main: unhandled rejection', reason));
     app.on('child-process-gone', (_event, details) => log('child process gone', details));
@@ -90,7 +135,8 @@ function main(): void {
 
     const loadRenderer = (contents: Electron.WebContents, view?: 'drawer'): void => {
       const search = view ? `view=${view}` : '';
-      if (process.env.ELECTRON_RENDERER_URL && !app.isPackaged) void contents.loadURL(process.env.ELECTRON_RENDERER_URL + (search ? `?${search}` : ''));
+      if (process.env.ELECTRON_RENDERER_URL && !app.isPackaged)
+        void contents.loadURL(process.env.ELECTRON_RENDERER_URL + (search ? `?${search}` : ''));
       else void contents.loadFile(join(__dirname, '../renderer/index.html'), { search });
     };
     const window = new MainWindow(prefs, ytm, loadRenderer, drawer => {
@@ -110,7 +156,9 @@ function main(): void {
     function send(channel: string, value: unknown): void {
       for (const contents of uiContents()) contents.send(channel, value);
     }
-    function notice(message: string): void { send('ui:notice', message); }
+    function notice(message: string): void {
+      send('ui:notice', message);
+    }
     const fromUi = (event: IpcMainEvent | IpcMainInvokeEvent): boolean =>
       uiContents().some(contents => event.sender === contents && event.senderFrame === contents.mainFrame);
     function handle(channel: string, listener: (...args: unknown[]) => unknown): void {
@@ -121,10 +169,14 @@ function main(): void {
     }
 
     // --- Library ----------------------------------------------------------
-    const library = new Library(userData, {
-      playlists: continuation => ytm.request('library-playlists', { continuation }),
-      songs: (browseId, continuation) => ytm.request('playlist-songs', { browseId, continuation }),
-    }, status => send('library:status', status));
+    const library = new Library(
+      userData,
+      {
+        playlists: continuation => ytm.request('library-playlists', { continuation }),
+        songs: (browseId, continuation) => ytm.request('playlist-songs', { browseId, continuation }),
+      },
+      status => send('library:status', status),
+    );
 
     // --- Resume -----------------------------------------------------------
     const resumeStore = new ResumeStore(userData);
@@ -140,7 +192,9 @@ function main(): void {
     async function setAccount(key: string): Promise<void> {
       account = key;
       void library.setAccount(key);
-      saved = null; offer = null; resumeError = '';
+      saved = null;
+      offer = null;
+      resumeError = '';
       if (key) {
         const session = await resumeStore.load(key);
         if (account !== key) return;
@@ -154,7 +208,15 @@ function main(): void {
       const track = snapshot.track;
       if (!account || !track) return;
       if (saved?.videoId !== track.id) lastPosition = 0;
-      saved = { videoId: track.id, playlistId: track.playlistId, position: lastPosition, title: track.title, artist: track.artist, artwork: track.artwork, savedAt: Date.now() };
+      saved = {
+        videoId: track.id,
+        playlistId: track.playlistId,
+        position: lastPosition,
+        title: track.title,
+        artist: track.artist,
+        artwork: track.artwork,
+        savedAt: Date.now(),
+      };
       lastSaveAt = Date.now();
       void resumeStore.save(account, saved);
     }
@@ -164,21 +226,36 @@ function main(): void {
     let queueWatching: boolean | null = null;
     const updateStreams = (): void => {
       const visible = window.visible;
-      if (visible !== streaming) { streaming = visible; ytm.send({ type: 'progress-stream', enabled: visible }); }
+      if (visible !== streaming) {
+        streaming = visible;
+        ytm.send({ type: 'progress-stream', enabled: visible });
+      }
       const queue = visible && window.state.panel === 'queue';
-      if (queue !== queueWatching) { queueWatching = queue; ytm.send({ type: 'queue-watch', enabled: queue }); }
+      if (queue !== queueWatching) {
+        queueWatching = queue;
+        ytm.send({ type: 'queue-watch', enabled: queue });
+      }
     };
 
     ytm.subscribe(message => {
       switch (message.kind) {
-        case 'ready': streaming = null; queueWatching = null; updateStreams(); return;
-        case 'queue': send('queue:state', message.queue); return;
+        case 'ready':
+          streaming = null;
+          queueWatching = null;
+          updateStreams();
+          return;
+        case 'queue':
+          send('queue:state', message.queue);
+          return;
         case 'progress':
           if (message.progress.trackId === snapshot.track?.id) {
             lastPosition = message.progress.position;
             // Only the saved track of this account (after an account switch, `saved` is the
             // other account's track until a new one starts).
-            if (saved?.videoId === message.progress.trackId && Date.now() - lastSaveAt > 15000) { saved.position = lastPosition; rememberTrack(); }
+            if (saved?.videoId === message.progress.trackId && Date.now() - lastSaveAt > 15000) {
+              saved.position = lastPosition;
+              rememberTrack();
+            }
           }
           if (window.visible) send('player:progress', message.progress);
           return;
@@ -187,14 +264,20 @@ function main(): void {
           snapshot = message.snapshot;
           send('player:snapshot', snapshot);
           if (snapshot.accountKey !== account) void setAccount(snapshot.accountKey);
-          if (snapshot.track && offer && !resumeBusy) { offer = null; publishResume(); }
+          if (snapshot.track && offer && !resumeBusy) {
+            offer = null;
+            publishResume();
+          }
           if (snapshot.track && snapshot.track.id !== previous.track?.id) rememberTrack();
           return;
         }
       }
     });
 
-    window.onState((state: UiState) => { send('ui:state', state); updateStreams(); });
+    window.onState((state: UiState) => {
+      send('ui:state', state);
+      updateStreams();
+    });
     for (const event of ['show', 'hide', 'minimize', 'restore'] as const) window.win.on(event as 'show', updateStreams);
 
     // --- IPC: player and window -------------------------------------------
@@ -205,7 +288,8 @@ function main(): void {
     });
     ipcMain.on('shell:window', (event, action) => {
       if (!fromUi(event) || !WINDOW_ACTIONS.includes(action)) return;
-      if (action === 'repair-display') repairDisplay(); else window.action(action);
+      if (action === 'repair-display') repairDisplay();
+      else window.action(action);
     });
     ipcMain.on('shell:drag', (event, phase) => {
       if (fromUi(event) && ['start', 'move', 'end', 'cancel'].includes(phase)) window.dragPhase(phase);
@@ -217,7 +301,10 @@ function main(): void {
       if (!fromUi(event) || typeof online !== 'boolean') return;
       const wasOnline = window.state.online;
       window.setOnline(online);
-      if (online && !wasOnline) { retryCount = 0; retryLoad(); }
+      if (online && !wasOnline) {
+        retryCount = 0;
+        retryLoad();
+      }
     });
     handle('shell:set-theme', theme => {
       if (!isMiniTheme(theme)) throw new Error('Apparence invalide');
@@ -231,27 +318,41 @@ function main(): void {
       let playlistId = PLAYLIST_ID.test(str(target.playlistId)) ? str(target.playlistId) : undefined;
       if (!videoId && !playlistId) throw new Error('Rien à lire.');
       if (playlistId?.startsWith('VL')) playlistId = playlistId.slice(2); // browse id -> playlist id
-      offer = null; publishResume();
+      offer = null;
+      publishResume();
       await ytm.request('play', { videoId, playlistId });
     });
     handle('player:queue', async raw => {
       const a = (raw ?? {}) as QueueAction & Record<string, unknown>;
       if (!VIDEO_ID.test(str(a.videoId))) throw new Error('Morceau invalide.');
-      if (a.action === 'insert-next') { await ytm.request('queue-insert-next', { videoId: a.videoId }); return; }
-      if ((a.action !== 'play' && a.action !== 'remove') || !Number.isInteger(a.index) || a.index < 0) throw new Error('Action invalide.');
+      if (a.action === 'insert-next') {
+        await ytm.request('queue-insert-next', { videoId: a.videoId });
+        return;
+      }
+      if ((a.action !== 'play' && a.action !== 'remove') || !Number.isInteger(a.index) || a.index < 0)
+        throw new Error('Action invalide.');
       await ytm.request(a.action === 'play' ? 'queue-play' : 'queue-remove', { index: a.index, videoId: a.videoId });
     });
     handle('player:resume', async () => {
       if (!offer || resumeBusy) return;
       if (!window.state.online) throw new Error('La reprise sera possible au retour du réseau.');
-      resumeBusy = true; resumeError = ''; publishResume();
+      resumeBusy = true;
+      resumeError = '';
+      publishResume();
       try {
-        await ytm.request('resume', { videoId: offer.videoId, playlistId: offer.playlistId, position: offer.position }, 30000);
+        await ytm.request(
+          'resume',
+          { videoId: offer.videoId, playlistId: offer.playlistId, position: offer.position },
+          30000,
+        );
         offer = null;
       } catch (error) {
         resumeError = error instanceof Error ? error.message : String(error);
         throw error;
-      } finally { resumeBusy = false; publishResume(); }
+      } finally {
+        resumeBusy = false;
+        publishResume();
+      }
     });
 
     // --- IPC: library -------------------------------------------------------
@@ -259,12 +360,21 @@ function main(): void {
       if (typeof query !== 'string' || query.length > 200) throw new Error('Recherche invalide');
       const response: SearchResponse = { songs: [], playlists: [], status: library.currentStatus };
       switch (scope as SearchScope) {
-        case 'library': response.songs = library.searchSongs(query); break;
-        case 'playlists': response.playlists = library.searchPlaylists(query); break;
-        case 'web':
-          if (query.trim()) response.songs = (await ytm.request('search', { query: query.trim() })).items.map(s => ({ ...s, detail: '' }));
+        case 'library':
+          response.songs = library.searchSongs(query);
           break;
-        default: throw new Error('Recherche invalide');
+        case 'playlists':
+          response.playlists = library.searchPlaylists(query);
+          break;
+        case 'web':
+          if (query.trim())
+            response.songs = (await ytm.request('search', { query: query.trim() })).items.map(s => ({
+              ...s,
+              detail: '',
+            }));
+          break;
+        default:
+          throw new Error('Recherche invalide');
       }
       return response;
     });
@@ -282,8 +392,11 @@ function main(): void {
     const shortcut = new GlobalShortcut(() => window.toggleVisibility());
     let shortcutError = shortcut.set(prefs.value.shortcut);
     const settings = (): Settings => ({
-      version: app.getVersion(), startup: startupState(), quietStartup: prefs.value.quietStartup,
-      shortcut: shortcut.current || (shortcutError ? prefs.value.shortcut : ''), shortcutError,
+      version: app.getVersion(),
+      startup: startupState(),
+      quietStartup: prefs.value.quietStartup,
+      shortcut: shortcut.current || (shortcutError ? prefs.value.shortcut : ''),
+      shortcutError,
     });
     handle('settings:get', () => settings());
     handle('settings:update', raw => {
@@ -302,10 +415,12 @@ function main(): void {
     handle('app:diagnostics', (): Diagnostics => {
       const metrics = app.getAppMetrics();
       return {
-        version: app.getVersion(), electron: process.versions.electron,
+        version: app.getVersion(),
+        electron: process.versions.electron,
         memoryMB: Math.round(metrics.reduce((sum, m) => sum + (m.memory?.workingSetSize ?? 0), 0) / 1024),
         cpu: Math.round(metrics.reduce((sum, m) => sum + (m.cpu?.percentCPUUsage ?? 0), 0) * 10) / 10,
-        processes: metrics.length, userData,
+        processes: metrics.length,
+        userData,
       };
     });
 
@@ -313,18 +428,35 @@ function main(): void {
     let updater: Updater;
     {
       // Real updates only for the installed app; tests may inject a fake.
-      const engine = app.isPackaged ? (require('electron-updater') as typeof import('electron-updater')).autoUpdater
-        : process.env.MP_FAKE_UPDATER ? fakeEngine() : null;
-      updater = new Updater(engine, app.getVersion(), state => {
-        send('update:state', state);
-        if (state.status === 'available') notice(`Mise à jour ${state.version} disponible : Réglages → Mises à jour.`);
-        tray.setUpdate(state);
-      }, () => { quitting = true; quitReady = true; window.saveBounds(); prefs.flush(); });
+      const engine = app.isPackaged
+        ? (require('electron-updater') as typeof import('electron-updater')).autoUpdater
+        : process.env.MP_FAKE_UPDATER
+          ? fakeEngine()
+          : null;
+      updater = new Updater(
+        engine,
+        app.getVersion(),
+        state => {
+          send('update:state', state);
+          if (state.status === 'available')
+            notice(`Mise à jour ${state.version} disponible : Réglages → Mises à jour.`);
+          tray.setUpdate(state);
+        },
+        () => {
+          quitting = true;
+          quitReady = true;
+          window.saveBounds();
+          prefs.flush();
+        },
+      );
     }
     handle('app:update', async action => {
       if (action === 'check') return updater.check(true);
       if (action === 'download') return updater.download();
-      if (action === 'install') { updater.install(); return updater.state; }
+      if (action === 'install') {
+        updater.install();
+        return updater.state;
+      }
       throw new Error('Action invalide');
     });
 
@@ -336,25 +468,52 @@ function main(): void {
     function retryLoad(): void {
       if (loadedOnce || retryTimer || !window.state.online || quitting) return;
       const delay = RETRY_DELAYS_MS[Math.min(retryCount, RETRY_DELAYS_MS.length - 1)];
-      retryTimer = setTimeout(() => { retryTimer = null; retryCount++; ytm.load(); }, delay);
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        retryCount++;
+        ytm.load();
+      }, delay);
     }
     music.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
       if (!isMainFrame || code === -3) return; // -3: aborted by a newer navigation
-      notice(window.state.online ? 'YouTube Music est inaccessible. Nouvelle tentative…' : 'Hors ligne : YouTube Music se rechargera au retour du réseau.');
+      notice(
+        window.state.online
+          ? 'YouTube Music est inaccessible. Nouvelle tentative…'
+          : 'Hors ligne : YouTube Music se rechargera au retour du réseau.',
+      );
       retryLoad();
     });
-    music.on('did-finish-load', () => { if (music.getURL().startsWith('https://music.youtube.com/')) { loadedOnce = true; retryCount = 0; } });
-    powerMonitor.on('resume', () => { if (!loadedOnce) { retryCount = 0; retryLoad(); } });
+    music.on('did-finish-load', () => {
+      if (music.getURL().startsWith('https://music.youtube.com/')) {
+        loadedOnce = true;
+        retryCount = 0;
+      }
+    });
+    powerMonitor.on('resume', () => {
+      if (!loadedOnce) {
+        retryCount = 0;
+        retryLoad();
+      }
+    });
 
     // --- Tray, lifecycle ------------------------------------------------------
     const tray = createTray({
       open: () => window.show(),
-      toggleMini: () => { window.setMini(!window.state.mini); window.show(); },
+      toggleMini: () => {
+        window.setMini(!window.state.mini);
+        window.show();
+      },
       command: type => ytm.send({ type }),
       quit: () => app.quit(),
-      update: () => { window.setMini(false); window.show(); window.setPanel('settings'); },
+      update: () => {
+        window.setMini(false);
+        window.show();
+        window.setPanel('settings');
+      },
       repair: () => repairDisplay(),
-      openLogs: () => { void electronShell.openPath(logDirectory); },
+      openLogs: () => {
+        void electronShell.openPath(logDirectory);
+      },
     });
 
     /** Back to a known-good display: large player with its title bar, pages reloaded. */
@@ -393,14 +552,32 @@ function main(): void {
       window.saveBounds();
       prefs.flush();
       // Remember the exact position for the next start (bounded wait).
-      const capture = account && snapshot.track
-        ? ytm.request('session', {}, 1500).then(session => {
-          if (saved && session.videoId === saved.videoId && session.accountKey === account) { saved.position = session.position; lastPosition = session.position; rememberTrack(); }
-        }).catch(() => undefined)
-        : Promise.resolve();
-      void capture.then(() => pendingWrites()).finally(() => { quitReady = true; app.quit(); });
+      const capture =
+        account && snapshot.track
+          ? ytm
+              .request('session', {}, 1500)
+              .then(session => {
+                if (saved && session.videoId === saved.videoId && session.accountKey === account) {
+                  saved.position = session.position;
+                  lastPosition = session.position;
+                  rememberTrack();
+                }
+              })
+              .catch(() => undefined)
+          : Promise.resolve();
+      void capture
+        .then(() => pendingWrites())
+        .finally(() => {
+          quitReady = true;
+          app.quit();
+        });
     });
-    app.on('will-quit', () => { updater.dispose(); shortcut.dispose(); tray.destroy(); ytm.dispose(); });
+    app.on('will-quit', () => {
+      updater.dispose();
+      shortcut.dispose();
+      tray.destroy();
+      ytm.dispose();
+    });
     updater.start();
 
     window.win.once('ready-to-show', () => {

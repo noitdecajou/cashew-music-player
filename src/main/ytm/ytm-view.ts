@@ -36,7 +36,10 @@ export class YtmView {
   private readonly listeners = new Set<(message: AgentMessage) => void>();
   private ready = false;
   private nextOpId = 1;
-  private readonly pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
+  private readonly pending = new Map<
+    number,
+    { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }
+  >();
 
   constructor(onBlockedNavigation: (host: string) => void) {
     const music = session.fromPartition(PARTITION);
@@ -45,11 +48,17 @@ export class YtmView {
     // Only what playback needs, and only for music.youtube.com itself in our view: never
     // camera or microphone, nothing for Google pages or frames from elsewhere.
     music.setPermissionRequestHandler((wc, permission, callback, details) => {
-      callback(wc === this.view?.webContents && details.isMainFrame && isYtmUrl(details.requestingUrl)
-        && YTM_PERMISSIONS.includes(permission));
+      callback(
+        wc === this.view?.webContents &&
+          details.isMainFrame &&
+          isYtmUrl(details.requestingUrl) &&
+          YTM_PERMISSIONS.includes(permission),
+      );
     });
-    music.setPermissionCheckHandler((wc, permission, requestingOrigin) =>
-      wc === this.view?.webContents && isYtmUrl(requestingOrigin) && YTM_PERMISSIONS.includes(permission));
+    music.setPermissionCheckHandler(
+      (wc, permission, requestingOrigin) =>
+        wc === this.view?.webContents && isYtmUrl(requestingOrigin) && YTM_PERMISSIONS.includes(permission),
+    );
     // Nothing is downloaded from the music view.
     music.on('will-download', event => event.preventDefault());
 
@@ -69,7 +78,11 @@ export class YtmView {
     const guard = (event: Electron.Event, url: string): void => {
       if (isAllowedNavigation(url)) return;
       event.preventDefault();
-      try { onBlockedNavigation(new URL(url).hostname); } catch { onBlockedNavigation('?'); }
+      try {
+        onBlockedNavigation(new URL(url).hostname);
+      } catch {
+        onBlockedNavigation('?');
+      }
     };
     contents.on('will-navigate', event => guard(event, event.url));
     contents.on('will-redirect', event => guard(event, event.url));
@@ -99,7 +112,8 @@ export class YtmView {
       if (!entry) return;
       this.pending.delete(message.id);
       clearTimeout(entry.timer);
-      if (message.ok) entry.resolve(message.value); else entry.reject(new Error(message.error || 'Opération impossible.'));
+      if (message.ok) entry.resolve(message.value);
+      else entry.reject(new Error(message.error || 'Opération impossible.'));
       return;
     }
     for (const listener of this.listeners) listener(message);
@@ -109,7 +123,9 @@ export class YtmView {
     this.listeners.add(listener);
   }
 
-  get isReady(): boolean { return this.ready; }
+  get isReady(): boolean {
+    return this.ready;
+  }
 
   send(command: PlayerCommand): void {
     const contents = this.view.webContents;
@@ -118,10 +134,14 @@ export class YtmView {
 
   /** Asks the page agent to run an operation; its result is validated here. */
   async request<K extends OpName>(op: K, payload: OpMap[K]['payload'], timeoutMs = 25000): Promise<OpMap[K]['result']> {
-    if (!this.view.webContents.getURL().startsWith(YTM_ORIGIN + '/')) throw new Error('Connecte-toi à YouTube Music dans le grand lecteur.');
+    if (!this.view.webContents.getURL().startsWith(YTM_ORIGIN + '/'))
+      throw new Error('Connecte-toi à YouTube Music dans le grand lecteur.');
     const id = this.nextOpId++;
     const raw = await new Promise<unknown>((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('YouTube Music ne répond pas. Réessaie dans quelques secondes.')); }, timeoutMs);
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error('YouTube Music ne répond pas. Réessaie dans quelques secondes.'));
+      }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
       this.send({ type: 'op', id, op, payload });
     });
@@ -129,11 +149,19 @@ export class YtmView {
   }
 
   private failPending(message: string): void {
-    for (const [id, entry] of this.pending) { clearTimeout(entry.timer); entry.reject(new Error(message)); this.pending.delete(id); }
+    for (const [id, entry] of this.pending) {
+      clearTimeout(entry.timer);
+      entry.reject(new Error(message));
+      this.pending.delete(id);
+    }
   }
 
-  load(): void { void this.view.webContents.loadURL(YTM_HOME); }
-  reload(): void { this.view.webContents.reload(); }
+  load(): void {
+    void this.view.webContents.loadURL(YTM_HOME);
+  }
+  reload(): void {
+    this.view.webContents.reload();
+  }
 
   dispose(): void {
     this.failPending('Fermeture.');

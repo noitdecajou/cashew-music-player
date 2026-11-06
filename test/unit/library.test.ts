@@ -7,7 +7,12 @@ import { pendingWrites } from '../../src/main/services/json-file';
 import type { LibraryStatus } from '../../src/shared/ipc';
 
 const ACCOUNT = 'a'.repeat(64);
-const song = (n: number, title: string, artist = 'Artiste') => ({ videoId: `vid${String(n).padStart(8, '0')}`, title, artist, artwork: '' });
+const song = (n: number, title: string, artist = 'Artiste') => ({
+  videoId: `vid${String(n).padStart(8, '0')}`,
+  title,
+  artist,
+  artwork: '',
+});
 
 function source(failing = new Set<string>()): LibrarySource & { calls: string[] } {
   const calls: string[] = [];
@@ -56,9 +61,15 @@ describe('Library', () => {
   it('persists the index and favorites per account, and reloads them without network', async () => {
     const { library, dir } = await indexed();
     await library.setFavorite('VLPLb', true);
-    expect(library.searchPlaylists('').map(p => [p.title, p.favorite])).toEqual([['Soirée', true], ['Matin', false]]);
+    expect(library.searchPlaylists('').map(p => [p.title, p.favorite])).toEqual([
+      ['Soirée', true],
+      ['Matin', false],
+    ]);
     await pendingWrites();
-    const offline: LibrarySource = { playlists: () => Promise.reject(new Error('offline')), songs: () => Promise.reject(new Error('offline')) };
+    const offline: LibrarySource = {
+      playlists: () => Promise.reject(new Error('offline')),
+      songs: () => Promise.reject(new Error('offline')),
+    };
     const again = new Library(dir, offline, () => undefined);
     await again.setAccount(ACCOUNT);
     expect(again.searchSongs('cafe')).toHaveLength(1);

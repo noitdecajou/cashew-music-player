@@ -17,8 +17,18 @@ export interface UiState {
 }
 
 export type WindowAction =
-  | 'toggle-mini' | 'pin' | 'toggle-title-bar' | 'minimize' | 'maximize' | 'close'
-  | 'toggle-search' | 'toggle-queue' | 'toggle-settings' | 'close-panel' | 'reload-music' | 'repair-display';
+  | 'toggle-mini'
+  | 'pin'
+  | 'toggle-title-bar'
+  | 'minimize'
+  | 'maximize'
+  | 'close'
+  | 'toggle-search'
+  | 'toggle-queue'
+  | 'toggle-settings'
+  | 'close-panel'
+  | 'reload-music'
+  | 'repair-display';
 
 export interface LibraryStatus {
   state: 'idle' | 'indexing' | 'ready' | 'error';
@@ -30,12 +40,36 @@ export interface LibraryStatus {
   error: string;
 }
 
-export interface SongResult { videoId: string; title: string; artist: string; artwork: string; detail: string }
-export interface PlaylistResult { id: string; title: string; subtitle: string; artwork: string; favorite: boolean }
+export interface SongResult {
+  videoId: string;
+  title: string;
+  artist: string;
+  artwork: string;
+  detail: string;
+}
+export interface PlaylistResult {
+  id: string;
+  title: string;
+  subtitle: string;
+  artwork: string;
+  favorite: boolean;
+}
 export type SearchScope = 'library' | 'playlists' | 'web';
-export interface SearchResponse { songs: SongResult[]; playlists: PlaylistResult[]; status: LibraryStatus }
+export interface SearchResponse {
+  songs: SongResult[];
+  playlists: PlaylistResult[];
+  status: LibraryStatus;
+}
 
-export interface ResumeState { available: boolean; busy: boolean; error: string; title: string; artist: string; artwork: string; position: number }
+export interface ResumeState {
+  available: boolean;
+  busy: boolean;
+  error: string;
+  title: string;
+  artist: string;
+  artwork: string;
+  position: number;
+}
 
 export interface Settings {
   version: string;
@@ -46,7 +80,14 @@ export interface Settings {
 }
 export type SettingsPatch = Partial<{ startup: boolean; quietStartup: boolean; shortcut: string }>;
 
-export interface Diagnostics { version: string; electron: string; memoryMB: number; cpu: number; processes: number; userData: string }
+export interface Diagnostics {
+  version: string;
+  electron: string;
+  memoryMB: number;
+  cpu: number;
+  processes: number;
+  userData: string;
+}
 
 export interface UpdateState {
   status: 'unsupported' | 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'ready' | 'error';
@@ -56,7 +97,8 @@ export interface UpdateState {
   error: string;
 }
 
-export type QueueAction = { action: 'play' | 'remove'; index: number; videoId: string } | { action: 'insert-next'; videoId: string };
+export type QueueAction =
+  { action: 'play' | 'remove'; index: number; videoId: string } | { action: 'insert-next'; videoId: string };
 
 /** main -> renderer pages */
 export interface ShellEvents {
@@ -93,7 +135,14 @@ export interface ShellApi {
 }
 
 export const SHELL_EVENT_CHANNELS: readonly (keyof ShellEvents)[] = [
-  'player:snapshot', 'player:progress', 'ui:state', 'ui:notice', 'library:status', 'queue:state', 'resume:state', 'update:state',
+  'player:snapshot',
+  'player:progress',
+  'ui:state',
+  'ui:notice',
+  'library:status',
+  'queue:state',
+  'resume:state',
+  'update:state',
 ];
 
 /** Errors thrown in main arrive prefixed by Electron: keep only our message. */

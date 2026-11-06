@@ -3,10 +3,18 @@ export const $ = <T extends Element = HTMLElement>(selector: string, root: Paren
   if (!element) throw new Error(`missing ${selector}`);
   return element;
 };
-export const $$ = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document): T[] => [...root.querySelectorAll<T>(selector)];
-export const setText = (element: Element, value: string): void => { if (element.textContent !== value) element.textContent = value; };
+export const $$ = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document): T[] => [
+  ...root.querySelectorAll<T>(selector),
+];
+export const setText = (element: Element, value: string): void => {
+  if (element.textContent !== value) element.textContent = value;
+};
 
-export function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> & { className?: string } = {}, ...children: (Node | string)[]): HTMLElementTagNameMap[K] {
+export function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: Partial<HTMLElementTagNameMap[K]> & { className?: string } = {},
+  ...children: (Node | string)[]
+): HTMLElementTagNameMap[K] {
   const element = document.createElement(tag);
   Object.assign(element, props);
   element.append(...children);

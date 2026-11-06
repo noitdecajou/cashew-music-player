@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "categories": { "correctness": "error" },
+  "rules": {
+    "eslint/no-eval": "error",
+    "eslint/no-implied-eval": "error",
+    "eslint/no-new-func": "error",
+    "eslint/eqeqeq": ["error", "smart"]
+  },
+  "env": { "browser": true, "node": true, "es2024": true },
+  "ignorePatterns": ["out/**", "dist/**", "node_modules/**"]
+}

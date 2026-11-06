@@ -6,7 +6,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { updateMetadata } = require('../../build/update-metadata.cjs') as { updateMetadata: (a: string, b: string) => Promise<{ sha512: string; size: number }> };
+const { updateMetadata } = require('../../build/update-metadata.cjs') as {
+  updateMetadata: (a: string, b: string) => Promise<{ sha512: string; size: number }>;
+};
 
 describe('update metadata after signing', () => {
   it('rewrites sha512 and size in latest.yml and rebuilds the blockmap', async () => {
@@ -16,10 +18,20 @@ describe('update metadata after signing', () => {
     bytes.write('signed!', 1000);
     writeFileSync(installer, bytes);
     const yml = join(dir, 'latest.yml');
-    writeFileSync(yml, [
-      'version: 9.9.9', 'files:', '  - url: MusicPlayer-Setup-9.9.9.exe', '    sha512: OLD', '    size: 1', 'path: MusicPlayer-Setup-9.9.9.exe',
-      'sha512: OLD', "releaseDate: '2026-11-06T00:00:00.000Z'", '',
-    ].join('\n'));
+    writeFileSync(
+      yml,
+      [
+        'version: 9.9.9',
+        'files:',
+        '  - url: MusicPlayer-Setup-9.9.9.exe',
+        '    sha512: OLD',
+        '    size: 1',
+        'path: MusicPlayer-Setup-9.9.9.exe',
+        'sha512: OLD',
+        "releaseDate: '2026-11-06T00:00:00.000Z'",
+        '',
+      ].join('\n'),
+    );
     const result = await updateMetadata(installer, yml);
     const expected = createHash('sha512').update(bytes).digest('base64');
     expect(result).toEqual({ sha512: expected, size: bytes.length });

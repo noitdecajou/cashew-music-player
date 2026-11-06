@@ -9,8 +9,17 @@ const REFRESH_AFTER_MS = 6 * 60 * 60 * 1000;
 const MAX_FAVORITES = 200;
 const MAX_PAGES = 200;
 
-interface IndexedSong extends Song { playlists: string[]; key: string }
-interface CacheFile { version: 2; updatedAt: number; playlists: Playlist[]; songs: (Song & { playlists: string[] })[]; favorites: string[] }
+interface IndexedSong extends Song {
+  playlists: string[];
+  key: string;
+}
+interface CacheFile {
+  version: 2;
+  updatedAt: number;
+  playlists: Playlist[];
+  songs: (Song & { playlists: string[] })[];
+  favorites: string[];
+}
 
 export interface LibrarySource {
   playlists(continuation?: string): Promise<Page<Playlist>>;
@@ -31,14 +40,28 @@ export class Library {
   private updatedAt = 0;
   private status: LibraryStatus = { state: 'idle', playlists: 0, songs: 0, done: 0, total: 0, updatedAt: 0, error: '' };
 
-  constructor(private readonly directory: string, private readonly source: LibrarySource, private readonly notify: (status: LibraryStatus) => void) {}
+  constructor(
+    private readonly directory: string,
+    private readonly source: LibrarySource,
+    private readonly notify: (status: LibraryStatus) => void,
+  ) {}
 
-  private file(account: string): string { return join(this.directory, 'library', `${account}.json`); }
+  private file(account: string): string {
+    return join(this.directory, 'library', `${account}.json`);
+  }
 
-  get currentStatus(): LibraryStatus { return this.status; }
+  get currentStatus(): LibraryStatus {
+    return this.status;
+  }
 
   private setStatus(patch: Partial<LibraryStatus>): void {
-    this.status = { ...this.status, ...patch, playlists: this.playlists.size, songs: this.songs.size, updatedAt: this.updatedAt };
+    this.status = {
+      ...this.status,
+      ...patch,
+      playlists: this.playlists.size,
+      songs: this.songs.size,
+      updatedAt: this.updatedAt,
+    };
     this.notify(this.status);
   }
 
@@ -47,7 +70,10 @@ export class Library {
     if (account === this.account) return;
     this.account = ACCOUNT_KEY.test(account) ? account : '';
     const generation = ++this.generation;
-    this.playlists = new Map(); this.songs = new Map(); this.favorites = new Set(); this.updatedAt = 0;
+    this.playlists = new Map();
+    this.songs = new Map();
+    this.favorites = new Set();
+    this.updatedAt = 0;
     this.setStatus({ state: 'idle', done: 0, total: 0, error: '' });
     if (!this.account) return;
     const cache = parseCache(await readJson(this.file(this.account)));
@@ -69,7 +95,13 @@ export class Library {
     this.setStatus({ state: 'indexing', done: 0, total: 0, error: '' });
     try {
       const playlists = new Map<string, Playlist>();
-      await this.pages(continuation => this.source.playlists(continuation), page => { for (const p of page.items) playlists.set(p.id, p); }, generation);
+      await this.pages(
+        continuation => this.source.playlists(continuation),
+        page => {
+          for (const p of page.items) playlists.set(p.id, p);
+        },
+        generation,
+      );
       if (generation !== this.generation) return;
       if (firstRun) this.playlists = playlists;
       this.setStatus({ total: playlists.size });
@@ -78,16 +110,28 @@ export class Library {
       let done = 0;
       for (const playlist of playlists.values()) {
         try {
-          await this.pages(continuation => this.source.songs(playlist.id, continuation), page => {
-            for (const song of page.items) {
-              const known = songs.get(song.videoId);
-              if (known) { if (!known.playlists.includes(playlist.title)) known.playlists.push(playlist.title); }
-              else songs.set(song.videoId, { ...song, playlists: [playlist.title], key: fold(`${song.title} ${song.artist}`) });
-            }
-            // First run: searchable while indexing.
-            if (firstRun) this.songs = songs;
-          }, generation);
-        } catch { failures++; }
+          await this.pages(
+            continuation => this.source.songs(playlist.id, continuation),
+            page => {
+              for (const song of page.items) {
+                const known = songs.get(song.videoId);
+                if (known) {
+                  if (!known.playlists.includes(playlist.title)) known.playlists.push(playlist.title);
+                } else
+                  songs.set(song.videoId, {
+                    ...song,
+                    playlists: [playlist.title],
+                    key: fold(`${song.title} ${song.artist}`),
+                  });
+              }
+              // First run: searchable while indexing.
+              if (firstRun) this.songs = songs;
+            },
+            generation,
+          );
+        } catch {
+          failures++;
+        }
         if (generation !== this.generation) return;
         this.setStatus({ done: ++done });
       }
@@ -99,11 +143,19 @@ export class Library {
       this.setStatus({ state: 'ready', error: failures ? `${failures} playlist(s) n’ont pas pu être lues.` : '' });
       await this.save();
     } catch (error) {
-      if (generation === this.generation) this.setStatus({ state: this.updatedAt ? 'ready' : 'error', error: error instanceof Error ? error.message : String(error) });
+      if (generation === this.generation)
+        this.setStatus({
+          state: this.updatedAt ? 'ready' : 'error',
+          error: error instanceof Error ? error.message : String(error),
+        });
     }
   }
 
-  private async pages<T>(load: (continuation?: string) => Promise<Page<T>>, use: (page: Page<T>) => void, generation: number): Promise<void> {
+  private async pages<T>(
+    load: (continuation?: string) => Promise<Page<T>>,
+    use: (page: Page<T>) => void,
+    generation: number,
+  ): Promise<void> {
     const seen = new Set<string>();
     let continuation: string | undefined;
     for (let i = 0; i < MAX_PAGES; i++) {
@@ -119,8 +171,11 @@ export class Library {
   private save(): Promise<void> {
     if (!this.account) return Promise.resolve();
     const data: CacheFile = {
-      version: 2, updatedAt: this.updatedAt, playlists: [...this.playlists.values()],
-      songs: [...this.songs.values()].map(({ key: _key, ...song }) => song), favorites: [...this.favorites],
+      version: 2,
+      updatedAt: this.updatedAt,
+      playlists: [...this.playlists.values()],
+      songs: [...this.songs.values()].map(({ key: _key, ...song }) => song),
+      favorites: [...this.favorites],
     };
     return writeJson(this.file(this.account), data);
   }
@@ -131,7 +186,13 @@ export class Library {
     const results: SongResult[] = [];
     for (const song of this.songs.values()) {
       if (terms.every(term => song.key.includes(term))) {
-        results.push({ videoId: song.videoId, title: song.title, artist: song.artist, artwork: song.artwork, detail: song.playlists.join(', ') });
+        results.push({
+          videoId: song.videoId,
+          title: song.title,
+          artist: song.artist,
+          artwork: song.artwork,
+          detail: song.playlists.join(', '),
+        });
         if (results.length === 100) break;
       }
     }
@@ -146,27 +207,49 @@ export class Library {
       .sort((a, b) => Number(b.favorite) - Number(a.favorite));
   }
 
-  hasPlaylist(id: string): boolean { return this.playlists.has(id); }
+  hasPlaylist(id: string): boolean {
+    return this.playlists.has(id);
+  }
 
   async setFavorite(id: string, favorite: boolean): Promise<void> {
     if (!this.playlists.has(id)) throw new Error('Playlist absente de la bibliothèque.');
-    if (favorite && !this.favorites.has(id) && this.favorites.size >= MAX_FAVORITES) throw new Error(`Limite de ${MAX_FAVORITES} favoris atteinte.`);
-    if (favorite) this.favorites.add(id); else this.favorites.delete(id);
+    if (favorite && !this.favorites.has(id) && this.favorites.size >= MAX_FAVORITES)
+      throw new Error(`Limite de ${MAX_FAVORITES} favoris atteinte.`);
+    if (favorite) this.favorites.add(id);
+    else this.favorites.delete(id);
     await this.save();
   }
 }
 
 function parseCache(raw: unknown): CacheFile | null {
   const c = raw as Record<string, unknown> | null;
-  if (!c || c.version !== 2 || typeof c.updatedAt !== 'number' || !Array.isArray(c.playlists) || !Array.isArray(c.songs)) return null;
+  if (
+    !c ||
+    c.version !== 2 ||
+    typeof c.updatedAt !== 'number' ||
+    !Array.isArray(c.playlists) ||
+    !Array.isArray(c.songs)
+  )
+    return null;
   const playlists = c.playlists.flatMap((v): Playlist[] => {
     const p = v as Record<string, unknown>;
-    return PLAYLIST_ID.test(str(p?.id)) ? [{ id: str(p.id), title: str(p.title), subtitle: str(p.subtitle), artwork: httpsUrl(p.artwork) }] : [];
+    return PLAYLIST_ID.test(str(p?.id))
+      ? [{ id: str(p.id), title: str(p.title), subtitle: str(p.subtitle), artwork: httpsUrl(p.artwork) }]
+      : [];
   });
   const songs = c.songs.flatMap((v): (Song & { playlists: string[] })[] => {
     const s = v as Record<string, unknown>;
-    return VIDEO_ID.test(str(s?.videoId)) ? [{ videoId: str(s.videoId), title: str(s.title), artist: str(s.artist), artwork: httpsUrl(s.artwork),
-      playlists: Array.isArray(s.playlists) ? s.playlists.map(x => str(x)).slice(0, 50) : [] }] : [];
+    return VIDEO_ID.test(str(s?.videoId))
+      ? [
+          {
+            videoId: str(s.videoId),
+            title: str(s.title),
+            artist: str(s.artist),
+            artwork: httpsUrl(s.artwork),
+            playlists: Array.isArray(s.playlists) ? s.playlists.map(x => str(x)).slice(0, 50) : [],
+          },
+        ]
+      : [];
   });
   const favorites = Array.isArray(c.favorites) ? c.favorites.map(x => str(x)).filter(x => PLAYLIST_ID.test(x)) : [];
   return { version: 2, updatedAt: c.updatedAt, playlists, songs, favorites };

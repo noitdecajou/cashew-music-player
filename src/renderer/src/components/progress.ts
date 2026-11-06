@@ -63,6 +63,9 @@ export class ProgressBar {
     const known = this.duration > 0;
     this.elapsed.textContent = formatTime(position);
     this.total.textContent = known ? formatTime(this.duration) : '—';
-    this.root.setAttribute('aria-valuetext', known ? `${formatTime(position)} sur ${formatTime(this.duration)}` : 'Durée inconnue');
+    this.root.setAttribute(
+      'aria-valuetext',
+      known ? `${formatTime(position)} sur ${formatTime(this.duration)}` : 'Durée inconnue',
+    );
   }
 }

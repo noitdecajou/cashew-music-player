@@ -17,7 +17,9 @@ describe.skipIf(!dir)('packaged app', () => {
 
   it('lists the display libraries an antivirus may quarantine', () => {
     const files = Object.keys((readManifest(dir!) as { files: Record<string, number> }).files);
-    const expected = existsSync(join(dir!, 'ffmpeg.dll')) ? ['ffmpeg.dll', 'd3dcompiler_47.dll', 'vk_swiftshader.dll', 'vulkan-1.dll'] : ['libffmpeg.so', 'libvk_swiftshader.so'];
+    const expected = existsSync(join(dir!, 'ffmpeg.dll'))
+      ? ['ffmpeg.dll', 'd3dcompiler_47.dll', 'vk_swiftshader.dll', 'vulkan-1.dll']
+      : ['libffmpeg.so', 'libvk_swiftshader.so'];
     expect(files).toEqual(expect.arrayContaining(expected));
   });
 });

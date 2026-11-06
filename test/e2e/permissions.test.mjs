@@ -22,7 +22,11 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   h = await launch({ userData: profile, args: ['--use-fake-device-for-media-stream'] });
 });
-after(async () => { await h?.close(); server?.close(); rmSync(profile, { recursive: true, force: true }); });
+after(async () => {
+  await h?.close();
+  server?.close();
+  rmSync(profile, { recursive: true, force: true });
+});
 
 test('permissions: YouTube Music never gets the camera or the microphone', async () => {
   assert.equal(await h.ytm(CAPTURE), 'NotAllowedError');
@@ -42,5 +46,8 @@ test('permissions: nor does a frame from another origin, even when the page dele
 });
 
 test('permissions: video fullscreen still works for YouTube Music', async () => {
-  assert.equal(await h.ytm(`navigator.permissions.query({ name: 'camera' }).then(() => document.fullscreenEnabled)`), true);
+  assert.equal(
+    await h.ytm(`navigator.permissions.query({ name: 'camera' }).then(() => document.fullscreenEnabled)`),
+    true,
+  );
 });

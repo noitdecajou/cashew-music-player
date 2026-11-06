@@ -3,8 +3,12 @@
 export const YTM_ORIGIN = 'https://music.youtube.com';
 
 const ALLOWED_HOSTS = new Set([
-  'music.youtube.com', 'accounts.google.com', 'accounts.youtube.com',
-  'consent.youtube.com', 'consent.google.com', 'www.youtube.com',
+  'music.youtube.com',
+  'accounts.google.com',
+  'accounts.youtube.com',
+  'consent.youtube.com',
+  'consent.google.com',
+  'www.youtube.com',
 ]);
 
 /**
@@ -16,8 +20,12 @@ const GOOGLE_ACCOUNTS = /^accounts\.google\.(?:com|[a-z]{2}|co\.[a-z]{2}|com\.[a
 export function isAllowedNavigation(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && !url.username && !url.password
-      && (ALLOWED_HOSTS.has(url.hostname) || GOOGLE_ACCOUNTS.test(url.hostname));
+    return (
+      url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      (ALLOWED_HOSTS.has(url.hostname) || GOOGLE_ACCOUNTS.test(url.hostname))
+    );
   } catch {
     return false;
   }
@@ -26,7 +34,11 @@ export function isAllowedNavigation(value: string): boolean {
 /** True for a document of music.youtube.com itself (not Google pages, not frames from elsewhere). */
 export function isYtmUrl(value: string | undefined): boolean {
   if (!value) return false;
-  try { return new URL(value).origin === YTM_ORIGIN; } catch { return false; }
+  try {
+    return new URL(value).origin === YTM_ORIGIN;
+  } catch {
+    return false;
+  }
 }
 
 /** Permissions the music page may use: playback needs nothing else (no camera, no microphone). */

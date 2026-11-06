@@ -27,7 +27,10 @@ export class VolumeControl {
   private lastSent = 0;
   private sendTimer: number | undefined;
 
-  constructor(private readonly el: VolumeElements, private readonly send: (command: PlayerCommand) => void) {
+  constructor(
+    private readonly el: VolumeElements,
+    private readonly send: (command: PlayerCommand) => void,
+  ) {
     this.slider = new Slider({
       element: el.track,
       fill: el.track.querySelector('.fill') as HTMLElement,
@@ -38,27 +41,45 @@ export class VolumeControl {
     });
     const panel = el.track.parentElement as HTMLElement;
 
-    el.button.addEventListener('click', () => { if (this.open) this.hide(); else this.show(); });
-    el.mute.addEventListener('click', () => { this.send({ type: 'mute', muted: !this.muted }); this.armClose(); });
+    el.button.addEventListener('click', () => {
+      if (this.open) this.hide();
+      else this.show();
+    });
+    el.mute.addEventListener('click', () => {
+      this.send({ type: 'mute', muted: !this.muted });
+      this.armClose();
+    });
     for (const element of [el.button, panel]) {
-      element.addEventListener('wheel', event => {
-        event.preventDefault();
-        if (!this.open) this.show();
-        this.setVolume(this.volume + (event.deltaY < 0 ? 5 : -5));
-        this.slider.set(this.volume / 100);
-        this.armClose();
-      }, { passive: false });
+      element.addEventListener(
+        'wheel',
+        event => {
+          event.preventDefault();
+          if (!this.open) this.show();
+          this.setVolume(this.volume + (event.deltaY < 0 ? 5 : -5));
+          this.slider.set(this.volume / 100);
+          this.armClose();
+        },
+        { passive: false },
+      );
     }
     panel.addEventListener('pointerdown', () => this.armClose());
     panel.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.stopPropagation(); this.hide(); el.button.focus(); } else this.armClose();
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        this.hide();
+        el.button.focus();
+      } else this.armClose();
     });
     // A click anywhere else closes the panel.
-    document.addEventListener('pointerdown', event => {
-      if (!this.open) return;
-      const target = event.target as Node;
-      if (!panel.contains(target) && !el.button.contains(target)) this.hide();
-    }, true);
+    document.addEventListener(
+      'pointerdown',
+      event => {
+        if (!this.open) return;
+        const target = event.target as Node;
+        if (!panel.contains(target) && !el.button.contains(target)) this.hide();
+      },
+      true,
+    );
     window.addEventListener('blur', () => this.hide());
   }
 
@@ -68,8 +89,12 @@ export class VolumeControl {
     // Throttle to ~20 commands/s while dragging; always send the final value.
     window.clearTimeout(this.sendTimer);
     const wait = 50 - (Date.now() - this.lastSent);
-    const flush = (): void => { this.lastSent = Date.now(); this.send({ type: 'volume', volume: this.volume }); };
-    if (wait <= 0) flush(); else this.sendTimer = window.setTimeout(flush, wait);
+    const flush = (): void => {
+      this.lastSent = Date.now();
+      this.send({ type: 'volume', volume: this.volume });
+    };
+    if (wait <= 0) flush();
+    else this.sendTimer = window.setTimeout(flush, wait);
   }
 
   private show(): void {

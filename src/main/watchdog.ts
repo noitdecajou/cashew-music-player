@@ -22,23 +22,35 @@ export function watchPage(name: string, contents: WebContents, resend: () => voi
   });
   contents.on('unresponsive', () => log(`${name}: unresponsive`));
   contents.on('preload-error', (_event, path, error) => log(`${name}: preload error`, path, error));
-  contents.on('did-fail-load', (_event, code, description, url, isMainFrame) => { if (isMainFrame) log(`${name}: load failed`, code, description, url); });
+  contents.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
+    if (isMainFrame) log(`${name}: load failed`, code, description, url);
+  });
   contents.on('console-message', event => {
-    if (event.level === 'error' || event.level === 'warning') log(`${name}: console ${event.level}`, event.message, `${event.sourceId}:${event.lineNumber}`);
+    if (event.level === 'error' || event.level === 'warning')
+      log(`${name}: console ${event.level}`, event.message, `${event.sourceId}:${event.lineNumber}`);
   });
 
   async function check(): Promise<void> {
     if (contents.isDestroyed()) return;
     let booting = false;
-    try { booting = await contents.executeJavaScript("document.body?.classList.contains('booting') === true"); }
-    catch (error) { log(`${name}: page check failed`, error); return; }
+    try {
+      booting = await contents.executeJavaScript("document.body?.classList.contains('booting') === true");
+    } catch (error) {
+      log(`${name}: page check failed`, error);
+      return;
+    }
     if (!booting) return;
     log(`${name}: still waiting for its first state, sending it again`);
     resend();
     setTimeout(async () => {
       if (contents.isDestroyed()) return;
-      const still = await contents.executeJavaScript("document.body?.classList.contains('booting') === true").catch(() => true);
-      if (still && reloads++ < 3) { log(`${name}: still hidden, reloading`); contents.reloadIgnoringCache(); }
+      const still = await contents
+        .executeJavaScript("document.body?.classList.contains('booting') === true")
+        .catch(() => true);
+      if (still && reloads++ < 3) {
+        log(`${name}: still hidden, reloading`);
+        contents.reloadIgnoringCache();
+      }
     }, 3000);
   }
 }

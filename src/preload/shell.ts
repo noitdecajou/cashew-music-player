@@ -23,7 +23,9 @@ const api: ShellApi = {
     if (!SHELL_EVENT_CHANNELS.includes(channel)) return () => undefined;
     const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof callback>[0]): void => callback(value);
     ipcRenderer.on(channel, handler);
-    return () => { ipcRenderer.removeListener(channel, handler); };
+    return () => {
+      ipcRenderer.removeListener(channel, handler);
+    };
   },
 };
 

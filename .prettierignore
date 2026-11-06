@@ -1,0 +1,10 @@
+out/
+dist/
+node_modules/
+package-lock.json
+CHANGELOG.md
+docs/
+*.md
+resources/
+build/*.xml
+test/fixtures/

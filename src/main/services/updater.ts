@@ -32,23 +32,36 @@ export class Updater {
     private readonly notify: (state: UpdateState) => void,
     private readonly beforeInstall: () => void = () => undefined,
   ) {
-    this.value = { status: engine ? 'idle' : 'unsupported', current: currentVersion, version: '', percent: 0, error: '' };
+    this.value = {
+      status: engine ? 'idle' : 'unsupported',
+      current: currentVersion,
+      version: '',
+      percent: 0,
+      error: '',
+    };
     if (!engine) return;
     engine.autoDownload = false;
     engine.autoInstallOnAppQuit = true;
     engine.on('checking-for-update', () => this.set({ status: 'checking', error: '' }));
     engine.on('update-not-available', () => this.set({ status: 'up-to-date' }));
     engine.on('update-available', info => this.set({ status: 'available', version: info.version }));
-    engine.on('download-progress', progress => this.set({ status: 'downloading', percent: Math.round(progress.percent) }));
+    engine.on('download-progress', progress =>
+      this.set({ status: 'downloading', percent: Math.round(progress.percent) }),
+    );
     engine.on('update-downloaded', info => this.set({ status: 'ready', version: info.version, percent: 100 }));
     engine.on('error', error => {
       // A failed background check stays silent; failures the user asked for are shown.
       const shown = this.manualCheck || this.value.status === 'downloading';
-      this.set({ status: shown ? 'error' : this.value.version ? 'available' : 'idle', error: shown ? friendly(error) : '' });
+      this.set({
+        status: shown ? 'error' : this.value.version ? 'available' : 'idle',
+        error: shown ? friendly(error) : '',
+      });
     });
   }
 
-  get state(): UpdateState { return this.value; }
+  get state(): UpdateState {
+    return this.value;
+  }
 
   private set(patch: Partial<UpdateState>): void {
     this.value = { ...this.value, ...patch };
@@ -64,14 +77,22 @@ export class Updater {
   async check(manual = true): Promise<UpdateState> {
     if (!this.engine || ['checking', 'downloading', 'ready'].includes(this.value.status)) return this.value;
     this.manualCheck = manual;
-    try { await this.engine.checkForUpdates(); } catch { /* reported through 'error' */ }
+    try {
+      await this.engine.checkForUpdates();
+    } catch {
+      /* reported through 'error' */
+    }
     return this.value;
   }
 
   async download(): Promise<UpdateState> {
     if (!this.engine || this.value.status !== 'available') return this.value;
     this.set({ status: 'downloading', percent: 0, error: '' });
-    try { await this.engine.downloadUpdate(); } catch { /* reported through 'error' */ }
+    try {
+      await this.engine.downloadUpdate();
+    } catch {
+      /* reported through 'error' */
+    }
     return this.value;
   }
 
@@ -82,13 +103,18 @@ export class Updater {
     this.engine.quitAndInstall(true, true);
   }
 
-  dispose(): void { for (const timer of this.timers) clearTimeout(timer); this.timers = []; }
+  dispose(): void {
+    for (const timer of this.timers) clearTimeout(timer);
+    this.timers = [];
+  }
 }
 
 function friendly(error: Error): string {
   const message = error.message || String(error);
-  if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|net::|network/i.test(message)) return 'Impossible de joindre GitHub. Vérifie ta connexion.';
-  if (/404|Cannot find latest|No published versions/i.test(message)) return 'Aucune version publiée trouvée sur GitHub.';
+  if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|net::|network/i.test(message))
+    return 'Impossible de joindre GitHub. Vérifie ta connexion.';
+  if (/404|Cannot find latest|No published versions/i.test(message))
+    return 'Aucune version publiée trouvée sur GitHub.';
   if (/sha512|checksum/i.test(message)) return 'Le téléchargement est corrompu. Réessaie.';
   return 'La mise à jour a échoué. Réessaie plus tard.';
 }
@@ -96,16 +122,30 @@ function friendly(error: Error): string {
 /** Test-only engine: pretends that version 9.9.9 is available and downloads it. */
 export function fakeEngine(): UpdateEngine {
   const listeners = new Map<string, ((value?: unknown) => void)[]>();
-  const emit = (event: string, value?: unknown): void => { for (const listener of listeners.get(event) ?? []) listener(value); };
+  const emit = (event: string, value?: unknown): void => {
+    for (const listener of listeners.get(event) ?? []) listener(value);
+  };
   return {
     autoDownload: true,
     autoInstallOnAppQuit: false,
-    on(event: string, listener: (value?: never) => void) { listeners.set(event, [...(listeners.get(event) ?? []), listener as (value?: unknown) => void]); return this; },
-    async checkForUpdates() { emit('checking-for-update'); await new Promise(r => setTimeout(r, 50)); emit('update-available', { version: '9.9.9' }); },
+    on(event: string, listener: (value?: never) => void) {
+      listeners.set(event, [...(listeners.get(event) ?? []), listener as (value?: unknown) => void]);
+      return this;
+    },
+    async checkForUpdates() {
+      emit('checking-for-update');
+      await new Promise(r => setTimeout(r, 50));
+      emit('update-available', { version: '9.9.9' });
+    },
     async downloadUpdate() {
-      for (const percent of [25, 50, 100]) { await new Promise(r => setTimeout(r, 50)); emit('download-progress', { percent }); }
+      for (const percent of [25, 50, 100]) {
+        await new Promise(r => setTimeout(r, 50));
+        emit('download-progress', { percent });
+      }
       emit('update-downloaded', { version: '9.9.9' });
     },
-    quitAndInstall() { (globalThis as { __fakeInstalled?: boolean }).__fakeInstalled = true; },
+    quitAndInstall() {
+      (globalThis as { __fakeInstalled?: boolean }).__fakeInstalled = true;
+    },
   } as UpdateEngine;
 }

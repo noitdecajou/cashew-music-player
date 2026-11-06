@@ -4,8 +4,12 @@ import { launch } from './harness.mjs';
 
 let h;
 // A slow fake YouTube Music (2.5 s per page load).
-before(async () => { h = await launch({ env: { MP_YTM_FIXTURE_DELAY: '2500' } }); });
-after(async () => { await h?.close(); });
+before(async () => {
+  h = await launch({ env: { MP_YTM_FIXTURE_DELAY: '2500' } });
+});
+after(async () => {
+  await h?.close();
+});
 
 const musicAttached = async () => (await h.viewBounds()).some(v => v.url.startsWith('https://music.youtube.com'));
 

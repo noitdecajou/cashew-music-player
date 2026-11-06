@@ -10,7 +10,7 @@ updates:
     groups:
       # One PR for the build/test tooling, one per runtime-relevant package.
       tooling:
-        patterns: ['@types/*', 'electron-vite', 'vite', 'vitest', 'typescript', 'playwright', 'eslint', '@eslint/*', 'typescript-eslint', 'prettier', 'globals']
+        patterns: ['@types/*', 'electron-vite', 'vite', 'vitest', 'typescript', 'playwright', 'oxlint', 'prettier']
   - package-ecosystem: github-actions
     directory: /
     schedule:

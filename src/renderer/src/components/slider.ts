@@ -30,7 +30,9 @@ export class Slider {
     element.addEventListener('keydown', this.onKey);
   }
 
-  get isDragging(): boolean { return this.dragging; }
+  get isDragging(): boolean {
+    return this.dragging;
+  }
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
@@ -83,7 +85,9 @@ export class Slider {
     this.finish(true);
   };
 
-  private readonly onCancel = (): void => { if (this.dragging) this.finish(true); };
+  private readonly onCancel = (): void => {
+    if (this.dragging) this.finish(true);
+  };
 
   private finish(commit: boolean): void {
     this.dragging = false;
@@ -95,10 +99,14 @@ export class Slider {
     if (!this.enabled) return;
     const step = this.options.step();
     const keys: Record<string, number> = {
-      ArrowLeft: this.value - step, ArrowDown: this.value - step,
-      ArrowRight: this.value + step, ArrowUp: this.value + step,
-      PageDown: this.value - step * 4, PageUp: this.value + step * 4,
-      Home: 0, End: 1,
+      ArrowLeft: this.value - step,
+      ArrowDown: this.value - step,
+      ArrowRight: this.value + step,
+      ArrowUp: this.value + step,
+      PageDown: this.value - step * 4,
+      PageUp: this.value + step * 4,
+      Home: 0,
+      End: 1,
     };
     const next = keys[event.key];
     if (next === undefined) return;

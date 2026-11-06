@@ -1,59 +1,238 @@
 /* "Actuel" — 420 × 128 content. Also the fallback layout for the other themes
    until they are rebuilt (step 3). */
-body.mini { --mini-height: 128px; }
-body.mini[data-theme="autoradio"], body.mini[data-theme="hifi"] { --mini-height: 168px; }
-body.mini[data-theme="autoradio-hf"], body.mini[data-theme="hifi-hf"] { --mini-height: 192px; }
-
-#mini .face, #mini .screen, #mini .brand-label { display: none; }
-#mini .card {
-  position: relative; height: var(--mini-height); padding: 10px 12px 6px;
-  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-rows: 48px 24px 1fr;
-  column-gap: 11px; row-gap: 2px; align-items: center;
+body.mini {
+  --mini-height: 128px;
 }
-#mini img.cover { width: 48px; height: 48px; border-radius: 8px; }
-#mini .meta { min-width: 0; align-self: center; }
-#mini .title { font-size: 15px; font-weight: 600; }
-#mini .artist { font-size: 12px; color: var(--muted); margin-top: 1px; }
-#mini .tools { display: flex; gap: 2px; align-self: start; }
-#mini .tools button { width: 28px; height: 28px; color: var(--muted); }
-#mini .tools button:hover { color: var(--text); }
-#mini .tools svg { width: 17px; height: 17px; }
-.titlebar-toggle[aria-pressed="true"] { color: var(--accent) !important; }
+body.mini[data-theme='autoradio'],
+body.mini[data-theme='hifi'] {
+  --mini-height: 168px;
+}
+body.mini[data-theme='autoradio-hf'],
+body.mini[data-theme='hifi-hf'] {
+  --mini-height: 192px;
+}
 
-#mini .progress-row { grid-column: 1 / -1; display: grid; grid-template-columns: 38px 1fr 38px; align-items: center; gap: 6px; }
-#mini .time { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-#mini .time.total { text-align: right; }
+#mini .face,
+#mini .screen,
+#mini .brand-label {
+  display: none;
+}
+#mini .card {
+  position: relative;
+  height: var(--mini-height);
+  padding: 10px 12px 6px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-rows: 48px 24px 1fr;
+  column-gap: 11px;
+  row-gap: 2px;
+  align-items: center;
+}
+#mini img.cover {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+}
+#mini .meta {
+  min-width: 0;
+  align-self: center;
+}
+#mini .title {
+  font-size: 15px;
+  font-weight: 600;
+}
+#mini .artist {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+#mini .tools {
+  display: flex;
+  gap: 2px;
+  align-self: start;
+}
+#mini .tools button {
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+}
+#mini .tools button:hover {
+  color: var(--text);
+}
+#mini .tools svg {
+  width: 17px;
+  height: 17px;
+}
+.titlebar-toggle[aria-pressed='true'] {
+  color: var(--accent) !important;
+}
 
-#mini .bottom { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; min-width: 0; height: 36px; }
-#mini .controls { display: flex; align-items: center; gap: 2px; flex: none; }
-#mini .controls button { width: 32px; height: 32px; }
-#mini .controls svg { width: 20px; height: 20px; }
-#mini .controls .play { width: 40px; height: 32px; background: #e9e3ff; color: var(--accent-ink); margin: 0 2px; }
-#mini .controls .play:hover { background: #fff; }
-#mini .controls .play svg { width: 22px; height: 22px; }
-#mini .shuffle { color: var(--faint); }
-#mini .shuffle[aria-pressed="true"] { color: var(--accent); }
+#mini .progress-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  align-items: center;
+  gap: 6px;
+}
+#mini .time {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+#mini .time.total {
+  text-align: right;
+}
 
-#mini .volume-button { width: 32px; height: 32px; flex: none; color: var(--muted); }
-#mini .volume-button:hover, #mini .bottom.volume-open .volume-button { color: var(--text); }
+#mini .bottom {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 36px;
+}
+#mini .controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+#mini .controls button {
+  width: 32px;
+  height: 32px;
+}
+#mini .controls svg {
+  width: 20px;
+  height: 20px;
+}
+#mini .controls .play {
+  width: 40px;
+  height: 32px;
+  background: #e9e3ff;
+  color: var(--accent-ink);
+  margin: 0 2px;
+}
+#mini .controls .play:hover {
+  background: #fff;
+}
+#mini .controls .play svg {
+  width: 22px;
+  height: 22px;
+}
+#mini .shuffle {
+  color: var(--faint);
+}
+#mini .shuffle[aria-pressed='true'] {
+  color: var(--accent);
+}
 
-#mini .slot { position: relative; flex: 1; min-width: 0; height: 32px; }
-#mini .upnext { position: absolute; inset: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 7px; align-content: center; justify-items: start; padding: 0 6px 0 9px; border-left: 1px solid var(--line); border-radius: 0 6px 6px 0; text-align: left; }
-#mini .upnext .label { grid-row: 1 / 3; font-size: 9px; letter-spacing: .1em; color: var(--faint); }
-#mini .upnext .next-title { font-size: 12px; max-width: 100%; }
-#mini .upnext .next-artist { font-size: 11px; color: var(--muted); max-width: 100%; }
-#mini .volume-panel { position: absolute; inset: 0; display: none; align-items: center; gap: 6px; padding: 0 0 0 8px; }
-#mini .volume-panel .slider { flex: 1; min-width: 0; }
-#mini .volume-value { width: 24px; text-align: right; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-#mini .volume-mute { width: 28px; height: 28px; flex: none; color: var(--faint); }
-#mini .volume-mute:hover { color: var(--text); }
-#mini .volume-mute[aria-pressed="true"] { color: var(--accent); background: #c9b9ff1f; }
-#mini .bottom.volume-open .upnext { display: none; }
-#mini .bottom.volume-open .volume-panel { display: flex; }
-#mini .bottom.volume-open .volume-button { background: #ffffff12; }
+#mini .volume-button {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  color: var(--muted);
+}
+#mini .volume-button:hover,
+#mini .bottom.volume-open .volume-button {
+  color: var(--text);
+}
 
-#mini .grip { width: 22px; height: 28px; flex: none; color: var(--faint); }
-#mini .grip svg { width: 16px; height: 16px; }
-#mini .grip :is(.grip-glyph, .grip-outline) { display: none; }
-body.mini[data-theme="modern"] #mini .grip .grip-dots { display: none; }
-body.mini[data-theme="modern"] #mini .grip .grip-glyph { display: block; width: 14px; height: 14px; color: var(--accent); }
+#mini .slot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+}
+#mini .upnext {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 7px;
+  align-content: center;
+  justify-items: start;
+  padding: 0 6px 0 9px;
+  border-left: 1px solid var(--line);
+  border-radius: 0 6px 6px 0;
+  text-align: left;
+}
+#mini .upnext .label {
+  grid-row: 1 / 3;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+}
+#mini .upnext .next-title {
+  font-size: 12px;
+  max-width: 100%;
+}
+#mini .upnext .next-artist {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 100%;
+}
+#mini .volume-panel {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 0 8px;
+}
+#mini .volume-panel .slider {
+  flex: 1;
+  min-width: 0;
+}
+#mini .volume-value {
+  width: 24px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+#mini .volume-mute {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  color: var(--faint);
+}
+#mini .volume-mute:hover {
+  color: var(--text);
+}
+#mini .volume-mute[aria-pressed='true'] {
+  color: var(--accent);
+  background: #c9b9ff1f;
+}
+#mini .bottom.volume-open .upnext {
+  display: none;
+}
+#mini .bottom.volume-open .volume-panel {
+  display: flex;
+}
+#mini .bottom.volume-open .volume-button {
+  background: #ffffff12;
+}
+
+#mini .grip {
+  width: 22px;
+  height: 28px;
+  flex: none;
+  color: var(--faint);
+}
+#mini .grip svg {
+  width: 16px;
+  height: 16px;
+}
+#mini .grip :is(.grip-glyph, .grip-outline) {
+  display: none;
+}
+body.mini[data-theme='modern'] #mini .grip .grip-dots {
+  display: none;
+}
+body.mini[data-theme='modern'] #mini .grip .grip-glyph {
+  display: block;
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}

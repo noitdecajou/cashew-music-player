@@ -12,30 +12,49 @@ export interface TrayActions {
   openLogs(): void;
 }
 
-export interface AppTray { setUpdate(state: UpdateState): void; destroy(): void; isDestroyed(): boolean }
+export interface AppTray {
+  setUpdate(state: UpdateState): void;
+  destroy(): void;
+  isDestroyed(): boolean;
+}
 
 export function createTray(actions: TrayActions): AppTray {
   const icon = join(__dirname, '../../resources', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
   const tray = new Tray(nativeImage.createFromPath(icon));
   tray.setToolTip('cashew');
   let update: UpdateState | null = null;
-  const build = (): void => tray.setContextMenu(Menu.buildFromTemplate([
-    ...(update && ['available', 'downloading', 'ready'].includes(update.status)
-      ? [{ label: update.status === 'ready' ? `Redémarrer pour installer ${update.version}` : `Mise à jour ${update.version} disponible…`, click: actions.update }, { type: 'separator' as const }]
-      : []),
-    { label: 'Ouvrir cashew', click: actions.open },
-    { label: 'Mini-player / Grand lecteur', click: actions.toggleMini },
-    { type: 'separator' },
-    { label: 'Lecture / Pause', click: () => actions.command('toggle-play') },
-    { label: 'Suivant', click: () => actions.command('next') },
-    { label: 'Précédent', click: () => actions.command('previous') },
-    { type: 'separator' },
-    { label: 'Dépannage', submenu: [
-      { label: 'Réparer l’affichage (grand lecteur, pages rechargées)', click: actions.repair },
-      { label: 'Ouvrir le dossier des journaux', click: actions.openLogs },
-    ] },
-    { label: 'Quitter', click: actions.quit },
-  ]));
+  const build = (): void =>
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        ...(update && ['available', 'downloading', 'ready'].includes(update.status)
+          ? [
+              {
+                label:
+                  update.status === 'ready'
+                    ? `Redémarrer pour installer ${update.version}`
+                    : `Mise à jour ${update.version} disponible…`,
+                click: actions.update,
+              },
+              { type: 'separator' as const },
+            ]
+          : []),
+        { label: 'Ouvrir cashew', click: actions.open },
+        { label: 'Mini-player / Grand lecteur', click: actions.toggleMini },
+        { type: 'separator' },
+        { label: 'Lecture / Pause', click: () => actions.command('toggle-play') },
+        { label: 'Suivant', click: () => actions.command('next') },
+        { label: 'Précédent', click: () => actions.command('previous') },
+        { type: 'separator' },
+        {
+          label: 'Dépannage',
+          submenu: [
+            { label: 'Réparer l’affichage (grand lecteur, pages rechargées)', click: actions.repair },
+            { label: 'Ouvrir le dossier des journaux', click: actions.openLogs },
+          ],
+        },
+        { label: 'Quitter', click: actions.quit },
+      ]),
+    );
   build();
   tray.on('click', actions.open);
   return {

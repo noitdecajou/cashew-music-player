@@ -26,26 +26,49 @@ export async function launch({ userData: profile, env = {}, args = [] } = {}) {
   });
   // WebContentsViews are listed as windows too: pick our shell explicitly.
   const isShell = page => page.url().includes('/renderer/index.html') && !page.url().includes('view=drawer');
-  const shell = app.windows().find(isShell) ?? await app.waitForEvent('window', { predicate: isShell });
+  const shell = app.windows().find(isShell) ?? (await app.waitForEvent('window', { predicate: isShell }));
   await shell.waitForSelector('body:not(.booting)');
-  const ytm = async (code) => app.evaluate(async ({ webContents }, source) => {
-    const music = webContents.getAllWebContents().find(wc => wc.getURL().startsWith('https://music.youtube.com'));
-    return music.executeJavaScript(source);
-  }, code);
+  const ytm = async code =>
+    app.evaluate(async ({ webContents }, source) => {
+      const music = webContents.getAllWebContents().find(wc => wc.getURL().startsWith('https://music.youtube.com'));
+      return music.executeJavaScript(source);
+    }, code);
   const log = () => app.evaluate(() => globalThis.__agentLog);
   const contentSize = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getContentSize());
   const until = async (fn, { timeout = 5000, message = 'condition' } = {}) => {
     const end = Date.now() + timeout;
     let last;
-    while (Date.now() < end) { last = await fn(); if (last) return last; await new Promise(r => setTimeout(r, 50)); }
+    while (Date.now() < end) {
+      last = await fn();
+      if (last) return last;
+      await new Promise(r => setTimeout(r, 50));
+    }
     throw new Error(`timeout waiting for ${message} (last: ${JSON.stringify(last)})`);
   };
-  const viewBounds = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].contentView.children.map(v => ({ url: v.webContents.getURL(), bounds: v.getBounds() })));
-  const drawer = async () => app.windows().find(page => page.url().includes('view=drawer')) ?? app.waitForEvent('window', { predicate: page => page.url().includes('view=drawer') });
-  const close = async () => { await app.close().catch(() => {}); if (!profile) rmSync(userData, { recursive: true, force: true }); };
+  const viewBounds = () =>
+    app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].contentView.children.map(v => ({
+        url: v.webContents.getURL(),
+        bounds: v.getBounds(),
+      })),
+    );
+  const drawer = async () =>
+    app.windows().find(page => page.url().includes('view=drawer')) ??
+    app.waitForEvent('window', { predicate: page => page.url().includes('view=drawer') });
+  const close = async () => {
+    await app.close().catch(() => {});
+    if (!profile) rmSync(userData, { recursive: true, force: true });
+  };
   // Wait for the agent to be up in the fixture page.
-  await until(async () => {
-    try { return await ytm('window.__musicPlayerAgentInstalled === true'); } catch { return false; }
-  }, { timeout: 15000, message: 'agent installed' });
+  await until(
+    async () => {
+      try {
+        return await ytm('window.__musicPlayerAgentInstalled === true');
+      } catch {
+        return false;
+      }
+    },
+    { timeout: 15000, message: 'agent installed' },
+  );
   return { app, shell, ytm, log, contentSize, viewBounds, drawer, until, close };
 }

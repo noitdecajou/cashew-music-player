@@ -21,6 +21,15 @@ module.exports = { updateMetadata };
 
 if (require.main === module) {
   const [installer, latestYml] = process.argv.slice(2);
-  if (!installer || !latestYml) { console.error('usage: update-metadata.cjs <installer.exe> <latest.yml>'); process.exit(2); }
-  updateMetadata(installer, latestYml).then(r => console.log(`updated ${latestYml}: size=${r.size}`), e => { console.error(e); process.exit(1); });
+  if (!installer || !latestYml) {
+    console.error('usage: update-metadata.cjs <installer.exe> <latest.yml>');
+    process.exit(2);
+  }
+  updateMetadata(installer, latestYml).then(
+    r => console.log(`updated ${latestYml}: size=${r.size}`),
+    e => {
+      console.error(e);
+      process.exit(1);
+    },
+  );
 }

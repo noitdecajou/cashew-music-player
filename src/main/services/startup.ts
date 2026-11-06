@@ -10,7 +10,11 @@ export function startupState(): { supported: boolean; enabled: boolean; blocked:
   const t = target();
   if (!t) return { supported: false, enabled: false, blocked: false };
   const settings = app.getLoginItemSettings(t);
-  return { supported: true, enabled: settings.openAtLogin, blocked: settings.openAtLogin && settings.executableWillLaunchAtLogin === false };
+  return {
+    supported: true,
+    enabled: settings.openAtLogin,
+    blocked: settings.openAtLogin && settings.executableWillLaunchAtLogin === false,
+  };
 }
 
 export function setStartup(enabled: boolean): void {

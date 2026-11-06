@@ -17,7 +17,9 @@ export class GlobalShortcut {
   private active = '';
   constructor(private readonly callback: () => void) {}
 
-  get current(): string { return this.active; }
+  get current(): string {
+    return this.active;
+  }
 
   /** Returns an error message, or '' on success. Keeps the previous one on failure. */
   set(value: string): string {
@@ -26,7 +28,11 @@ export class GlobalShortcut {
     if (next === this.active) return '';
     if (next) {
       let registered = false;
-      try { registered = globalShortcut.register(next, this.callback); } catch { registered = false; }
+      try {
+        registered = globalShortcut.register(next, this.callback);
+      } catch {
+        registered = false;
+      }
       if (!registered) return 'Ce raccourci est déjà utilisé par une autre application.';
     }
     if (this.active) globalShortcut.unregister(this.active);
@@ -38,8 +44,17 @@ export class GlobalShortcut {
   suspend(suspended: boolean): void {
     if (!this.active) return;
     if (suspended) globalShortcut.unregister(this.active);
-    else if (!globalShortcut.isRegistered(this.active)) { try { globalShortcut.register(this.active, this.callback); } catch { /* taken meanwhile */ } }
+    else if (!globalShortcut.isRegistered(this.active)) {
+      try {
+        globalShortcut.register(this.active, this.callback);
+      } catch {
+        /* taken meanwhile */
+      }
+    }
   }
 
-  dispose(): void { if (this.active) globalShortcut.unregister(this.active); this.active = ''; }
+  dispose(): void {
+    if (this.active) globalShortcut.unregister(this.active);
+    this.active = '';
+  }
 }

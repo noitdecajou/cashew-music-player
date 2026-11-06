@@ -3,7 +3,11 @@ import { installGlyphSymbols } from './brand';
 import { startDrawer } from './drawer';
 import { startShell } from './shell';
 
-declare global { interface Window { player: ShellApi } }
+declare global {
+  interface Window {
+    player: ShellApi;
+  }
+}
 
 const sprite = document.getElementById('sprite');
 if (sprite) installGlyphSymbols(sprite);

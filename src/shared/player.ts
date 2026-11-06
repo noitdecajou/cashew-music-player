@@ -43,8 +43,16 @@ export interface PlayerProgress {
 }
 
 export const EMPTY_SNAPSHOT: PlayerSnapshot = {
-  status: 'idle', track: null, next: null, shuffle: null, repeat: null, like: null,
-  volume: 100, muted: false, signedIn: null, accountKey: '',
+  status: 'idle',
+  track: null,
+  next: null,
+  shuffle: null,
+  repeat: null,
+  like: null,
+  volume: 100,
+  muted: false,
+  signedIn: null,
+  accountKey: '',
 };
 
 export interface QueueItem {
@@ -111,24 +119,40 @@ export function sanitizeAgentMessage(raw: unknown): AgentMessage | null {
   if (message.kind === 'op-result') {
     if (!Number.isSafeInteger(message.id)) return null;
     // The value is validated by the caller, per operation (see shared/ops.ts).
-    return { kind: 'op-result', id: message.id as number, ok: message.ok === true, value: message.value, error: str(message.error, 300) };
+    return {
+      kind: 'op-result',
+      id: message.id as number,
+      ok: message.ok === true,
+      value: message.value,
+      error: str(message.error, 300),
+    };
   }
   if (message.kind === 'queue') return { kind: 'queue', queue: sanitizeQueue(message.queue) };
   if (message.kind === 'progress') {
     const p = message.progress as Record<string, unknown> | undefined;
     if (!p || !VIDEO_ID.test(str(p.trackId))) return null;
     const duration = num(p.duration, 0, 86400, 0);
-    return { kind: 'progress', progress: { trackId: str(p.trackId), duration, position: num(p.position, 0, duration || 86400, 0) } };
+    return {
+      kind: 'progress',
+      progress: { trackId: str(p.trackId), duration, position: num(p.position, 0, duration || 86400, 0) },
+    };
   }
   if (message.kind === 'snapshot') {
     const s = message.snapshot as Record<string, unknown> | undefined;
     if (!s) return null;
     const t = s.track as Record<string, unknown> | null | undefined;
     const n = s.next as Record<string, unknown> | null | undefined;
-    const track: Track | null = t && VIDEO_ID.test(str(t.id))
-      ? { id: str(t.id), title: str(t.title), artist: str(t.artist), album: str(t.album), artwork: httpsUrl(t.artwork),
-          playlistId: PLAYLIST_ID.test(str(t.playlistId)) ? str(t.playlistId) : '' }
-      : null;
+    const track: Track | null =
+      t && VIDEO_ID.test(str(t.id))
+        ? {
+            id: str(t.id),
+            title: str(t.title),
+            artist: str(t.artist),
+            album: str(t.album),
+            artwork: httpsUrl(t.artwork),
+            playlistId: PLAYLIST_ID.test(str(t.playlistId)) ? str(t.playlistId) : '',
+          }
+        : null;
     return {
       kind: 'snapshot',
       snapshot: {
@@ -153,9 +177,20 @@ export function sanitizeQueue(raw: unknown): QueueState {
   const items = (Array.isArray(q.items) ? q.items : []).slice(0, 500).flatMap((value): QueueItem[] => {
     const i = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
     if (!VIDEO_ID.test(str(i.videoId))) return [];
-    return [{ videoId: str(i.videoId), title: str(i.title), artist: str(i.artist), artwork: httpsUrl(i.artwork), duration: str(i.duration, 12) }];
+    return [
+      {
+        videoId: str(i.videoId),
+        title: str(i.title),
+        artist: str(i.artist),
+        artwork: httpsUrl(i.artwork),
+        duration: str(i.duration, 12),
+      },
+    ];
   });
-  const current = Number.isInteger(q.current) && (q.current as number) >= 0 && (q.current as number) < items.length ? (q.current as number) : -1;
+  const current =
+    Number.isInteger(q.current) && (q.current as number) >= 0 && (q.current as number) < items.length
+      ? (q.current as number)
+      : -1;
   return { items, current };
 }
 
@@ -164,10 +199,22 @@ export function sanitizeCommand(raw: unknown): PlayerCommand | null {
   if (!raw || typeof raw !== 'object') return null;
   const c = raw as Record<string, unknown>;
   switch (c.type) {
-    case 'toggle-play': case 'play': case 'pause': case 'next': case 'previous': case 'shuffle': case 'repeat':
+    case 'toggle-play':
+    case 'play':
+    case 'pause':
+    case 'next':
+    case 'previous':
+    case 'shuffle':
+    case 'repeat':
       return { type: c.type };
     case 'seek':
-      if (!VIDEO_ID.test(str(c.trackId)) || typeof c.position !== 'number' || !Number.isFinite(c.position) || c.position < 0) return null;
+      if (
+        !VIDEO_ID.test(str(c.trackId)) ||
+        typeof c.position !== 'number' ||
+        !Number.isFinite(c.position) ||
+        c.position < 0
+      )
+        return null;
       return { type: 'seek', trackId: str(c.trackId), position: Math.min(c.position, 86400) };
     case 'volume':
       if (typeof c.volume !== 'number' || !Number.isFinite(c.volume)) return null;

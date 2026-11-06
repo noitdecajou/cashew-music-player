@@ -1,11 +1,20 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-export interface IntegrityReport { missing: string[]; changed: string[] }
+export interface IntegrityReport {
+  missing: string[];
+  changed: string[];
+}
 
 type Size = (path: string) => number | null;
 const SIGNED = /\.(exe|dll|node)$/i;
-const realSize: Size = path => { try { return statSync(path).size; } catch { return null; } };
+const realSize: Size = path => {
+  try {
+    return statSync(path).size;
+  } catch {
+    return null;
+  }
+};
 
 /** Compares the installed files with the manifest written at build time (build/after-pack.cjs). */
 export function checkIntegrity(root: string, manifest: unknown, size: Size = realSize): IntegrityReport | null {
@@ -24,7 +33,11 @@ export function checkIntegrity(root: string, manifest: unknown, size: Size = rea
 }
 
 export function readManifest(root: string): unknown {
-  try { return JSON.parse(readFileSync(join(root, 'resources', 'integrity.json'), 'utf8')); } catch { return null; }
+  try {
+    return JSON.parse(readFileSync(join(root, 'resources', 'integrity.json'), 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 export function describe(report: IntegrityReport, limit = 6): string {

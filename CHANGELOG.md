@@ -1,5 +1,9 @@
 # Historique
 
+## 2.0.0-beta.9
+
+- Dépôt GitHub recréé (historique nettoyé des données personnelles) : cette version republie la beta.8 à l’identique, pour que les applications installées retrouvent leurs mises à jour. Aucun changement dans l’application.
+
 ## 2.0.0-beta.8
 
 Audit de sécurité (méthode Cloudflare *security-audit-skill*) et correctifs : voir `docs/security.md`.

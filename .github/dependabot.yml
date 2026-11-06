@@ -7,6 +7,10 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    ignore:
+      # Node.js types follow the Node version built into Electron (updated together).
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       # One PR for the build/test tooling, one per runtime-relevant package.
       tooling:

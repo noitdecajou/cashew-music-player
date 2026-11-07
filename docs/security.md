@@ -8,6 +8,15 @@ the main frame of music.youtube.com, and every message is validated against a sc
 `src/shared/ops.ts`). The application's own pages (title bar, panels) accept privileged calls only from their own
 windows (`fromUi`) and render page data as text only. Local files are re-validated when read.
 
+## Island (2.1)
+
+- The island window is not focusable, never steals input, and its page may only send play/pause, next and previous;
+  every other IPC channel rejects it (`fromIsland` in `src/main/index.ts`).
+- Game detection uses read-only Windows calls (foreground window, its process name, its size); it never opens a game
+  process for anything else, never injects code and installs no hooks.
+- LRCLIB requests are optional and only send the track's title, artist, album and duration; answers are size-limited,
+  parsed as LRC and validated (`sanitizeLyrics`).
+
 ## Audit of November 2026 (2.0.0-beta.7 → beta.8)
 
 Full audit following the Cloudflare *security-audit-skill* method (standard profile, revision `2a06548`): 25

@@ -106,32 +106,38 @@ test('queue: live list, jump to a track, remove a track', async () => {
   assert.equal(await drawer.locator('.queue-row.current .remove').count(), 0, 'the current track cannot be removed');
 });
 
-test('settings: theme, startup (unavailable outside the installed app), shortcut, diagnostics', async () => {
-  await openPanel('toggle-settings');
-  await drawer.waitForSelector('section[data-panel="settings"]:not([hidden])');
-  await drawer.click('.theme-card[data-theme="hifi"]');
-  await h.until(async () => (await drawer.getAttribute('.theme-card[data-theme="hifi"]', 'aria-checked')) === 'true', {
-    message: 'theme checked',
-  });
+test('settings window: sections in a sidebar; theme, startup, shortcut, diagnostics', async () => {
+  const settings = await h.settings('player');
+  await settings.click('.theme-card[data-theme="hifi"]');
+  await h.until(
+    async () => (await settings.getAttribute('.theme-card[data-theme="hifi"]', 'aria-checked')) === 'true',
+    {
+      message: 'theme checked',
+    },
+  );
   assert.equal(await h.shell.getAttribute('body', 'data-theme'), 'hifi');
-  assert.equal(await drawer.isDisabled('#startup'), true);
-  await drawer.click('#shortcut');
-  await drawer.keyboard.press('Control+Alt+P');
+  await settings.click('.sidebar [data-section="general"]');
+  assert.equal(await settings.isVisible('section[data-section="player"]'), false, 'one section at a time');
+  assert.equal(await settings.isDisabled('#startup'), true);
+  await settings.click('#shortcut');
+  await settings.keyboard.press('Control+Alt+P');
   await h.until(
     async () => {
-      const value = await drawer.inputValue('#shortcut');
-      const status = await drawer.textContent('.shortcut-status');
+      const value = await settings.inputValue('#shortcut');
+      const status = await settings.textContent('.shortcut-status');
       return value === 'Ctrl+Alt+P' || /utilisé/.test(status);
     },
     { message: 'shortcut saved (or reported busy)' },
   );
-  await drawer.click('#clearShortcut');
-  await h.until(async () => (await drawer.inputValue('#shortcut')) === '', { message: 'shortcut disabled' });
-  await drawer.click('#diagnostics');
-  await h.until(async () => /Mémoire : \d+ Mo/.test(await drawer.textContent('.diagnostics-result')), {
+  await settings.click('#clearShortcut');
+  await h.until(async () => (await settings.inputValue('#shortcut')) === '', { message: 'shortcut disabled' });
+  await settings.click('.sidebar [data-section="about"]');
+  await settings.click('#diagnostics');
+  await h.until(async () => /Mémoire : \d+ Mo/.test(await settings.textContent('.diagnostics-result')), {
     message: 'diagnostics',
   });
-  await drawer.keyboard.press('Escape');
+  await settings.keyboard.press('Escape').catch(() => {}); // closes the window
+  await h.until(async () => !h.app.windows().some(p => p.url().includes('settings.html')), { message: 'closed' });
 });
 
 test('video fullscreen: YouTube Music covers the window, the drawer cannot open', async () => {

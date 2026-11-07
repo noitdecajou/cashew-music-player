@@ -45,6 +45,21 @@
 - Moving the mini-player without a title bar: grip, cover or title (pointer capture, screen positions from the main
   process), arrow keys on the grip.
 
+## Island and settings windows
+
+- **Island** (`src/main/window/island-window.ts`, page `island.html`): a transparent, frameless, always-on-top
+  (`screen-saver` level), non-focusable window hanging from the top edge of the chosen display. It ignores the mouse
+  (clicks go through) except while the pointer is over the pill: the page reports it (`island:hover`). It receives the
+  snapshot, the progress and the lyrics, and may only send play/pause, next and previous. Visibility and position come
+  from `decideIsland` (`src/shared/island.ts`): mode (off, always, games), game list, automatic fullscreen detection.
+- **Foreground** (`src/main/services/foreground.ts`): on Windows, polls every 1.5 s, only in games mode, the
+  foreground window's process name and whether it covers its monitor (read-only user32/kernel32 calls through
+  koffi; no injection, no hooks).
+- **Lyrics** (`src/main/services/lyrics.ts`): LRCLIB `/api/get` (title, artist, album, duration), then `/api/search`;
+  LRC parsed in `src/shared/island.ts`, cached per track, requested only while the island is on.
+- **Settings** (`src/main/window/settings-window.ts`, page `settings.html`): a regular window with a sidebar
+  (General, Player, Island, Games, Updates, About); same IPC rights as the shell.
+
 ## Page operations
 
 Main asks the agent for actions with `ytm:command` `{type: 'op', id, op, payload}`; the agent answers `op-result`
@@ -76,4 +91,7 @@ each operation has a timeout.
   playlists, queue, settings, fullscreen and resume after a restart; `player.test.mjs` covers card/clock ordering
   during natural transitions with a late queue, commands, progress dragging, volume, skin sizes and rejection of
   invalid commands; `permissions.test.mjs` checks that camera and microphone are never granted.
+- `test/e2e/island.test.mjs`: island modes, position, clock, hover and controls, restricted commands, games mode
+  (the foreground is read from a file), settings window. `MP_LYRICS_FIXTURE` and `MP_FAKE_FOREGROUND` replace
+  LRCLIB and the Windows foreground in unpackaged builds only.
 - `test/live`: weekly check against the real music.youtube.com (`.github/workflows/live-check.yml`).

@@ -10,7 +10,7 @@ const LARGE_MIN = { width: 800, height: 600 };
 const LARGE_DEFAULT = { width: 1180, height: 820 };
 /** Width of the side panel (search, queue, settings) in large mode. */
 const SIDE_PANEL_WIDTH = 380;
-const ICON = join(__dirname, '../../resources', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+export const ICON = join(__dirname, '../../resources', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 
 /**
  * One frameless window. The shell (our UI) fills it; the YouTube Music view is
@@ -400,8 +400,7 @@ export class MainWindow {
       case 'toggle-queue':
         this.setPanel(this.ui.panel === 'queue' ? 'none' : 'queue');
         break;
-      case 'toggle-settings':
-        this.setPanel(this.ui.panel === 'settings' ? 'none' : 'settings');
+      case 'toggle-settings': // opens the settings window (main process)
         break;
       case 'close-panel':
         this.setPanel('none');
@@ -451,7 +450,7 @@ export class MainWindow {
 }
 
 /** Our pages never navigate away nor open windows: GitHub links open in the browser. */
-function guardPage(contents: Electron.WebContents): void {
+export function guardPage(contents: Electron.WebContents): void {
   contents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\/github\.com\/noitdecajou\/cashew-music-player(\/|$)/.test(url)) void shell.openExternal(url);
     return { action: 'deny' };

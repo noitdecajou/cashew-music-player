@@ -106,15 +106,13 @@ test('B · skins: CASHEW label, glyph in the skin accent, grip still a drag hand
   });
 });
 
-test('C · settings footer: glyph, wordmark and the app version', async () => {
-  await h.shell.evaluate(() => window.player.window('toggle-settings'));
-  const drawer = await h.drawer();
-  await drawer.waitForSelector('section[data-panel="settings"]:not([hidden])');
+test('C · settings about: glyph, wordmark and the app version', async () => {
+  const settings = await h.settings('about');
   const version = await h.app.evaluate(({ app }) => app.getVersion());
-  await h.until(async () => (await drawer.textContent('.about .version')) === `version ${version}`, {
+  await h.until(async () => (await settings.textContent('.about .version')) === `version ${version}`, {
     message: 'version from the app',
   });
-  assert.equal(await drawer.textContent('.about .wordmark'), 'cashew');
-  assert.equal(await drawer.getAttribute('.about .glyph use', 'href'), '#i-cashew');
-  await drawer.keyboard.press('Escape');
+  assert.equal(await settings.textContent('.about .wordmark'), 'cashew');
+  assert.equal(await settings.getAttribute('.about .glyph use', 'href'), '#i-cashew');
+  await settings.keyboard.press('Escape').catch(() => {}); // closes the window
 });

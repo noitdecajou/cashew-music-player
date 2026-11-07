@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0-beta.1
+
+- **Island** (optional, off by default): a pill at the top of the screen showing a small cover and the lyric line being sung (or title and artist). On hover it grows to show the cover, title, artist, progress and the next track, with play/pause and next. Position (left, center, right), display and clock (hidden, left, right) are configurable. It never takes the focus and works while the player window is hidden.
+- **Synced lyrics** from LRCLIB (lrclib.net, optional, on by default with the island): title, artist, album and duration of the track are sent to find the lyrics. YouTube Music only provides lyrics without timing.
+- **Games**: the island can show only while a game is in front, with a list of games (enabled or not, position for each, centered by default) and optional detection of any fullscreen application. Windows only; nothing is injected into games (safe with anti-cheat software). Visible over borderless fullscreen games, not over exclusive fullscreen.
+- **Settings** move to their own window, with sections in a sidebar: General, Player, Island, Games, Updates, About.
+
 ## 2.0.0
 
 First stable version of **cashew**, a complete rewrite of the 1.x player (Electron + TypeScript). Since 1.7:

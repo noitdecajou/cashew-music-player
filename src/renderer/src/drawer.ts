@@ -3,16 +3,13 @@ import {
   type Panel,
   type PlaylistResult,
   type SearchScope,
-  type Settings,
   type SongResult,
-  type UpdateState,
   errorMessage,
 } from '../../shared/ipc';
 import type { QueueState } from '../../shared/player';
-import { MINI_THEMES, type MiniTheme } from '../../shared/themes';
 import { $, $$, coverImage, el, setText } from './dom';
 
-const TITLES: Record<Panel, string> = { none: '', search: 'Rechercher', queue: 'File d’attente', settings: 'Réglages' };
+const TITLES: Record<Panel, string> = { none: '', search: 'Rechercher', queue: 'File d’attente' };
 
 /** The drawer page: a separate native view stacked over YouTube Music. */
 export function startDrawer(): void {
@@ -41,21 +38,17 @@ export function startDrawer(): void {
   let current: Panel = 'none';
   const search = setupSearch(notice);
   const queue = setupQueue(notice);
-  const settings = setupSettings(notice);
 
   api.on('ui:state', state => {
     document.body.classList.remove('booting');
     document.body.classList.toggle('mini', state.mini);
     document.body.classList.toggle('large', !state.mini);
-    $<HTMLInputElement>('#seamless').checked = state.seamless;
-    settings.theme(state.theme);
     if (state.panel === current) return;
     current = state.panel;
     setText($('.panel-title', panel), TITLES[state.panel]);
     for (const section of $$('section[data-panel]', panel)) section.hidden = section.dataset.panel !== state.panel;
     notice('');
     if (state.panel === 'search') search.open();
-    if (state.panel === 'settings') settings.open();
     queue.setOpen(state.panel === 'queue');
   });
   api.on('ui:notice', notice);
@@ -357,159 +350,6 @@ function setupQueue(notice: (message: string) => void): { setOpen(open: boolean)
       open = value;
       scrolledFor = '';
       if (open) render();
-    },
-  };
-}
-
-// ---------------------------------------------------------------- settings --
-function setupSettings(notice: (message: string) => void): { open(): void; theme(theme: MiniTheme): void } {
-  const api = window.player;
-  const grid = $('.theme-grid');
-  const startup = $<HTMLInputElement>('#startup');
-  const quiet = $<HTMLInputElement>('#quietStartup');
-  const shortcut = $<HTMLInputElement>('#shortcut');
-  const shortcutStatus = $('.shortcut-status');
-
-  const cards = (Object.keys(MINI_THEMES) as MiniTheme[]).map(theme => {
-    const info = MINI_THEMES[theme];
-    const card = el(
-      'button',
-      { className: `theme-card theme-${theme}`, role: 'radio' },
-      el('span', { className: 'swatch', ariaHidden: 'true' }),
-      el('span', { className: 'name' }, info.label),
-      el('span', { className: 'size' }, `${info.width} × ${info.height}`),
-    );
-    card.dataset.theme = theme;
-    card.addEventListener('click', () => {
-      void api.setTheme(theme).catch(error => notice(errorMessage(error)));
-    });
-    grid.append(card);
-    return card;
-  });
-
-  function render(settings: Settings): void {
-    startup.checked = settings.startup.enabled;
-    startup.disabled = !settings.startup.supported;
-    startup.parentElement!.title = settings.startup.supported
-      ? settings.startup.blocked
-        ? 'Désactivé dans Paramètres Windows > Applications > Démarrage'
-        : ''
-      : 'Disponible dans la version installée (.exe)';
-    quiet.checked = settings.quietStartup;
-    shortcut.value = settings.shortcut;
-    setText(
-      shortcutStatus,
-      settings.shortcutError || (settings.shortcut ? 'Actif, même depuis une autre application.' : 'Désactivé.'),
-    );
-    setText($('.version'), `version ${settings.version}`);
-  }
-  async function update(patch: Parameters<typeof api.updateSettings>[0]): Promise<void> {
-    try {
-      render(await api.updateSettings(patch));
-    } catch (error) {
-      notice(errorMessage(error));
-      render(await api.settings());
-    }
-  }
-
-  startup.addEventListener('change', () => void update({ startup: startup.checked }));
-  quiet.addEventListener('change', () => void update({ quietStartup: quiet.checked }));
-  $<HTMLInputElement>('#seamless').addEventListener('change', () => api.window('toggle-title-bar'));
-  $('#resetShortcut').addEventListener('click', () => void update({ shortcut: 'Ctrl+Alt+M' }));
-  $('#clearShortcut').addEventListener('click', () => void update({ shortcut: '' }));
-  shortcut.addEventListener('focus', () => {
-    api.captureShortcut(true);
-    setText(shortcutStatus, 'Appuie sur la nouvelle combinaison…');
-  });
-  shortcut.addEventListener('blur', () => {
-    api.captureShortcut(false);
-    void api.settings().then(render);
-  });
-  shortcut.addEventListener('keydown', event => {
-    if (event.key === 'Tab') return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.key === 'Escape') {
-      shortcut.blur();
-      return;
-    }
-    if (event.repeat || ['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) return;
-    const key = event.key === ' ' ? 'Space' : event.key.length === 1 ? event.key.toUpperCase() : event.key;
-    const parts = [
-      event.ctrlKey && 'Ctrl',
-      event.altKey && 'Alt',
-      event.shiftKey && 'Shift',
-      event.metaKey && 'Super',
-    ].filter(Boolean);
-    void update({ shortcut: [...parts, key].join('+') });
-  });
-  $('#diagnostics').addEventListener('click', async () => {
-    try {
-      const d = await api.diagnostics();
-      setText(
-        $('.diagnostics-result'),
-        `Mémoire : ${d.memoryMB} Mo · CPU : ${d.cpu} % · ${d.processes} processus (Electron ${d.electron})`,
-      );
-    } catch (error) {
-      notice(errorMessage(error));
-    }
-  });
-
-  // Updates
-  const updateStatus = $('.update-status');
-  const updateButton = $<HTMLButtonElement>('#updateAction');
-  const updateBar = $('.update-progress');
-  let updateState: UpdateState | null = null;
-  function renderUpdate(state: UpdateState): void {
-    updateState = state;
-    const texts: Record<UpdateState['status'], string> = {
-      unsupported: `Version ${state.current}. Les mises à jour automatiques fonctionnent dans la version installée.`,
-      idle: `Version ${state.current}.`,
-      checking: 'Recherche d’une mise à jour…',
-      'up-to-date': `Version ${state.current} : à jour.`,
-      available: `La version ${state.version} est disponible (actuelle : ${state.current}).`,
-      downloading: `Téléchargement de la version ${state.version}… ${state.percent} %`,
-      ready: `La version ${state.version} est prête. Le lecteur redémarre pour l’installer (quelques secondes).`,
-      error: state.error,
-    };
-    setText(updateStatus, texts[state.status]);
-    const actions: Partial<Record<UpdateState['status'], string>> = {
-      idle: 'Rechercher',
-      'up-to-date': 'Rechercher',
-      error: 'Réessayer',
-      available: 'Télécharger et installer',
-      ready: 'Redémarrer et installer',
-    };
-    const label = actions[state.status];
-    updateButton.hidden = !label;
-    if (label) setText(updateButton, label);
-    updateButton.classList.toggle('primary', state.status === 'available' || state.status === 'ready');
-    updateBar.hidden = state.status !== 'downloading';
-    ($('.fill', updateBar) as HTMLElement).style.width = `${state.percent}%`;
-  }
-  updateButton.addEventListener('click', async () => {
-    const action =
-      updateState?.status === 'available' ? 'download' : updateState?.status === 'ready' ? 'install' : 'check';
-    updateButton.disabled = true;
-    try {
-      renderUpdate(await api.update(action));
-    } catch (error) {
-      notice(errorMessage(error));
-    } finally {
-      updateButton.disabled = false;
-    }
-  });
-  api.on('update:state', renderUpdate);
-
-  return {
-    open: () => {
-      void api
-        .settings()
-        .then(render)
-        .catch(error => notice(errorMessage(error)));
-    },
-    theme: theme => {
-      for (const card of cards) card.setAttribute('aria-checked', String(card.dataset.theme === theme));
     },
   };
 }

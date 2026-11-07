@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' https: data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>Réglages — cashew</title>
+    <link rel="stylesheet" href="./styles/base.css" />
+    <link rel="stylesheet" href="./styles/settings.css" />
+  </head>
+  <body class="settings-view booting">
+    <svg id="sprite" width="0" height="0" style="position: absolute" aria-hidden="true"></svg>
+    <div class="drag-bar" aria-hidden="true"></div>
+
+    <nav class="sidebar" aria-label="Sections des réglages">
+      <div class="brand">
+        <svg class="glyph" width="20" height="20" aria-hidden="true"><use href="#i-cashew" /></svg
+        ><span class="wordmark">cashew</span>
+      </div>
+      <button data-section="general" aria-current="page">Général</button>
+      <button data-section="player">Lecteur</button>
+      <button data-section="island">Island</button>
+      <button data-section="games">Jeux</button>
+      <button data-section="updates">Mises à jour</button>
+      <button data-section="about">À propos</button>
+      <div class="spacer"></div>
+      <div class="hint version"></div>
+    </nav>
+
+    <main class="content">
+      <div class="notice" role="status" hidden></div>
+
+      <section data-section="general">
+        <h2>Général</h2>
+        <h3>Démarrage</h3>
+        <label class="check"><input type="checkbox" id="startup" /> Lancer avec Windows</label>
+        <label class="check"
+          ><input type="checkbox" id="quietStartup" /> Démarrer discrètement (dans la zone de notification)</label
+        >
+        <h3>Raccourci global</h3>
+        <p class="hint">Affiche ou masque le lecteur depuis n’importe quelle application.</p>
+        <div class="shortcut-row">
+          <input id="shortcut" readonly aria-label="Raccourci global" placeholder="Aucun" /><button id="resetShortcut">
+            Par défaut</button
+          ><button id="clearShortcut">Désactiver</button>
+        </div>
+        <p class="hint shortcut-status"></p>
+      </section>
+
+      <section data-section="player" hidden>
+        <h2>Lecteur</h2>
+        <h3>Apparence du mini-player</h3>
+        <div class="theme-grid" role="radiogroup" aria-label="Apparence"></div>
+        <label class="check"
+          ><input type="checkbox" id="seamless" /> Masquer la barre de fenêtre du mini-player
+          <kbd>Ctrl+Maj+B</kbd></label
+        >
+        <p class="hint">
+          Fermer la fenêtre du lecteur la range dans la zone de notification : la musique et l’island continuent.
+        </p>
+      </section>
+
+      <section data-section="island" hidden>
+        <h2>Island</h2>
+        <p class="hint">
+          Une pastille en haut de l’écran : pochette et paroles, et au survol le titre, l’artiste, la progression, le
+          morceau suivant, lecture/pause et suivant. Elle ne prend jamais la main sur les autres fenêtres.
+        </p>
+        <h3>Afficher l’island</h3>
+        <div class="segmented" data-setting="mode" role="radiogroup" aria-label="Afficher l’island">
+          <button data-value="off">Jamais</button><button data-value="always">Toujours</button
+          ><button data-value="games">Seulement en jeu</button>
+        </div>
+        <p class="hint mode-hint"></p>
+        <h3>Position</h3>
+        <div class="segmented" data-setting="position" role="radiogroup" aria-label="Position">
+          <button data-value="left">Gauche</button><button data-value="center">Centre</button
+          ><button data-value="right">Droite</button>
+        </div>
+        <h3>Écran</h3>
+        <select id="islandDisplay" aria-label="Écran de l’island"></select>
+        <h3>Heure</h3>
+        <div class="segmented" data-setting="clock" role="radiogroup" aria-label="Heure">
+          <button data-value="none">Masquée</button><button data-value="left">À gauche</button
+          ><button data-value="right">À droite</button>
+        </div>
+        <h3>Paroles</h3>
+        <label class="check"><input type="checkbox" id="islandLyrics" /> Paroles synchronisées (LRCLIB)</label>
+        <p class="hint">
+          Le titre, l’artiste, l’album et la durée du morceau sont envoyés à lrclib.net, une base de paroles libre, pour
+          trouver les paroles. YouTube Music ne fournit pas de paroles synchronisées. Sans paroles, l’island affiche le
+          titre et l’artiste.
+        </p>
+      </section>
+
+      <section data-section="games" hidden>
+        <h2>Jeux</h2>
+        <p class="hint games-mode-hint"></p>
+        <p class="hint games-unsupported" hidden>La détection des jeux fonctionne sous Windows.</p>
+        <label class="check"
+          ><input type="checkbox" id="autoFullscreen" /> Afficher l’island au-dessus de toute application en plein écran
+          (jeux non listés)</label
+        >
+        <h3>Mes jeux</h3>
+        <ol class="games" aria-label="Jeux"></ol>
+        <div class="buttons"><button id="addGame">Ajouter un jeu…</button></div>
+        <h3>Détectés récemment</h3>
+        <p class="hint">Applications vues en plein écran depuis le lancement de cashew.</p>
+        <ol class="recent" aria-label="Applications détectées"></ol>
+        <p class="hint">
+          L’island s’affiche par-dessus les jeux en plein écran fenêtré (« sans bordure »). En plein écran exclusif,
+          Windows ne permet aucun affichage par-dessus le jeu. cashew ne s’injecte jamais dans un jeu : aucun risque
+          avec les anti-triches.
+        </p>
+      </section>
+
+      <section data-section="updates" hidden>
+        <h2>Mises à jour</h2>
+        <div class="update-row"><span class="update-status hint"></span><button id="updateAction" hidden></button></div>
+        <div class="update-progress" hidden><div class="fill"></div></div>
+      </section>
+
+      <section data-section="about" hidden>
+        <h2>À propos</h2>
+        <div class="about">
+          <svg class="glyph" width="40" height="40" aria-hidden="true"><use href="#i-cashew" /></svg>
+          <div>
+            <div class="wordmark">cashew</div>
+            <div class="hint version"></div>
+          </div>
+        </div>
+        <div class="buttons">
+          <a
+            class="button"
+            href="https://github.com/noitdecajou/cashew-music-player/releases"
+            target="_blank"
+            rel="noreferrer"
+            >Notes de version</a
+          ><a class="button" href="https://github.com/noitdecajou/cashew-music-player" target="_blank" rel="noreferrer"
+            >Code source</a
+          >
+        </div>
+        <h3>Dépannage</h3>
+        <div class="buttons">
+          <button data-window="reload-music">Recharger YouTube Music</button
+          ><button data-window="repair-display" title="Repasse en grand lecteur avec sa barre et recharge l’interface">
+            Réparer l’affichage</button
+          ><button id="diagnostics">Mesurer la consommation</button>
+        </div>
+        <p class="hint diagnostics-result"></p>
+      </section>
+    </main>
+
+    <script type="module" src="./src/settings.ts"></script>
+  </body>
+</html>

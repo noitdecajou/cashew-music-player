@@ -9,6 +9,7 @@ export interface TrayActions {
   quit(): void;
   update(): void;
   repair(): void;
+  settings(): void;
   openLogs(): void;
 }
 
@@ -40,6 +41,7 @@ export function createTray(actions: TrayActions): AppTray {
           : []),
         { label: 'Ouvrir cashew', click: actions.open },
         { label: 'Mini-player / Grand lecteur', click: actions.toggleMini },
+        { label: 'Réglages', click: actions.settings },
         { type: 'separator' },
         { label: 'Lecture / Pause', click: () => actions.command('toggle-play') },
         { label: 'Suivant', click: () => actions.command('next') },

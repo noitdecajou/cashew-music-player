@@ -19,6 +19,8 @@ const api: ShellApi = {
   network: online => ipcRenderer.send('shell:network', online),
   diagnostics: () => ipcRenderer.invoke('app:diagnostics'),
   update: action => ipcRenderer.invoke('app:update', action),
+  chooseGame: () => ipcRenderer.invoke('settings:choose-game'),
+  islandHover: hover => ipcRenderer.send('island:hover', hover),
   on: (channel, callback) => {
     if (!SHELL_EVENT_CHANNELS.includes(channel)) return () => undefined;
     const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof callback>[0]): void => callback(value);

@@ -18,6 +18,14 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
-    build: { rollupOptions: { input: { index: resolve(__dirname, 'src/renderer/index.html') } } },
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          island: resolve(__dirname, 'src/renderer/island.html'),
+          settings: resolve(__dirname, 'src/renderer/settings.html'),
+        },
+      },
+    },
   },
 });

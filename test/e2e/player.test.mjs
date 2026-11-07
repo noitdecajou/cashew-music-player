@@ -186,7 +186,7 @@ test('large mode: the drawer overlaps YouTube Music without resizing it', async 
   await h.shell.waitForSelector('body.large');
   const ytmBounds = async () => (await h.viewBounds()).find(v => v.url.startsWith('https://music.youtube.com')).bounds;
   const before = await ytmBounds();
-  await h.shell.click('#toolbar [data-window="toggle-settings"]');
+  await h.shell.click('#toolbar [data-window="toggle-search"]');
   await h.until(async () => (await h.viewBounds()).some(v => v.url.includes('view=drawer')), {
     message: 'drawer attached',
   });
@@ -200,7 +200,7 @@ test('large mode: the drawer overlaps YouTube Music without resizing it', async 
   assert.equal(drawer.bounds.width, 380);
   assert.equal(drawer.bounds.x + drawer.bounds.width, before.width, 'anchored to the right edge');
   const page = await h.drawer();
-  assert.equal(await page.textContent('.panel-title'), 'Réglages');
+  assert.equal(await page.textContent('.panel-title'), 'Rechercher');
   // Focus moving to YouTube Music (as Windows may do) must not close it…
   await h.app.evaluate(({ webContents }) =>
     webContents

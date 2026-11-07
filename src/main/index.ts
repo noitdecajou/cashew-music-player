@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { dirname } from 'node:path';
 import {
+  BrowserWindow,
   type IpcMainEvent,
   type IpcMainInvokeEvent,
   Menu,
@@ -8,6 +9,7 @@ import {
   dialog,
   shell as electronShell,
   ipcMain,
+  net,
   powerMonitor,
   session as electronSession,
 } from 'electron';
@@ -22,7 +24,17 @@ import type {
   WindowAction,
 } from '../shared/ipc';
 import { EMPTY_SNAPSHOT, PLAYLIST_ID, type PlayerSnapshot, VIDEO_ID, sanitizeCommand, str } from '../shared/player';
+import {
+  type IslandPrefs,
+  type LyricsState,
+  decideIsland,
+  exeName,
+  sanitizeIsland,
+  sanitizeLyrics,
+} from '../shared/island';
 import { isMiniTheme } from '../shared/themes';
+import { ForegroundWatcher, fileForeground, windowsForeground } from './services/foreground';
+import { Lyrics, fixtureFetcher as fixtureLyrics } from './services/lyrics';
 import { pendingWrites } from './services/json-file';
 import { Library } from './services/library';
 import { PreferenceStore } from './services/preferences';
@@ -34,7 +46,9 @@ import { checkIntegrity, describe as describeIntegrity, readManifest } from './s
 import { initLog, log } from './services/log';
 import { createTray } from './tray';
 import { watchPage } from './watchdog';
+import { IslandWindow } from './window/island-window';
 import { MainWindow } from './window/main-window';
+import { SettingsWindow } from './window/settings-window';
 import { YtmView } from './ytm/ytm-view';
 
 const APP_ID = 'local.musicplayer.desktop'; // same as 1.x: keeps taskbar pins
@@ -58,7 +72,10 @@ const WINDOW_ACTIONS: readonly WindowAction[] = [
 ];
 const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000];
 
-const RELEASES_URL = 'https://github.com/noitdecajou/cashew-music-player/releases';
+const REPOSITORY_URL = 'https://github.com/noitdecajou/cashew-music-player';
+const RELEASES_URL = `${REPOSITORY_URL}/releases`;
+/** Events the island page receives through `send` (progress and lyrics are sent directly). */
+const ISLAND_CHANNELS = new Set(['player:snapshot']);
 
 /**
  * Installed files removed or altered (typically quarantined by an antivirus)
@@ -133,12 +150,13 @@ function main(): void {
     const ytm = new YtmView(host => notice(`Navigation bloquée : ${host}`));
     let snapshot: PlayerSnapshot = EMPTY_SNAPSHOT;
 
-    const loadRenderer = (contents: Electron.WebContents, view?: 'drawer'): void => {
+    const loadRenderer = (contents: Electron.WebContents, view?: 'drawer'): void => loadPage(contents, 'index', view);
+    function loadPage(contents: Electron.WebContents, page: 'index' | 'island' | 'settings', view?: string): void {
       const search = view ? `view=${view}` : '';
       if (process.env.ELECTRON_RENDERER_URL && !app.isPackaged)
-        void contents.loadURL(process.env.ELECTRON_RENDERER_URL + (search ? `?${search}` : ''));
-      else void contents.loadFile(join(__dirname, '../renderer/index.html'), { search });
-    };
+        void contents.loadURL(`${process.env.ELECTRON_RENDERER_URL}/${page}.html${search ? `?${search}` : ''}`);
+      else void contents.loadFile(join(__dirname, `../renderer/${page}.html`), { search });
+    }
     const window = new MainWindow(prefs, ytm, loadRenderer, drawer => {
       watchPage('drawer', drawer, () => drawer.send('ui:state', window.state));
       drawer.on('did-finish-load', () => {
@@ -150,17 +168,53 @@ function main(): void {
     });
     const shell = window.win.webContents;
 
-    /** Our own UI: the window shell and the drawer view. */
+    // --- Settings window and island ------------------------------------------
+    const settingsWindow = new SettingsWindow(
+      contents => loadPage(contents, 'settings'),
+      contents => {
+        watchPage('settings', contents, () => contents.send('ui:state', window.state));
+        contents.on('did-finish-load', () => {
+          contents.send('ui:state', window.state);
+          contents.send('update:state', updater.state);
+        });
+      },
+    );
+    let lyricsState: LyricsState | null = null;
+    const island = new IslandWindow(
+      contents => loadPage(contents, 'island'),
+      contents => {
+        watchPage('island', contents, () => sendIslandState(contents));
+        contents.on('did-finish-load', () => sendIslandState(contents));
+      },
+      () => updateStreams(),
+    );
+    function sendIslandState(contents: Electron.WebContents): void {
+      const p = prefs.value.island;
+      contents.send('island:view', { position: islandDecision.position, clock: p.clock });
+      contents.send('player:snapshot', snapshot);
+      if (lyricsState) contents.send('lyrics:state', lyricsState);
+    }
+
+    /** Our own UI with full rights: the window shell, the drawer view and the settings window. */
     const uiContents = (): Electron.WebContents[] =>
-      [shell, window.drawerContents].filter((c): c is Electron.WebContents => !!c && !c.isDestroyed());
+      [shell, window.drawerContents, settingsWindow.contents].filter(
+        (c): c is Electron.WebContents => !!c && !c.isDestroyed(),
+      );
     function send(channel: string, value: unknown): void {
       for (const contents of uiContents()) contents.send(channel, value);
+      const pill = island.contents;
+      if (pill && ISLAND_CHANNELS.has(channel)) pill.send(channel, value);
     }
     function notice(message: string): void {
       send('ui:notice', message);
     }
     const fromUi = (event: IpcMainEvent | IpcMainInvokeEvent): boolean =>
       uiContents().some(contents => event.sender === contents && event.senderFrame === contents.mainFrame);
+    /** The island page: play/pause, next and hover only. */
+    const fromIsland = (event: IpcMainEvent): boolean => {
+      const contents = island.contents;
+      return !!contents && event.sender === contents && event.senderFrame === contents.mainFrame;
+    };
     function handle(channel: string, listener: (...args: unknown[]) => unknown): void {
       ipcMain.handle(channel, (event, ...args) => {
         if (!fromUi(event)) throw new Error('Accès refusé');
@@ -224,18 +278,18 @@ function main(): void {
     // --- Player messages ----------------------------------------------------
     let streaming: boolean | null = null;
     let queueWatching: boolean | null = null;
-    const updateStreams = (): void => {
-      const visible = window.visible;
+    function updateStreams(): void {
+      const visible = window.visible || island.isVisible;
       if (visible !== streaming) {
         streaming = visible;
         ytm.send({ type: 'progress-stream', enabled: visible });
       }
-      const queue = visible && window.state.panel === 'queue';
+      const queue = window.visible && window.state.panel === 'queue';
       if (queue !== queueWatching) {
         queueWatching = queue;
         ytm.send({ type: 'queue-watch', enabled: queue });
       }
-    };
+    }
 
     ytm.subscribe(message => {
       switch (message.kind) {
@@ -257,7 +311,10 @@ function main(): void {
               rememberTrack();
             }
           }
-          if (window.visible) send('player:progress', message.progress);
+          if (window.visible) for (const c of uiContents()) c.send('player:progress', message.progress);
+          if (island.isVisible) island.contents?.send('player:progress', message.progress);
+          if (message.progress.trackId === snapshot.track?.id && message.progress.duration > 0)
+            showLyrics(message.progress.duration);
           return;
         case 'snapshot': {
           const previous = snapshot;
@@ -269,6 +326,8 @@ function main(): void {
             publishResume();
           }
           if (snapshot.track && snapshot.track.id !== previous.track?.id) rememberTrack();
+          if (snapshot.track?.id !== previous.track?.id) showLyrics(0);
+          if (!!snapshot.track !== !!previous.track) refreshIsland();
           return;
         }
       }
@@ -282,13 +341,20 @@ function main(): void {
 
     // --- IPC: player and window -------------------------------------------
     ipcMain.on('shell:command', (event, raw) => {
-      if (!fromUi(event)) return;
+      const ui = fromUi(event);
+      if (!ui && !fromIsland(event)) return;
       const command = sanitizeCommand(raw);
-      if (command) ytm.send(command);
+      if (!command) return;
+      if (!ui && !['toggle-play', 'play', 'pause', 'next', 'previous'].includes(command.type)) return;
+      ytm.send(command);
+    });
+    ipcMain.on('island:hover', (event, hover) => {
+      if (fromIsland(event) && typeof hover === 'boolean') island.setHover(hover);
     });
     ipcMain.on('shell:window', (event, action) => {
       if (!fromUi(event) || !WINDOW_ACTIONS.includes(action)) return;
       if (action === 'repair-display') repairDisplay();
+      else if (action === 'toggle-settings') settingsWindow.open();
       else window.action(action);
     });
     ipcMain.on('shell:drag', (event, phase) => {
@@ -397,6 +463,12 @@ function main(): void {
       quietStartup: prefs.value.quietStartup,
       shortcut: shortcut.current || (shortcutError ? prefs.value.shortcut : ''),
       shortcutError,
+      island: prefs.value.island,
+      displays: IslandWindow.displayNames(),
+      gamesSupported: foreground.supported,
+      recentApps: foreground.recent
+        .filter(r => !prefs.value.island.games.some(g => g.exe === r.exe))
+        .map(r => ({ exe: r.exe, title: r.title })),
     });
     handle('settings:get', () => settings());
     handle('settings:update', raw => {
@@ -406,6 +478,25 @@ function main(): void {
       if (typeof patch.shortcut === 'string') {
         shortcutError = shortcut.set(patch.shortcut);
         if (!shortcutError) prefs.update({ shortcut: shortcut.current });
+      }
+      if (patch.island && typeof patch.island === 'object') setIsland({ ...prefs.value.island, ...patch.island });
+      return settings();
+    });
+    handle('settings:choose-game', async () => {
+      const owner = settingsWindow.contents ? BrowserWindow.fromWebContents(settingsWindow.contents) : null;
+      const options: Electron.OpenDialogOptions = {
+        title: 'Choisir le jeu',
+        properties: ['openFile'],
+        filters: [{ name: 'Jeux (.exe)', extensions: ['exe'] }],
+      };
+      const result = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options);
+      const exe = exeName(result.filePaths[0]);
+      if (!result.canceled && exe && !prefs.value.island.games.some(g => g.exe === exe)) {
+        const name = exe.replace(/\.exe$/, '');
+        setIsland({
+          ...prefs.value.island,
+          games: [...prefs.value.island.games, { exe, name, enabled: true, position: 'center' }],
+        });
       }
       return settings();
     });
@@ -423,6 +514,56 @@ function main(): void {
         userData,
       };
     });
+
+    // --- Island: visibility, games, lyrics ------------------------------------
+    let islandDecision = decideIsland(prefs.value.island, null, false);
+    const foreground = new ForegroundWatcher(
+      process.env.MP_FAKE_FOREGROUND && !app.isPackaged
+        ? fileForeground(process.env.MP_FAKE_FOREGROUND)
+        : windowsForeground(log),
+      () => refreshIsland(),
+    );
+    function refreshIsland(): void {
+      const p = prefs.value.island;
+      foreground.setActive(p.mode === 'games');
+      const decision = decideIsland(p, foreground.current, !!snapshot.track);
+      const moved = decision.position !== islandDecision.position;
+      islandDecision = decision;
+      island.apply(decision.visible, decision.position, p.display);
+      const pill = island.contents;
+      if (pill && moved) pill.send('island:view', { position: decision.position, clock: p.clock });
+      if (decision.visible) showLyrics(0);
+    }
+    function setIsland(next: IslandPrefs): void {
+      const before = prefs.value.island;
+      prefs.update({ island: sanitizeIsland(next) });
+      const p = prefs.value.island;
+      if (p.lyrics !== before.lyrics) showLyrics(0);
+      island.contents?.send('island:view', { position: islandDecision.position, clock: p.clock });
+      refreshIsland();
+    }
+    // Synced lyrics: only while the island is on (nothing is requested otherwise).
+    const lyrics = new Lyrics(
+      process.env.MP_LYRICS_FIXTURE && !app.isPackaged
+        ? fixtureLyrics(process.env.MP_LYRICS_FIXTURE)
+        : url =>
+            net.fetch(url, {
+              headers: { 'User-Agent': `cashew-music-player/${app.getVersion()} (${REPOSITORY_URL})` },
+            }),
+      raw => {
+        const state = sanitizeLyrics(raw);
+        if (!state) return;
+        lyricsState = state;
+        island.contents?.send('lyrics:state', state);
+      },
+    );
+    let lastDuration = 0;
+    function showLyrics(duration: number): void {
+      if (duration > 0) lastDuration = duration;
+      if (snapshot.track?.id && duration === 0) lastDuration = 0;
+      if (prefs.value.island.mode === 'off') return;
+      lyrics.show(snapshot.track, lastDuration, prefs.value.island.lyrics);
+    }
 
     // --- Updates (GitHub Releases) -------------------------------------------
     let updater: Updater;
@@ -505,11 +646,8 @@ function main(): void {
       },
       command: type => ytm.send({ type }),
       quit: () => app.quit(),
-      update: () => {
-        window.setMini(false);
-        window.show();
-        window.setPanel('settings');
-      },
+      update: () => settingsWindow.open('updates'),
+      settings: () => settingsWindow.open(),
       repair: () => repairDisplay(),
       openLogs: () => {
         void electronShell.openPath(logDirectory);
@@ -574,6 +712,9 @@ function main(): void {
     });
     app.on('will-quit', () => {
       updater.dispose();
+      foreground.dispose();
+      lyrics.dispose();
+      island.dispose();
       shortcut.dispose();
       tray.destroy();
       ytm.dispose();
@@ -588,6 +729,7 @@ function main(): void {
 
     loadRenderer(shell);
     ytm.load();
+    refreshIsland();
   });
 
   app.on('window-all-closed', () => app.quit());

@@ -74,7 +74,7 @@ try {
   check(
     'player API (#movie_player) has every method used',
     Array.isArray(api) && api.length === 0,
-    api?.length ? `manquantes : ${api.join(', ')}` : '',
+    api?.length ? `missing: ${api.join(', ')}` : '',
   );
 
   await ytm(`document.querySelector('ytmusic-app').dispatchEvent(new CustomEvent('yt-navigate', {bubbles: true, composed: true,

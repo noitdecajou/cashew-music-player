@@ -280,53 +280,6 @@
         <div class="status-line"><span class="queue-status"></span></div>
         <ol class="results queue-list" aria-label="File d’attente"></ol>
       </section>
-
-      <section data-panel="settings" hidden>
-        <h3>Apparence du mini-player</h3>
-        <div class="theme-grid" role="radiogroup" aria-label="Apparence"></div>
-        <label class="check"
-          ><input type="checkbox" id="seamless" /> Masquer la barre de fenêtre du mini-player
-          <kbd>Ctrl+Maj+B</kbd></label
-        >
-        <h3>Démarrage</h3>
-        <label class="check"><input type="checkbox" id="startup" /> Lancer avec Windows</label>
-        <label class="check"
-          ><input type="checkbox" id="quietStartup" /> Démarrer discrètement (dans la zone de notification)</label
-        >
-        <h3>Raccourci global</h3>
-        <p class="hint">Affiche ou masque le mini-player depuis n’importe quelle application.</p>
-        <div class="shortcut-row">
-          <input id="shortcut" readonly aria-label="Raccourci global" placeholder="Aucun" /><button id="resetShortcut">
-            Par défaut</button
-          ><button id="clearShortcut">Désactiver</button>
-        </div>
-        <p class="hint shortcut-status"></p>
-        <h3>Mises à jour</h3>
-        <div class="update-row"><span class="update-status hint"></span><button id="updateAction" hidden></button></div>
-        <div class="update-progress" hidden><div class="fill"></div></div>
-        <h3>YouTube Music</h3>
-        <div class="buttons">
-          <button data-window="reload-music">Recharger YouTube Music</button
-          ><button data-window="repair-display" title="Repasse en grand lecteur avec sa barre et recharge l’interface">
-            Réparer l’affichage</button
-          ><button id="diagnostics">Mesurer la consommation</button>
-        </div>
-        <p class="hint diagnostics-result"></p>
-        <footer class="about">
-          <svg class="glyph" width="22" height="22" aria-hidden="true"><use href="#i-cashew" /></svg>
-          <div>
-            <div class="wordmark">cashew</div>
-            <div class="hint version"></div>
-          </div>
-          <a
-            class="link"
-            href="https://github.com/noitdecajou/cashew-music-player/releases"
-            target="_blank"
-            rel="noreferrer"
-            >Notes de version</a
-          >
-        </footer>
-      </section>
     </aside>
 
     <script type="module" src="./src/main.ts"></script>

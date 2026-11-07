@@ -7,6 +7,7 @@
 | 3. Mini-players | Actuel, Autoradio, Hi-fi, Autoradio 2000 (HF), Hi-Fi de salon (HF); volume and draggable progress everywhere | ✅ |
 | 4. Features | indexed library and favorites, YouTube Music search, interactive queue (play, remove, play next), resume, settings, global shortcut, start with Windows, video fullscreen, offline mode and retries, notification-area menu | ✅ |
 | 5. Hardening | security audit and fixes, Electron fuses, Dependabot, lint and formatting in CI | ✅ |
+| 6. Island | top-of-screen pill with synced lyrics (LRCLIB), hover details and controls, games mode with per-game settings; settings window with a sidebar | 2.1 beta |
 
 ## Verified on the real music.youtube.com
 
@@ -27,6 +28,7 @@ Windows. A weekly check runs against the real site (`.github/workflows/live-chec
 
 ## Ideas
 
+- "Support cashew" link (donations) in the settings.
 - Taskbar thumbnail buttons (previous, play, next).
 - Like / dislike from the mini-player.
 - Scrolling of long titles on dot-matrix displays.

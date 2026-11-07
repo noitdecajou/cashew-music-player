@@ -1,0 +1,278 @@
+/* The island: a pill hanging from the top edge of the screen. The window is
+   transparent and larger than the pill so it can grow on hover. */
+:root {
+  --pill: rgba(10, 10, 14, 0.94);
+  --text: #f5f5f8;
+  --muted: #a6a9b8;
+  --faint: #6f7385;
+  --accent: #c9b9ff;
+  --compact-w: 340px;
+  --compact-h: 32px;
+  --expanded-w: 430px;
+  --expanded-h: 132px;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  font:
+    12px/1.3 'Segoe UI Variable Text',
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+  color: var(--text);
+}
+body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+body.pos-left {
+  justify-content: flex-start;
+}
+body.pos-right {
+  justify-content: flex-end;
+}
+
+.island {
+  position: relative;
+  width: var(--compact-w);
+  height: var(--compact-h);
+  background: var(--pill);
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  transition:
+    width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-radius 0.22s;
+}
+.island[hidden] {
+  display: none;
+}
+.island.expanded-view {
+  width: var(--expanded-w);
+  height: var(--expanded-h);
+  border-radius: 0 0 22px 22px;
+}
+
+/* ---------------------------------------------------------------- compact */
+.compact {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 7px;
+  transition: opacity 0.15s;
+}
+.expanded-view .compact {
+  opacity: 0;
+  pointer-events: none;
+}
+.compact .art {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+.art {
+  flex: none;
+  object-fit: cover;
+  background: #2a2a33;
+}
+.art.missing {
+  visibility: hidden;
+}
+.line {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.line .text {
+  display: block;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.island:not(.lyric) .line .text {
+  font-weight: 500;
+  color: #e4e4ea;
+}
+.line .text.enter {
+  animation: line-in 0.28s ease-out;
+}
+@keyframes line-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.clock {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.clock[hidden] {
+  display: none;
+}
+
+/* Equalizer: moves while playing, rests when paused. */
+.bars {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 14px;
+}
+.bars i {
+  display: block;
+  width: 2.5px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.85;
+}
+.playing .bars i {
+  animation: bar 0.9s ease-in-out infinite alternate;
+}
+.playing .bars i:nth-child(2) {
+  animation-delay: -0.35s;
+}
+.playing .bars i:nth-child(3) {
+  animation-delay: -0.7s;
+}
+.playing .bars i:nth-child(4) {
+  animation-delay: -0.2s;
+}
+.playing .bars i:nth-child(5) {
+  animation-delay: -0.55s;
+}
+@keyframes bar {
+  from {
+    height: 3px;
+  }
+  to {
+    height: 13px;
+  }
+}
+
+/* --------------------------------------------------------------- expanded */
+.expanded {
+  position: absolute;
+  inset: 0;
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.expanded-view .expanded {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0.08s;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.head .art {
+  width: 52px;
+  height: 52px;
+  border-radius: 9px;
+}
+.meta {
+  flex: 1;
+  min-width: 0;
+}
+.meta .title,
+.meta .artist,
+.upnext {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.meta .title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.meta .artist {
+  color: var(--muted);
+  margin-top: 2px;
+}
+button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+button svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+button.play {
+  background: rgba(255, 255, 255, 0.12);
+}
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.rail {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.rail .fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+}
+.upnext {
+  font-size: 11px;
+  color: var(--faint);
+}
+.upnext:empty {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .island,
+  .compact,
+  .expanded {
+    transition: none;
+  }
+  .playing .bars i,
+  .line .text.enter {
+    animation: none;
+  }
+}

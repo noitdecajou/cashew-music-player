@@ -22,6 +22,8 @@ the last session and a global shortcut. The interface is in French.
   favorites) or the whole of YouTube Music; play now or play next.
 - **Live queue**: click a track to play it, remove a track.
 - **Resume** of the last track after a restart, at the same position.
+- **Island** (optional): a pill at the top of the screen with the cover and synced lyrics; on hover, title, artist,
+  progress, next track, play/pause and next. Always shown, or only over games (per-game settings).
 - **Global shortcut** (Ctrl+Alt+M by default), start with Windows, video fullscreen, built-in updates.
 
 ## Installation (Windows 10/11, 64-bit)
@@ -45,10 +47,12 @@ Protection history.
 - The Google sign-in stays in the application's local profile on the PC, as in a browser. cashew neither reads
   nor transmits credentials.
 - cashew contains no tracking and no usage statistics.
-- Network connections: **music.youtube.com** and the Google services YouTube Music needs (playback, sign-in), and
-  **github.com** to check for updates. Nothing else.
-- Local data (in `%APPDATA%\Music Player`): preferences, an index of the user's playlists for offline search,
-  the last track played, a diagnostic log.
+- Network connections: **music.youtube.com** and the Google services YouTube Music needs (playback, sign-in),
+  **github.com** to check for updates, and, only when the island and its synced lyrics are on, **lrclib.net** (the
+  title, artist, album and duration of the track being played). Nothing else.
+- Game detection reads which application is in front and whether it is fullscreen, locally; nothing is sent.
+- Local data (in `%APPDATA%\Music Player`): preferences (including the game list), an index of the user's
+  playlists for offline search, the last track played, a diagnostic log.
 
 ## Disclaimer
 

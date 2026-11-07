@@ -1,7 +1,8 @@
+import type { IslandPrefs, IslandView, LyricsState } from './island';
 import type { MiniTheme } from './themes';
 import type { PlayerCommand, PlayerProgress, PlayerSnapshot, QueueState } from './player';
 
-export type Panel = 'none' | 'search' | 'queue' | 'settings';
+export type Panel = 'none' | 'search' | 'queue';
 
 export interface UiState {
   mini: boolean;
@@ -71,14 +72,33 @@ export interface ResumeState {
   position: number;
 }
 
+export type SettingsSection = 'general' | 'player' | 'island' | 'games' | 'updates' | 'about';
+
+export interface DetectedApp {
+  exe: string;
+  title: string;
+}
+
 export interface Settings {
   version: string;
   startup: { supported: boolean; enabled: boolean; blocked: boolean };
   quietStartup: boolean;
   shortcut: string;
   shortcutError: string;
+  island: IslandPrefs;
+  /** Display names, primary first (the island's display is an index in this list). */
+  displays: string[];
+  /** Game detection works on this system (Windows). */
+  gamesSupported: boolean;
+  /** Fullscreen applications seen recently, to add them as games. */
+  recentApps: DetectedApp[];
 }
-export type SettingsPatch = Partial<{ startup: boolean; quietStartup: boolean; shortcut: string }>;
+export type SettingsPatch = Partial<{
+  startup: boolean;
+  quietStartup: boolean;
+  shortcut: string;
+  island: Partial<IslandPrefs>;
+}>;
 
 export interface Diagnostics {
   version: string;
@@ -110,6 +130,9 @@ export interface ShellEvents {
   'queue:state': QueueState;
   'resume:state': ResumeState;
   'update:state': UpdateState;
+  'lyrics:state': LyricsState;
+  'island:view': IslandView;
+  'settings:section': SettingsSection;
 }
 
 /** The API exposed to our renderer pages as window.player. */
@@ -131,6 +154,10 @@ export interface ShellApi {
   network(online: boolean): void;
   diagnostics(): Promise<Diagnostics>;
   update(action: 'check' | 'download' | 'install'): Promise<UpdateState>;
+  /** Settings window: pick a game executable to add to the list. */
+  chooseGame(): Promise<Settings>;
+  /** Island page: the pointer entered or left the pill. */
+  islandHover(hover: boolean): void;
   on<K extends keyof ShellEvents>(channel: K, listener: (value: ShellEvents[K]) => void): () => void;
 }
 
@@ -143,6 +170,9 @@ export const SHELL_EVENT_CHANNELS: readonly (keyof ShellEvents)[] = [
   'queue:state',
   'resume:state',
   'update:state',
+  'lyrics:state',
+  'island:view',
+  'settings:section',
 ];
 
 /** Errors thrown in main arrive prefixed by Electron: keep only our message. */

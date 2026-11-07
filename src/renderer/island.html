@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' https: data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>cashew island</title>
+    <link rel="stylesheet" href="./styles/island.css" />
+  </head>
+  <body class="pos-center">
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" /></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></symbol>
+      <symbol id="i-next" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z" /></symbol>
+    </svg>
+    <div id="island" class="island" hidden>
+      <div class="compact">
+        <span class="clock clock-left" hidden></span>
+        <img class="art" alt="" />
+        <div class="line" aria-live="off"><span class="text"></span></div>
+        <span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="clock clock-right" hidden></span>
+      </div>
+      <div class="expanded">
+        <div class="head">
+          <img class="art" alt="" />
+          <div class="meta">
+            <div class="title"></div>
+            <div class="artist"></div>
+          </div>
+          <button class="play" aria-label="Lecture/pause" title="Lecture/pause">
+            <svg><use href="#i-play" /></svg>
+          </button>
+          <button class="next" aria-label="Morceau suivant" title="Morceau suivant">
+            <svg><use href="#i-next" /></svg>
+          </button>
+        </div>
+        <div class="progress">
+          <span class="elapsed">0:00</span>
+          <div class="rail"><div class="fill"></div></div>
+          <span class="total">0:00</span>
+        </div>
+        <div class="upnext"></div>
+      </div>
+    </div>
+    <script type="module" src="./src/island.ts"></script>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DEFAULT_ISLAND, type IslandPrefs, sanitizeIsland } from '../../shared/island';
 import { type MiniTheme, normalizeTheme } from '../../shared/themes';
 
 export interface Rect {
@@ -21,6 +22,7 @@ export interface Preferences {
   miniPosition: { x: number; y: number } | null;
   shortcut: string;
   quietStartup: boolean;
+  island: IslandPrefs;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -34,6 +36,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   miniPosition: null,
   shortcut: 'Ctrl+Alt+M',
   quietStartup: true,
+  island: DEFAULT_ISLAND,
 };
 
 const FILE = 'preferences.json';
@@ -65,6 +68,7 @@ export function sanitizePreferences(raw: unknown): Preferences {
       ? { x: Math.round(p.x as number), y: Math.round(p.y as number) }
       : null;
   if (typeof v.shortcut === 'string' && v.shortcut.length <= 80) result.shortcut = v.shortcut;
+  result.island = sanitizeIsland(v.island);
   return result;
 }
 

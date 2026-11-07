@@ -34,7 +34,13 @@ export async function launch({ userData: profile, env = {}, args = [] } = {}) {
       return music.executeJavaScript(source);
     }, code);
   const log = () => app.evaluate(() => globalThis.__agentLog);
-  const contentSize = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getContentSize());
+  // The player window (the settings and the island are windows too).
+  const contentSize = () =>
+    app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find(w => w.webContents.getURL().includes('/renderer/index.html'))
+        .getContentSize(),
+    );
   const until = async (fn, { timeout = 5000, message = 'condition' } = {}) => {
     const end = Date.now() + timeout;
     let last;
@@ -47,14 +53,28 @@ export async function launch({ userData: profile, env = {}, args = [] } = {}) {
   };
   const viewBounds = () =>
     app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0].contentView.children.map(v => ({
-        url: v.webContents.getURL(),
-        bounds: v.getBounds(),
-      })),
+      BrowserWindow.getAllWindows()
+        .find(w => w.webContents.getURL().includes('/renderer/index.html'))
+        .contentView.children.map(v => ({
+          url: v.webContents.getURL(),
+          bounds: v.getBounds(),
+        })),
     );
   const drawer = async () =>
     app.windows().find(page => page.url().includes('view=drawer')) ??
     app.waitForEvent('window', { predicate: page => page.url().includes('view=drawer') });
+  const page = async name =>
+    app.windows().find(p => p.url().includes(`/renderer/${name}.html`)) ??
+    app.waitForEvent('window', { predicate: p => p.url().includes(`/renderer/${name}.html`), timeout: 10000 });
+  /** Opens the settings window at a section and returns its page. */
+  const settings = async section => {
+    await shell.evaluate(() => window.player.window('toggle-settings'));
+    const settingsPage = await page('settings');
+    await settingsPage.waitForSelector('body:not(.booting)');
+    if (section) await settingsPage.click(`.sidebar [data-section="${section}"]`);
+    return settingsPage;
+  };
+  const island = () => page('island');
   const close = async () => {
     await app.close().catch(() => {});
     if (!profile) rmSync(userData, { recursive: true, force: true });
@@ -70,5 +90,5 @@ export async function launch({ userData: profile, env = {}, args = [] } = {}) {
     },
     { timeout: 15000, message: 'agent installed' },
   );
-  return { app, shell, ytm, log, contentSize, viewBounds, drawer, until, close };
+  return { app, shell, ytm, log, contentSize, viewBounds, drawer, settings, island, until, close };
 }

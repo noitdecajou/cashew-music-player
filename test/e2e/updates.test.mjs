@@ -13,9 +13,7 @@ after(async () => {
 });
 
 test('updates: check, download with progress, restart to install; pin icon fills', async () => {
-  await h.shell.evaluate(() => window.player.window('toggle-settings'));
-  const drawer = await h.drawer();
-  await drawer.waitForSelector('section[data-panel="settings"]:not([hidden])');
+  const drawer = await h.settings('updates');
   await h.until(async () => (await drawer.textContent('#updateAction')) === 'Rechercher', { message: 'idle' });
   await drawer.click('#updateAction');
   await h.until(async () => /9\.9\.9 est disponible/.test(await drawer.textContent('.update-status')), {

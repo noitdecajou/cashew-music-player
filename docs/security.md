@@ -12,8 +12,11 @@ windows (`fromUi`) and render page data as text only. Local files are re-validat
 
 - The island window is not focusable, never steals input, and its page may only send play/pause, next and previous;
   every other IPC channel rejects it (`fromIsland` in `src/main/index.ts`).
-- Game detection uses read-only Windows calls (foreground window, its process name, its size); it never opens a game
-  process for anything else, never injects code and installs no hooks.
+- Game detection uses read-only Windows calls (foreground window, its size, the process's executable path asked
+  once per process with the minimal `PROCESS_QUERY_LIMITED_INFORMATION` right, as Task Manager does) and reads the
+  list of games Windows knows (`HKCU\System\GameConfigStore\Children`, through `reg.exe query`). It never reads or
+  writes game memory, never injects code and installs no hooks: the island is an ordinary topmost window, like the
+  Xbox Game Bar. Per-game settings can turn it off for games whose anti-cheat forbids any overlay.
 - LRCLIB requests are optional and only send the track's title, artist, album and duration; answers are size-limited,
   parsed as LRC and validated (`sanitizeLyrics`).
 

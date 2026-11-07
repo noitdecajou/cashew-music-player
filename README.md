@@ -50,7 +50,8 @@ Protection history.
 - Network connections: **music.youtube.com** and the Google services YouTube Music needs (playback, sign-in),
   **github.com** to check for updates, and, only when the island and its synced lyrics are on, **lrclib.net** (the
   title, artist, album and duration of the track being played). Nothing else.
-- Game detection reads which application is in front and whether it is fullscreen, locally; nothing is sent.
+- Game detection reads, locally, which application is in front, its install folder and the list of games Windows
+  knows; nothing is sent. Nothing is injected into games.
 - Local data (in `%APPDATA%\Music Player`): preferences (including the game list), an index of the user's
   playlists for offline search, the last track played, a diagnostic log.
 

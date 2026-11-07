@@ -307,16 +307,19 @@ function render(settings: Settings): void {
   );
   $('.games-unsupported').hidden = settings.gamesSupported;
   const seen = settings.foreground.app;
+  const known = settings.foreground.knownGames;
   setText(
     $('.detected'),
     !settings.gamesSupported
       ? ''
-      : seen
-        ? `Dernière application au premier plan : ${seen.title || seen.exe}${seen.exe ? ` (${seen.exe})` : ''} · ` +
-          (seen.fullscreen ? 'plein écran détecté' : 'pas en plein écran')
-        : settings.foreground.error
-          ? `Détection en échec : ${settings.foreground.error}`
-          : 'Bascule sur ton jeu (Alt+Tab) puis reviens ici : il s’affichera ci-dessous.',
+      : (seen
+          ? `Dernière application au premier plan : ${seen.title || seen.exe}${seen.exe ? ` (${seen.exe})` : ''} · ` +
+            (seen.game ? 'reconnue comme jeu' : 'pas un jeu') +
+            (seen.fullscreen ? ', plein écran' : '')
+          : settings.foreground.error
+            ? `Détection en échec : ${settings.foreground.error}`
+            : 'Bascule sur ton jeu (Alt+Tab) puis reviens ici : il s’affichera ci-dessous.') +
+          ` · ${known} jeu${known > 1 ? 'x' : ''} connu${known > 1 ? 's' : ''} de Windows`,
   );
   $<HTMLInputElement>('#autoFullscreen').checked = island.autoFullscreen;
   const list = $('.games');

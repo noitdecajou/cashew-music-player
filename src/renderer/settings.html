@@ -100,15 +100,17 @@
         <p class="hint games-mode-hint"></p>
         <p class="hint games-unsupported" hidden>La détection des jeux fonctionne sous Windows.</p>
         <p class="detected" aria-live="polite"></p>
-        <label class="check"
-          ><input type="checkbox" id="autoFullscreen" /> Afficher l’island au-dessus de toute application en plein écran
-          (jeux non listés)</label
-        >
+        <label class="check"><input type="checkbox" id="autoFullscreen" /> Détecter automatiquement les jeux</label>
+        <p class="hint">
+          Jeux installés par Steam, Epic Games, GOG, Ubisoft, EA, Riot, Xbox, Amazon, Rockstar… et jeux reconnus par la
+          Game Bar de Windows. Navigateurs, explorateur et fenêtres de Windows ne comptent jamais. Les jeux de la liste
+          ci-dessous passent avant.
+        </p>
         <h3>Mes jeux</h3>
         <ol class="games" aria-label="Jeux"></ol>
         <div class="buttons"><button id="addGame">Ajouter un jeu…</button></div>
         <h3>Détectés récemment</h3>
-        <p class="hint">Applications vues en plein écran depuis le lancement de cashew.</p>
+        <p class="hint">Jeux et applications plein écran vus depuis le lancement de cashew (hors navigateurs).</p>
         <ol class="recent" aria-label="Applications détectées"></ol>
         <p class="hint">
           L’island s’affiche par-dessus les jeux en plein écran fenêtré (« sans bordure »). En plein écran exclusif,

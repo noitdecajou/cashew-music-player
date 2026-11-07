@@ -3,6 +3,7 @@ import {
   DEFAULT_ISLAND,
   type IslandPrefs,
   decideIsland,
+  isGame,
   exeName,
   islandBounds,
   lineAt,
@@ -13,7 +14,7 @@ import {
 } from '../../src/shared/island';
 
 const prefs = (patch: Partial<IslandPrefs>): IslandPrefs => ({ ...DEFAULT_ISLAND, ...patch });
-const game = { exe: 'game.exe', title: 'Game', fullscreen: true };
+const game = { exe: 'game.exe', title: 'Game', fullscreen: true, game: true };
 
 describe('island preferences', () => {
   it('defaults: off, centered, lyrics on, automatic fullscreen detection', () => {
@@ -84,14 +85,15 @@ describe('when the island shows', () => {
       ],
     });
     expect(decideIsland(p, { ...game, fullscreen: false }, true)).toEqual({ visible: true, position: 'right' });
-    expect(decideIsland(p, { exe: 'quiet.exe', title: '', fullscreen: true }, true).visible).toBe(false);
+    expect(decideIsland(p, { exe: 'quiet.exe', title: '', fullscreen: true, game: true }, true).visible).toBe(false);
   });
 
-  it('games: any fullscreen application when automatic detection is on', () => {
-    const other = { exe: 'other.exe', title: '', fullscreen: true };
+  it('games: any application recognized as a game when automatic detection is on', () => {
+    const other = { exe: 'other.exe', title: '', fullscreen: false, game: true };
     expect(decideIsland(prefs({ mode: 'games' }), other, true)).toEqual({ visible: true, position: 'center' });
     expect(decideIsland(prefs({ mode: 'games', autoFullscreen: false }), other, true).visible).toBe(false);
-    expect(decideIsland(prefs({ mode: 'games' }), { ...other, fullscreen: false }, true).visible).toBe(false);
+    const browser = { exe: 'firefox.exe', title: 'Video', fullscreen: true, game: false };
+    expect(decideIsland(prefs({ mode: 'games' }), browser, true).visible).toBe(false);
     expect(decideIsland(prefs({ mode: 'games' }), null, true).visible).toBe(false);
   });
 });
@@ -151,9 +153,68 @@ describe('fullscreen detection', () => {
     expect(coversMonitor({ left: 1920, top: 0, right: 3840, bottom: 1040 }, monitor)).toBe(false); // maximized, taskbar visible
     expect(coversMonitor({ left: 0, top: 0, right: 1920, bottom: 1080 }, monitor)).toBe(false); // another monitor
   });
-  it('an application without a readable executable still counts as fullscreen', () => {
+});
+
+describe('what counts as a game', () => {
+  const none = new Set<string>();
+  it('games installed by a store or launcher', () => {
+    expect(isGame('D:\\SteamLibrary\\steamapps\\common\\Warframe\\Warframe.x64.exe', 'warframe.x64.exe', none)).toBe(
+      true,
+    );
+    expect(isGame('C:\\Program Files\\Epic Games\\Fortnite\\FortniteClient.exe', 'fortniteclient.exe', none)).toBe(
+      true,
+    );
+    expect(isGame('C:\\XboxGames\\Forza\\Content\\forza.exe', 'forza.exe', none)).toBe(true);
+    expect(isGame('C:/Riot Games/VALORANT/live/VALORANT.exe', 'valorant.exe', none)).toBe(true);
+  });
+  it('games Windows knows (Game Bar), by full path or file name', () => {
+    const known = new Set(['c:\\users\\me\\appdata\\local\\warframe\\downloaded\\public\\warframe.x64.exe']);
     expect(
-      decideIsland(prefs({ mode: 'games' }), { exe: '', title: 'Protected game', fullscreen: true }, true).visible,
+      isGame(
+        'C:\\Users\\me\\AppData\\Local\\Warframe\\Downloaded\\Public\\Warframe.x64.exe',
+        'warframe.x64.exe',
+        known,
+      ),
     ).toBe(true);
+    expect(isGame('C:\\Tools\\editor.exe', 'editor.exe', known)).toBe(false);
+  });
+  it('never browsers, Explorer, the Steam client or cashew, even from a game folder', () => {
+    expect(isGame('C:\\Program Files\\Mozilla Firefox\\firefox.exe', 'firefox.exe', new Set(['firefox.exe']))).toBe(
+      false,
+    );
+    expect(isGame('C:\\Windows\\explorer.exe', 'explorer.exe', none)).toBe(false);
+    expect(isGame('C:\\Program Files (x86)\\Steam\\steam.exe', 'steam.exe', none)).toBe(false);
+    expect(isGame('', '', none)).toBe(false);
+  });
+});
+
+describe('foreground watcher', () => {
+  it('classifies, keeps the state through Alt+Tab, lists candidates', async () => {
+    const { ForegroundWatcher } = await import('../../src/main/services/foreground');
+    let raw: { exe: string; path: string; title: string; fullscreen: boolean } | null = {
+      exe: 'warframe.x64.exe',
+      path: 'D:\\SteamLibrary\\steamapps\\common\\Warframe\\Warframe.x64.exe',
+      title: 'Warframe',
+      fullscreen: true,
+    };
+    const changes: unknown[] = [];
+    const watcher = new ForegroundWatcher(
+      () => raw,
+      f => changes.push(f),
+      async () => new Set(),
+      60_000,
+    );
+    watcher.setActive(true);
+    expect(watcher.current).toMatchObject({ exe: 'warframe.x64.exe', game: true });
+    raw = null; // Alt+Tab
+    (watcher as unknown as { tick(): void }).tick();
+    (watcher as unknown as { tick(): void }).tick();
+    expect(watcher.current?.game).toBe(true);
+    raw = { exe: 'firefox.exe', path: 'C:\\Firefox\\firefox.exe', title: 'Video', fullscreen: true };
+    (watcher as unknown as { tick(): void }).tick();
+    expect(watcher.current).toMatchObject({ exe: 'firefox.exe', game: false });
+    expect(watcher.recent.map(r => r.exe)).toEqual(['warframe.x64.exe']);
+    watcher.dispose();
+    void changes;
   });
 });

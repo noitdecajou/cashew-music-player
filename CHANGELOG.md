@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0-beta.4
+
+- Game detection: an application counts as a game when it is installed in a game store folder (Steam, Epic Games, GOG, Ubisoft, EA, Riot, Xbox, Amazon, Rockstar, Battle.net, itch, Heroic) or known to Windows as a game (Xbox Game Bar list), never because it is fullscreen: maximized or fullscreen browsers, videos and the Alt+Tab switcher are no longer taken for games. Browsers, Explorer, launchers and Windows overlays never count. Alt+Tab no longer makes the island blink. The game's executable path is asked for once per process.
+- The Games section shows whether the application in front is recognized as a game and how many games Windows knows.
+
 ## 2.1.0-beta.3
 
 - Settings window: opens on the display of the player window (and moves there if it was left on another one).

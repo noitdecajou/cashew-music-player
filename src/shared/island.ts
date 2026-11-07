@@ -23,7 +23,7 @@ export interface IslandPrefs {
   clock: ClockSide;
   /** Synced lyrics from LRCLIB (sends title and artist to lrclib.net). */
   lyrics: boolean;
-  /** In "games" mode, also show the island over any fullscreen application. */
+  /** In "games" mode, also show the island over any application recognized as a game (`isGame`). */
   autoFullscreen: boolean;
   games: GameRule[];
 }
@@ -91,6 +91,78 @@ export interface Foreground {
   exe: string;
   title: string;
   fullscreen: boolean;
+  /** Recognized as a game (install folder of a game store, or known to Windows as a game). */
+  game: boolean;
+}
+
+/** Never games, even fullscreen: browsers, media players, Windows shell and overlays. */
+const NOT_GAMES = new Set([
+  'explorer.exe',
+  'firefox.exe',
+  'chrome.exe',
+  'msedge.exe',
+  'opera.exe',
+  'opera_gx.exe',
+  'brave.exe',
+  'vivaldi.exe',
+  'iexplore.exe',
+  'arc.exe',
+  'zen.exe',
+  'librewolf.exe',
+  'waterfox.exe',
+  'vlc.exe',
+  'mpv.exe',
+  'mpc-hc64.exe',
+  'mpc-be64.exe',
+  'potplayermini64.exe',
+  'wmplayer.exe',
+  'applicationframehost.exe',
+  'searchhost.exe',
+  'searchapp.exe',
+  'startmenuexperiencehost.exe',
+  'shellexperiencehost.exe',
+  'textinputhost.exe',
+  'lockapp.exe',
+  'gamebar.exe',
+  'steam.exe',
+  'steamwebhelper.exe',
+  'epicgameslauncher.exe',
+  'galaxyclient.exe',
+  'discord.exe',
+  'music player.exe',
+]);
+
+/** Install folders of game stores and launchers (lowercase, Windows separators). */
+const GAME_FOLDERS = [
+  '\\steamapps\\common\\',
+  '\\epic games\\',
+  '\\gog galaxy\\games\\',
+  '\\gog games\\',
+  '\\ubisoft game launcher\\games\\',
+  '\\ea games\\',
+  '\\origin games\\',
+  '\\riot games\\',
+  '\\xboxgames\\',
+  '\\amazon games\\library\\',
+  '\\rockstar games\\',
+  '\\battle.net\\games\\',
+  '\\itch\\apps\\',
+  '\\heroic\\games\\',
+  '\\games\\heroic\\',
+];
+
+/**
+ * Whether an application in front is a game: installed in a game store folder,
+ * or known to Windows as a game (Game Bar), and never a browser or shell window.
+ * Fullscreen alone is not enough (maximized browsers, videos, Alt+Tab).
+ */
+export const notAGame = (exe: string): boolean => !exe || NOT_GAMES.has(exe);
+
+export function isGame(path: string, exe: string, windowsGames: ReadonlySet<string>): boolean {
+  if (notAGame(exe)) return false;
+  const p = path.toLowerCase().replace(/\//g, '\\');
+  if (GAME_FOLDERS.some(folder => p.includes(folder))) return true;
+  return windowsGames.has(p) || windowsGames.has(exe);
 }
 
 export interface IslandDecision {
@@ -100,8 +172,8 @@ export interface IslandDecision {
 
 /**
  * Whether the island shows, and where. In "games" mode a listed game decides
- * on its own (enabled, position); an unlisted fullscreen application shows the
- * island when automatic detection is on.
+ * on its own (enabled, position); an unlisted application recognized as a game
+ * shows the island when automatic detection is on.
  */
 export function decideIsland(prefs: IslandPrefs, foreground: Foreground | null, hasTrack: boolean): IslandDecision {
   const hidden = { visible: false, position: prefs.position };
@@ -110,7 +182,7 @@ export function decideIsland(prefs: IslandPrefs, foreground: Foreground | null, 
   if (!foreground) return hidden;
   const rule = prefs.games.find(g => g.exe === foreground.exe);
   if (rule) return { visible: rule.enabled, position: rule.position };
-  if (prefs.autoFullscreen && foreground.fullscreen) return { visible: true, position: prefs.position };
+  if (prefs.autoFullscreen && foreground.game) return { visible: true, position: prefs.position };
   return hidden;
 }
 

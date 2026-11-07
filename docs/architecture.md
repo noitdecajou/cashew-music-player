@@ -52,9 +52,11 @@
   (clicks go through) except while the pointer is over the pill: the page reports it (`island:hover`). It receives the
   snapshot, the progress and the lyrics, and may only send play/pause, next and previous. Visibility and position come
   from `decideIsland` (`src/shared/island.ts`): mode (off, always, games), game list, automatic fullscreen detection.
-- **Foreground** (`src/main/services/foreground.ts`): on Windows, polls every 1.5 s, only in games mode, the
-  foreground window's process name and whether it covers its monitor (read-only user32/kernel32 calls through
-  koffi; no injection, no hooks).
+- **Foreground** (`src/main/services/foreground.ts`): on Windows, polls every 1.5 s while the island is on or the
+  settings are open: the foreground window's process path (asked once per process) and whether it covers its monitor
+  (read-only user32/kernel32 calls through koffi; no injection, no hooks). `isGame` (`src/shared/island.ts`) decides
+  from the install folder (game stores) and the games Windows knows (`GameConfigStore`, read with `reg.exe`); browsers,
+  Explorer, launchers and shell overlays never count.
 - **Lyrics** (`src/main/services/lyrics.ts`): LRCLIB `/api/get` (title, artist, album, duration), then `/api/search`;
   LRC parsed in `src/shared/island.ts`, cached per track, requested only while the island is on.
 - **Settings** (`src/main/window/settings-window.ts`, page `settings.html`): a regular window with a sidebar

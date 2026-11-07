@@ -130,20 +130,36 @@ test('island in games mode: listed games decide, other fullscreen apps when dete
   assert.equal((await islandWindow()).bounds.x, screen.x + 16, 'position of the game');
   setForeground({ exe: 'quiet.exe', title: 'Quiet', fullscreen: true });
   await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'disabled game' });
-  setForeground({ exe: 'other.exe', title: 'Other game', fullscreen: true });
+  setForeground({
+    path: 'D:\\SteamLibrary\\steamapps\\common\\Other\\other.exe',
+    title: 'Other game',
+    fullscreen: true,
+  });
   await new Promise(r => setTimeout(r, 2000));
   assert.equal((await islandWindow()).visible, false, 'automatic detection off');
   await settings({ autoFullscreen: true });
-  await h.until(async () => (await islandWindow()).visible, { timeout: 6000, message: 'any fullscreen app' });
+  await h.until(async () => (await islandWindow()).visible, { timeout: 6000, message: 'game from a Steam library' });
+  // A fullscreen browser is never a game.
+  setForeground({ path: 'C:\\Program Files\\Mozilla Firefox\\firefox.exe', title: 'Vidéo', fullscreen: true });
+  await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'not over Firefox' });
   const s = await h.shell.evaluate(() => window.player.settings());
   assert.deepEqual(
     s.recentApps.map(a => a.exe),
     ['other.exe'],
     'recently seen fullscreen apps, minus listed games',
   );
-  setForeground(null);
-  await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'back to the desktop' });
-  assert.equal((await h.shell.evaluate(() => window.player.settings())).foreground.app.exe, 'other.exe', 'last seen');
+  setForeground({
+    path: 'D:\\SteamLibrary\\steamapps\\common\\Other\\other.exe',
+    title: 'Other game',
+    fullscreen: true,
+  });
+  await h.until(
+    async () => (await h.shell.evaluate(() => window.player.settings())).foreground.app?.exe === 'other.exe',
+    {
+      timeout: 6000,
+      message: 'last seen',
+    },
+  );
 });
 
 test('settings window: island and games sections drive the island', async () => {
@@ -156,7 +172,7 @@ test('settings window: island and games sections drive the island', async () => 
   );
   await page.click('.sidebar [data-section="games"]');
   assert.equal(await page.locator('.games .game').count(), 2);
-  assert.match(await page.textContent('.detected'), /Other game \(other\.exe\) · plein écran détecté/);
+  assert.match(await page.textContent('.detected'), /Other game \(other\.exe\) · reconnue comme jeu, plein écran/);
   await page.click('.games .game[data-exe="quiet.exe"] button.icon');
   await h.until(async () => (await page.locator('.games .game').count()) === 1, { message: 'game removed' });
   await page.selectOption('.games .game[data-exe="game.exe"] select', 'right');

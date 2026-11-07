@@ -3,10 +3,18 @@
 // through koffi (no injection into other processes, no hooks: safe with
 // anti-cheat software). Elsewhere, and if anything fails, it reports nothing.
 
+import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { type Foreground, exeName } from '../../shared/island';
+import { type Foreground, exeName, isGame, notAGame } from '../../shared/island';
 
-export type ForegroundReader = () => Foreground | null;
+/** What the system reports about the window in front, before deciding if it is a game. */
+export interface RawForeground {
+  exe: string;
+  path: string;
+  title: string;
+  fullscreen: boolean;
+}
+export type ForegroundReader = () => RawForeground | null;
 
 /** The foreground window covers its whole monitor (within a few pixels). */
 export function coversMonitor(
@@ -23,14 +31,22 @@ export function coversMonitor(
 }
 
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
-/** Windows' own "a full-screen application is running" states (SHQueryUserNotificationState). */
-const QUNS_BUSY = 2;
-const QUNS_RUNNING_D3D_FULL_SCREEN = 3;
 /** Borderless games may stop a few pixels short of the monitor edges. */
 const EDGE_TOLERANCE = 4;
 const MONITOR_DEFAULTTONEAREST = 2;
 /** Shell windows: the desktop is "fullscreen" too but never a game. */
-const SHELL_CLASSES = new Set(['Progman', 'WorkerW', 'Shell_TrayWnd', 'Shell_SecondaryTrayWnd']);
+const SHELL_CLASSES = new Set([
+  'Progman',
+  'WorkerW',
+  'Shell_TrayWnd',
+  'Shell_SecondaryTrayWnd',
+  // Alt+Tab, Win+Tab and other shell overlays
+  'XamlExplorerHostIslandWindow',
+  'MultitaskingViewFrame',
+  'TaskSwitcherWnd',
+  'ForegroundStaging',
+  'Windows.UI.Core.CoreWindow',
+]);
 
 /** Reads the foreground window on Windows; null when unavailable. */
 export function windowsForeground(
@@ -71,13 +87,6 @@ export function windowsForeground(
       'int __stdcall QueryFullProcessImageNameW(void *hProcess, uint32 dwFlags, _Out_ uint16 *lpExeName, _Inout_ uint32 *lpdwSize)',
     );
     const CloseHandle = kernel32.func('int __stdcall CloseHandle(void *hObject)');
-    let notificationState: ((state: number[]) => number) | null = null;
-    try {
-      const shell32 = koffi.load('shell32.dll');
-      notificationState = shell32.func('int32 __stdcall SHQueryUserNotificationState(_Out_ int32 *pquns)');
-    } catch (error) {
-      log('foreground: no notification state', error);
-    }
 
     const wide = (read: (buffer: Uint16Array, size: number) => number, size = 260): string => {
       const buffer = new Uint16Array(size);
@@ -86,6 +95,8 @@ export function windowsForeground(
     };
     const own = process.pid;
     let failures = 0;
+    /** Executable path per process id (process ids are reused late: a small cache is fine). */
+    const paths = new Map<number, string>();
     log('foreground: ready');
 
     return () => {
@@ -96,19 +107,26 @@ export function windowsForeground(
         const pid = [0];
         GetWindowThreadProcessId(hwnd, pid);
         if (pid[0] === own) return null;
-        let path = '';
-        const handle = pid[0] ? OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid[0]) : null;
-        if (handle) {
-          try {
-            const size = [1024];
-            const buffer = new Uint16Array(1024);
-            if (QueryFullProcessImageNameW(handle, 0, buffer, size))
-              path = String.fromCharCode(...buffer.subarray(0, size[0]));
-          } finally {
-            CloseHandle(handle);
+        // The executable's path is asked once per process (minimal "query limited
+        // information" right, as Task Manager does): games are not touched again
+        // while they stay in front.
+        let path = paths.get(pid[0] ?? 0);
+        if (path === undefined) {
+          path = '';
+          const handle = pid[0] ? OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid[0]) : null;
+          if (handle) {
+            try {
+              const size = [1024];
+              const buffer = new Uint16Array(1024);
+              if (QueryFullProcessImageNameW(handle, 0, buffer, size))
+                path = String.fromCharCode(...buffer.subarray(0, size[0]));
+            } finally {
+              CloseHandle(handle);
+            }
           }
+          if (paths.size > 200) paths.clear();
+          paths.set(pid[0] ?? 0, path);
         }
-        // Some protected games refuse to name their executable: they still count as fullscreen apps.
         const exe = exeName(path);
         const rect = { left: 0, top: 0, right: 0, bottom: 0 };
         const info = {
@@ -120,14 +138,9 @@ export function windowsForeground(
         let fullscreen = false;
         if (GetWindowRect(hwnd, rect) && GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), info))
           fullscreen = coversMonitor(rect, info.rcMonitor);
-        if (!fullscreen && notificationState) {
-          const state = [0];
-          if (notificationState(state) === 0)
-            fullscreen = state[0] === QUNS_BUSY || state[0] === QUNS_RUNNING_D3D_FULL_SCREEN;
-        }
         failures = 0;
         const title = wide((b, n) => GetWindowTextW(hwnd, b, n), 200).slice(0, 80);
-        return exe || title ? { exe, title, fullscreen } : null;
+        return exe || title ? { exe, path, title, fullscreen } : null;
       } catch (error) {
         // Keep trying (the next window may be fine); log the first failures only.
         if (failures++ < 3) log('foreground: read failed', error);
@@ -142,24 +155,60 @@ export function windowsForeground(
   }
 }
 
-/** Test-only: the foreground is read from a JSON file ({exe, title, fullscreen}). */
+/** Test-only: the foreground is read from a JSON file ({path, title, fullscreen}). */
 export function fileForeground(path: string): ForegroundReader {
   return () => {
     try {
       const v = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-      const exe = exeName(v.exe);
-      return exe ? { exe, title: String(v.title ?? '').slice(0, 80), fullscreen: v.fullscreen === true } : null;
+      const full = String(v.path ?? v.exe ?? '');
+      const exe = exeName(full);
+      return exe
+        ? { exe, path: full, title: String(v.title ?? '').slice(0, 80), fullscreen: v.fullscreen === true }
+        : null;
     } catch {
       return null;
     }
   };
 }
 
+/**
+ * Games Windows knows (Xbox Game Bar keeps one registry key per detected game,
+ * with the executable's full path). Lowercase full paths and file names; empty
+ * when unavailable.
+ */
+export function windowsGameList(log: (...parts: unknown[]) => void): Promise<Set<string>> {
+  if (process.platform !== 'win32') return Promise.resolve(new Set());
+  return new Promise(resolve => {
+    execFile(
+      'reg.exe',
+      ['query', 'HKCU\\System\\GameConfigStore\\Children', '/s', '/v', 'MatchedExeFullPath'],
+      { timeout: 8000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
+      (error, stdout) => {
+        const games = new Set<string>();
+        for (const match of String(stdout ?? '').matchAll(/MatchedExeFullPath\s+REG_\w+\s+(.+?)\s*$/gim)) {
+          const full = (match[1] ?? '').toLowerCase().replace(/\//g, '\\');
+          const exe = exeName(full);
+          if (exe) {
+            games.add(full);
+            games.add(exe);
+          }
+        }
+        if (error && !games.size) log('foreground: Windows game list unavailable', error.message);
+        resolve(games);
+      },
+    );
+  });
+}
+
 /** Polls the foreground while needed and reports changes. */
 export class ForegroundWatcher {
   private timer: NodeJS.Timeout | null = null;
   private last: Foreground | null = null;
-  /** Fullscreen applications seen recently, newest first: offered in the game list. */
+  /** Polls in a row without a readable window (Alt+Tab, desktop, our own windows). */
+  private gaps = 0;
+  private windowsGames: Set<string> = new Set();
+  private gamesLoadedAt = 0;
+  /** Applications seen recently that may be games, newest first: offered in the game list. */
   readonly recent: Foreground[] = [];
   /** Last application seen in front (diagnostics in the settings). */
   lastSeen: Foreground | null = null;
@@ -167,6 +216,7 @@ export class ForegroundWatcher {
   constructor(
     private readonly read: ForegroundReader | null,
     private readonly onChange: (foreground: Foreground | null) => void,
+    private readonly loadGames: () => Promise<Set<string>> = async () => new Set(),
     private readonly intervalMs = 1500,
   ) {}
 
@@ -178,9 +228,15 @@ export class ForegroundWatcher {
     return this.last;
   }
 
+  /** Number of games Windows knows (diagnostics). */
+  get knownGames(): number {
+    return [...this.windowsGames].filter(g => g.includes('\\')).length;
+  }
+
   setActive(active: boolean): void {
     if (!this.read) return;
     if (active && !this.timer) {
+      this.refreshGames();
       this.tick();
       this.timer = setInterval(() => this.tick(), this.intervalMs);
     } else if (!active && this.timer) {
@@ -193,17 +249,40 @@ export class ForegroundWatcher {
     }
   }
 
+  private refreshGames(): void {
+    if (Date.now() - this.gamesLoadedAt < 10 * 60_000) return;
+    this.gamesLoadedAt = Date.now();
+    void this.loadGames().then(games => {
+      this.windowsGames = games;
+    });
+  }
+
   private tick(): void {
-    const now = this.read?.() ?? null;
+    this.refreshGames();
+    const raw = this.read?.() ?? null;
+    // Alt+Tab or a glance at the desktop: keep the previous state for a moment.
+    if (!raw && this.last && this.gaps++ < 2) return;
+    this.gaps = 0;
+    const now: Foreground | null = raw
+      ? {
+          exe: raw.exe,
+          title: raw.title,
+          fullscreen: raw.fullscreen,
+          game: isGame(raw.path, raw.exe, this.windowsGames),
+        }
+      : null;
     if (now) this.lastSeen = now;
-    if (now?.fullscreen && now.exe) {
+    if (now && (now.game || (now.fullscreen && !notAGame(now.exe)))) {
       const index = this.recent.findIndex(r => r.exe === now.exe);
       if (index >= 0) this.recent.splice(index, 1);
       this.recent.unshift(now);
       this.recent.length = Math.min(this.recent.length, 10);
     }
     const same =
-      now?.exe === this.last?.exe && now?.fullscreen === this.last?.fullscreen && now?.title === this.last?.title;
+      now?.exe === this.last?.exe &&
+      now?.fullscreen === this.last?.fullscreen &&
+      now?.game === this.last?.game &&
+      now?.title === this.last?.title;
     if (same) return;
     this.last = now;
     this.onChange(now);

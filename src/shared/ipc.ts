@@ -93,7 +93,7 @@ export interface Settings {
   /** Fullscreen applications seen recently, to add them as games. */
   recentApps: DetectedApp[];
   /** Diagnostics: last application seen in front, last detection error. */
-  foreground: { app: (DetectedApp & { fullscreen: boolean }) | null; error: string };
+  foreground: { app: (DetectedApp & { fullscreen: boolean; game: boolean }) | null; error: string; knownGames: number };
 }
 export type SettingsPatch = Partial<{
   startup: boolean;

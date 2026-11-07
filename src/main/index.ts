@@ -34,7 +34,7 @@ import {
   sanitizeLyrics,
 } from '../shared/island';
 import { isMiniTheme } from '../shared/themes';
-import { ForegroundWatcher, fileForeground, windowsForeground } from './services/foreground';
+import { ForegroundWatcher, fileForeground, windowsForeground, windowsGameList } from './services/foreground';
 import { Lyrics, fixtureFetcher as fixtureLyrics } from './services/lyrics';
 import { pendingWrites } from './services/json-file';
 import { Library } from './services/library';
@@ -486,7 +486,7 @@ function main(): void {
       recentApps: foreground.recent
         .filter(r => !prefs.value.island.games.some(g => g.exe === r.exe))
         .map(r => ({ exe: r.exe, title: r.title })),
-      foreground: { app: foreground.lastSeen, error: foregroundError },
+      foreground: { app: foreground.lastSeen, error: foregroundError, knownGames: foreground.knownGames },
     });
     handle('settings:get', () => settings());
     handle('settings:update', raw => {
@@ -543,6 +543,7 @@ function main(): void {
             foregroundError = message;
           }),
       () => refreshIsland(),
+      () => windowsGameList(log),
     );
     function refreshIsland(): void {
       const p = prefs.value.island;

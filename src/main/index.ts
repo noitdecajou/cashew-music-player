@@ -26,9 +26,14 @@ import type {
 } from '../shared/ipc';
 import { EMPTY_SNAPSHOT, PLAYLIST_ID, type PlayerSnapshot, VIDEO_ID, sanitizeCommand, str } from '../shared/player';
 import {
+  type GameAnswer,
+  type GamePrompt,
+  ISLAND_SCALE,
   type IslandPrefs,
+  type IslandView,
   type LyricsState,
   decideIsland,
+  gameToPropose,
   exeName,
   sanitizeIsland,
   sanitizeLyrics,
@@ -36,7 +41,7 @@ import {
 import { isMiniTheme } from '../shared/themes';
 import { ForegroundWatcher, fileForeground, windowsForeground, windowsGameList } from './services/foreground';
 import { Lyrics, fixtureFetcher as fixtureLyrics } from './services/lyrics';
-import { pendingWrites } from './services/json-file';
+import { pendingWrites, readJson, writeJson } from './services/json-file';
 import { Library } from './services/library';
 import { PreferenceStore } from './services/preferences';
 import { ResumeStore, type SavedSession, resumeState } from './services/resume';
@@ -205,10 +210,14 @@ function main(): void {
       },
       () => updateStreams(),
     );
-    function sendIslandState(contents: Electron.WebContents): void {
+    const islandView = (): IslandView => {
       const p = prefs.value.island;
-      contents.send('island:view', { position: islandDecision.position, clock: p.clock });
+      return { position: islandDecision.position, clock: p.clock, scale: ISLAND_SCALE[p.size], opacity: p.opacity };
+    };
+    function sendIslandState(contents: Electron.WebContents): void {
+      contents.send('island:view', islandView());
       contents.send('player:snapshot', snapshot);
+      contents.send('island:prompt', prompt);
       if (lyricsState) contents.send('lyrics:state', lyricsState);
     }
 
@@ -227,7 +236,7 @@ function main(): void {
     }
     const fromUi = (event: IpcMainEvent | IpcMainInvokeEvent): boolean =>
       uiContents().some(contents => event.sender === contents && event.senderFrame === contents.mainFrame);
-    /** The island page: play/pause, next and hover only. */
+    /** The island page: playback controls, hover and its question about a new game only. */
     const fromIsland = (event: IpcMainEvent): boolean => {
       const contents = island.contents;
       return !!contents && event.sender === contents && event.senderFrame === contents.mainFrame;
@@ -343,7 +352,10 @@ function main(): void {
             publishResume();
           }
           if (snapshot.track && snapshot.track.id !== previous.track?.id) rememberTrack();
-          if (snapshot.track?.id !== previous.track?.id) showLyrics(0);
+          if (snapshot.track?.id !== previous.track?.id) {
+            showLyrics(0);
+            if (snapshot.track && prefs.value.island.mode === 'track') peek(6000);
+          }
           if (!!snapshot.track !== !!previous.track) refreshIsland();
           return;
         }
@@ -362,11 +374,14 @@ function main(): void {
       if (!ui && !fromIsland(event)) return;
       const command = sanitizeCommand(raw);
       if (!command) return;
-      if (!ui && !['toggle-play', 'play', 'pause', 'next', 'previous'].includes(command.type)) return;
+      if (!ui && !['toggle-play', 'play', 'pause', 'next', 'previous', 'seek', 'volume'].includes(command.type)) return;
       ytm.send(command);
     });
     ipcMain.on('island:hover', (event, hover) => {
       if (fromIsland(event) && typeof hover === 'boolean') island.setHover(hover);
+    });
+    ipcMain.on('island:answer', (event, answer) => {
+      if (fromIsland(event) && ['add', 'decline', 'later'].includes(answer)) answerPrompt(answer as GameAnswer);
     });
     ipcMain.on('shell:window', (event, action) => {
       if (!fromUi(event) || !WINDOW_ACTIONS.includes(action)) return;
@@ -480,11 +495,17 @@ function main(): void {
       quietStartup: prefs.value.quietStartup,
       shortcut: shortcut.current || (shortcutError ? prefs.value.shortcut : ''),
       shortcutError,
-      island: prefs.value.island,
+      island: {
+        ...prefs.value.island,
+        shortcut: islandShortcut.current || (islandShortcutError ? prefs.value.island.shortcut : ''),
+      },
+      islandShortcutError,
       displays: IslandWindow.displayNames(),
       gamesSupported: foreground.supported,
       recentApps: foreground.recent
-        .filter(r => !prefs.value.island.games.some(g => g.exe === r.exe))
+        .filter(
+          r => !prefs.value.island.games.some(g => g.exe === r.exe) && !prefs.value.island.declined.includes(r.exe),
+        )
         .map(r => ({ exe: r.exe, title: r.title })),
       foreground: { app: foreground.lastSeen, error: foregroundError, knownGames: foreground.knownGames },
     });
@@ -497,7 +518,14 @@ function main(): void {
         shortcutError = shortcut.set(patch.shortcut);
         if (!shortcutError) prefs.update({ shortcut: shortcut.current });
       }
-      if (patch.island && typeof patch.island === 'object') setIsland({ ...prefs.value.island, ...patch.island });
+      if (patch.island && typeof patch.island === 'object') {
+        const next = { ...prefs.value.island, ...patch.island };
+        if (typeof patch.island.shortcut === 'string') {
+          islandShortcutError = islandShortcut.set(patch.island.shortcut);
+          next.shortcut = islandShortcutError ? prefs.value.island.shortcut : islandShortcut.current;
+        }
+        setIsland(next);
+      }
       return settings();
     });
     handle('settings:choose-game', async () => {
@@ -519,7 +547,9 @@ function main(): void {
       return settings();
     });
     ipcMain.on('settings:capture-shortcut', (event, capturing) => {
-      if (fromUi(event) && typeof capturing === 'boolean') shortcut.suspend(capturing);
+      if (!fromUi(event) || typeof capturing !== 'boolean') return;
+      shortcut.suspend(capturing);
+      islandShortcut.suspend(capturing || prefs.value.island.mode === 'off');
     });
     handle('app:diagnostics', (): Diagnostics => {
       const metrics = app.getAppMetrics();
@@ -545,16 +575,70 @@ function main(): void {
       () => refreshIsland(),
       () => windowsGameList(log),
     );
+    // A moment of visibility outside the mode: track change ("track" mode) or the shortcut.
+    let peeking = false;
+    let peekTimer: NodeJS.Timeout | null = null;
+    function peek(ms: number): void {
+      if (prefs.value.island.mode === 'off' || !snapshot.track) return;
+      peeking = true;
+      if (peekTimer) clearTimeout(peekTimer);
+      peekTimer = setTimeout(() => {
+        peeking = false;
+        peekTimer = null;
+        refreshIsland();
+      }, ms);
+      refreshIsland();
+      island.contents?.send('island:peek', ms);
+    }
+    const islandShortcut = new GlobalShortcut(() => peek(5000));
+    let islandShortcutError = islandShortcut.set(prefs.value.island.shortcut);
+    if (prefs.value.island.mode === 'off') islandShortcut.suspend(true);
+
+    // A new game in front: the island asks whether to add it (answered later = "later").
+    let prompt: GamePrompt | null = null;
+    let promptTimer: NodeJS.Timeout | null = null;
+    const postponed = new Set<string>();
+    function answerPrompt(answer: GameAnswer, target: GamePrompt | null = prompt): void {
+      if (!target) return;
+      const p = prefs.value.island;
+      if (answer === 'add' && !p.games.some(g => g.exe === target.exe))
+        setIsland({
+          ...p,
+          games: [...p.games, { exe: target.exe, name: target.name, enabled: true, position: 'center' }],
+        });
+      else if (answer === 'decline') setIsland({ ...p, declined: [...p.declined, target.exe] });
+      else postponed.add(target.exe);
+      log(`island: game ${target.exe} ${answer}`);
+      if (prompt?.exe === target.exe) {
+        prompt = null;
+        if (promptTimer) clearTimeout(promptTimer);
+        promptTimer = null;
+        island.contents?.send('island:prompt', null);
+      }
+      refreshIsland();
+    }
+    function updatePrompt(): void {
+      const candidate = gameToPropose(prefs.value.island, foreground.current, postponed);
+      if (!candidate || prompt?.exe === candidate.exe) return;
+      prompt = { exe: candidate.exe, name: candidate.title || candidate.exe.replace(/\.exe$/, '') };
+      if (promptTimer) clearTimeout(promptTimer);
+      const asked = prompt;
+      // Unanswered (mouse held by the game, for instance): "later", it stays in the recent list.
+      promptTimer = setTimeout(() => answerPrompt('later', asked), 15000);
+      island.contents?.send('island:prompt', prompt);
+    }
+
     function refreshIsland(): void {
       const p = prefs.value.island;
       // Also while the settings are open: the Games section lists what is detected.
       foreground.setActive(p.mode !== 'off' || !!settingsWindow.contents);
-      const decision = decideIsland(p, foreground.current, !!snapshot.track);
+      updatePrompt();
+      const decision = decideIsland(p, foreground.current, !!snapshot.track, { peek: peeking, prompt: !!prompt });
       const moved = decision.position !== islandDecision.position;
       islandDecision = decision;
-      island.apply(decision.visible, decision.position, p.display);
+      island.apply(decision.visible, decision.position, p.display, ISLAND_SCALE[p.size]);
       const pill = island.contents;
-      if (pill && moved) pill.send('island:view', { position: decision.position, clock: p.clock });
+      if (pill && moved) pill.send('island:view', islandView());
       if (decision.visible) showLyrics(0);
     }
     function setIsland(next: IslandPrefs): void {
@@ -562,10 +646,14 @@ function main(): void {
       prefs.update({ island: sanitizeIsland(next) });
       const p = prefs.value.island;
       if (p.lyrics !== before.lyrics) showLyrics(0);
-      island.contents?.send('island:view', { position: islandDecision.position, clock: p.clock });
+      if (p.mode === 'off') islandShortcut.suspend(true);
+      else islandShortcut.suspend(false);
       refreshIsland();
+      island.contents?.send('island:view', islandView());
     }
     // Synced lyrics: only while the island is on (nothing is requested otherwise).
+    const lyricsFile = join(userData, 'lyrics-cache.json');
+    let lyricsSaveTimer: NodeJS.Timeout | null = null;
     const lyrics = new Lyrics(
       process.env.MP_LYRICS_FIXTURE && !app.isPackaged
         ? fixtureLyrics(process.env.MP_LYRICS_FIXTURE)
@@ -579,7 +667,18 @@ function main(): void {
         lyricsState = state;
         island.contents?.send('lyrics:state', state);
       },
+      undefined,
+      undefined,
+      // Found lyrics are kept on disk: instant next time, also offline.
+      () => {
+        if (lyricsSaveTimer) clearTimeout(lyricsSaveTimer);
+        lyricsSaveTimer = setTimeout(() => void writeJson(lyricsFile, lyrics.cached()), 2000);
+      },
     );
+    void readJson(lyricsFile).then(raw => {
+      const states = (Array.isArray(raw) ? raw : []).map(sanitizeLyrics).filter(s => s?.status === 'synced');
+      lyrics.seed(states as LyricsState[]);
+    });
     function showLyrics(duration: number): void {
       if (prefs.value.island.mode === 'off') return;
       lyrics.show(snapshot.track, duration, prefs.value.island.lyrics);
@@ -734,6 +833,7 @@ function main(): void {
       updater.dispose();
       foreground.dispose();
       lyrics.dispose();
+      islandShortcut.dispose();
       island.dispose();
       shortcut.dispose();
       tray.destroy();

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -86,16 +86,33 @@ test('island: hover shows title, artist, up next; play/pause and next work', asy
   });
 });
 
-test('island: only play/pause and next/previous are accepted from the island page', async () => {
-  const before = (await calls('seekTo')).length;
-  await island.evaluate(() => window.player.command({ type: 'seek', trackId: 'BBBBBBBBBBB', position: 30 }));
+test('island: only playback commands are accepted from the island page', async () => {
+  const before = (await calls('.shuffle')).length;
+  await island.evaluate(() => window.player.command({ type: 'shuffle' }));
   await new Promise(r => setTimeout(r, 300));
-  assert.equal((await calls('seekTo')).length, before, 'seek refused');
-  assert.equal(await island.evaluate(() => typeof window.player.updateSettings), 'function');
+  assert.equal((await calls('.shuffle')).length, before, 'shuffle refused');
   await assert.rejects(
     island.evaluate(() => window.player.settings()),
     /Accès refusé/,
   );
+});
+
+test('island: click on the progress bar seeks, the mouse wheel sets the volume', async () => {
+  await island.hover('#island');
+  await island.waitForSelector('#island.expanded-view');
+  await h.until(async () => (await island.textContent('.total')) !== '0:00', { message: 'duration known' });
+  await new Promise(r => setTimeout(r, 400)); // end of the grow animation
+  const rail = await island.locator('.rail').boundingBox();
+  await island.mouse.click(rail.x + rail.width / 2, rail.y + rail.height / 2);
+  await h.until(async () => (await calls('seekTo')).length > 0, { message: 'seek' });
+  const [, position] = (await calls('seekTo')).at(-1);
+  const duration = await h.ytm("document.querySelector('#movie_player').getDuration()");
+  assert.ok(Math.abs(position - duration / 2) < duration * 0.1, `seek near the middle (${position} / ${duration})`);
+  const volumeCalls = (await calls('setVolume')).length;
+  await island.mouse.wheel(0, 100);
+  await h.until(async () => (await calls('setVolume')).length > volumeCalls, { message: 'volume' });
+  assert.match(await island.textContent('.volume-badge'), /Volume \d+ %/);
+  await island.mouse.move(5, 140);
 });
 
 test('island: position, clock and lyrics option follow the settings', async () => {
@@ -114,7 +131,20 @@ test('island: position, clock and lyrics option follow the settings', async () =
   await settings({ position: 'center', clock: 'none', lyrics: true });
 });
 
-test('island in games mode: listed games decide, other fullscreen apps when detection is on', async () => {
+const steamGame = name => ({
+  path: `D:\\SteamLibrary\\steamapps\\common\\${name}\\${name}.exe`,
+  title: `Jeu ${name}`,
+  fullscreen: true,
+});
+const answer = async value => {
+  await island.waitForSelector('#island.prompt-view');
+  await island.click(`.answer[data-answer="${value}"]`);
+  await h.until(async () => !(await island.getAttribute('#island', 'class')).includes('prompt-view'), {
+    message: `answered ${value}`,
+  });
+};
+
+test('island in games mode: listed games decide; each new game is offered (add, decline, later)', async () => {
   await settings({
     mode: 'games',
     autoFullscreen: false,
@@ -130,35 +160,78 @@ test('island in games mode: listed games decide, other fullscreen apps when dete
   assert.equal((await islandWindow()).bounds.x, screen.x + 16, 'position of the game');
   setForeground({ exe: 'quiet.exe', title: 'Quiet', fullscreen: true });
   await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'disabled game' });
-  setForeground({
-    path: 'D:\\SteamLibrary\\steamapps\\common\\Other\\other.exe',
-    title: 'Other game',
-    fullscreen: true,
-  });
-  await new Promise(r => setTimeout(r, 2000));
-  assert.equal((await islandWindow()).visible, false, 'automatic detection off');
+
+  // A new game: the island asks, even with automatic detection off.
+  setForeground(steamGame('Alpha'));
+  await h.until(async () => (await islandWindow()).visible, { timeout: 6000, message: 'question shown' });
+  assert.equal(await island.textContent('.prompt .game'), 'Jeu Alpha');
+  await answer('decline');
+  await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'declined: hidden' });
+  let s = await h.shell.evaluate(() => window.player.settings());
+  assert.deepEqual(s.island.declined, ['alpha.exe']);
+
   await settings({ autoFullscreen: true });
-  await h.until(async () => (await islandWindow()).visible, { timeout: 6000, message: 'game from a Steam library' });
+  setForeground(steamGame('Beta'));
+  await answer('later');
+  await h.until(async () => (await islandWindow()).visible, { timeout: 6000, message: 'later: shown as a game' });
+  setForeground(steamGame('Gamma'));
+  await answer('add');
+  s = await h.shell.evaluate(() => window.player.settings());
+  assert.ok(s.island.games.some(g => g.exe === 'gamma.exe' && g.name === 'Jeu Gamma' && g.position === 'center'));
+  assert.deepEqual(
+    s.recentApps.map(a => a.exe),
+    ['beta.exe'],
+    'recent: the postponed game (not the declined or added ones)',
+  );
+  setForeground(steamGame('Beta'));
+  await new Promise(r => setTimeout(r, 2000));
+  assert.ok(!(await island.getAttribute('#island', 'class')).includes('prompt-view'), 'postponed: not asked again');
+
   // A fullscreen browser is never a game.
   setForeground({ path: 'C:\\Program Files\\Mozilla Firefox\\firefox.exe', title: 'Vidéo', fullscreen: true });
   await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'not over Firefox' });
-  const s = await h.shell.evaluate(() => window.player.settings());
-  assert.deepEqual(
-    s.recentApps.map(a => a.exe),
-    ['other.exe'],
-    'recently seen fullscreen apps, minus listed games',
+  setForeground(steamGame('Beta'));
+  await h.until(
+    async () => (await h.shell.evaluate(() => window.player.settings())).foreground.app?.exe === 'beta.exe',
+    { timeout: 6000, message: 'last seen' },
   );
-  setForeground({
-    path: 'D:\\SteamLibrary\\steamapps\\common\\Other\\other.exe',
-    title: 'Other game',
-    fullscreen: true,
+});
+
+test('island: "track change" mode shows the details for a moment at each new track', async () => {
+  setForeground(null);
+  await settings({ mode: 'track' });
+  await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'hidden between tracks' });
+  await h.shell.evaluate(() => window.player.command({ type: 'next' }));
+  await h.until(async () => (await islandWindow()).visible, { message: 'shown at the track change' });
+  await island.waitForSelector('#island.expanded-view');
+  await h.until(async () => !(await islandWindow()).visible, { timeout: 9000, message: 'hidden again' });
+});
+
+test('island: size and opacity', async () => {
+  await settings({ mode: 'always', size: 'large', opacity: 70 });
+  await h.until(async () => (await islandWindow())?.bounds.width === Math.round(460 * 1.2), {
+    message: 'larger window',
   });
   await h.until(
-    async () => (await h.shell.evaluate(() => window.player.settings())).foreground.app?.exe === 'other.exe',
-    {
-      timeout: 6000,
-      message: 'last seen',
+    async () =>
+      (await island.evaluate(() => document.documentElement.style.getPropertyValue('--pill'))).includes('0.70'),
+    { message: 'opacity' },
+  );
+  assert.equal(await island.evaluate(() => document.documentElement.style.getPropertyValue('zoom')), '1.2');
+  await settings({ size: 'normal', opacity: 94 });
+});
+
+test('lyrics found are kept on disk', async () => {
+  const userData = await h.app.evaluate(({ app }) => app.getPath('userData'));
+  await h.until(
+    async () => {
+      try {
+        return JSON.parse(readFileSync(join(userData, 'lyrics-cache.json'), 'utf8')).some(l => l.status === 'synced');
+      } catch {
+        return false;
+      }
     },
+    { timeout: 6000, message: 'lyrics-cache.json' },
   );
 });
 
@@ -171,16 +244,28 @@ test('settings window: island and games sections drive the island', async () => 
     'true',
   );
   await page.click('.sidebar [data-section="games"]');
-  assert.equal(await page.locator('.games .game').count(), 2);
-  assert.match(await page.textContent('.detected'), /Other game \(other\.exe\) · reconnue comme jeu, plein écran/);
+  assert.equal(await page.locator('.games .game').count(), 3);
+  assert.match(await page.textContent('.detected'), /Jeu Beta \(beta\.exe\) · reconnue comme jeu, plein écran/);
+  assert.equal(await page.locator('.declined .game[data-exe="alpha.exe"]').count(), 1, 'declined listed');
+  assert.equal(await page.locator('.recent .game[data-exe="beta.exe"] button').count(), 2, 'add or decline');
+  await page.click('.declined .game[data-exe="alpha.exe"] button:has-text("Ne plus refuser")');
+  await h.until(async () => (await page.locator('.declined .game').count()) === 0, { message: 'no longer declined' });
   await page.click('.games .game[data-exe="quiet.exe"] button.icon');
-  await h.until(async () => (await page.locator('.games .game').count()) === 1, { message: 'game removed' });
+  await h.until(async () => (await page.locator('.games .game').count()) === 2, { message: 'game removed' });
   await page.selectOption('.games .game[data-exe="game.exe"] select', 'right');
   await h.until(
     async () => (await h.shell.evaluate(() => window.player.settings())).island.games[0]?.position === 'right',
     { message: 'position saved' },
   );
   await page.click('.sidebar [data-section="island"]');
+  await page.click('#islandShortcut');
+  await page.keyboard.press('Control+Alt+K');
+  await h.until(
+    async () =>
+      (await page.inputValue('#islandShortcut')) === 'Ctrl+Alt+K' ||
+      /utilisé/.test(await page.textContent('.island-shortcut-status')),
+    { message: 'island shortcut saved (or reported busy)' },
+  );
   await page.click('.segmented[data-setting="mode"] [data-value="off"]');
   await h.until(async () => !(await islandWindow()).visible, { message: 'turned off' });
   // Escape closes the window (during the key press, hence the catch).

@@ -168,3 +168,26 @@ describe('lyrics requests', () => {
     expect(states.at(-1)).toEqual({ trackId: 'BBBBBBBBBBB', status: 'off', lines: [] });
   });
 });
+
+describe('lyrics kept on disk', () => {
+  it('seeded lyrics are served without a request; new ones are reported', async () => {
+    const { fetcher, urls } = fake(() => reply(200, { syncedLyrics: '[00:01.00] New' }));
+    const states: LyricsState[] = [];
+    let learned = 0;
+    const lyrics = new Lyrics(
+      fetcher,
+      s => states.push(s),
+      0,
+      0,
+      () => learned++,
+    );
+    lyrics.seed([{ trackId: track.id, status: 'synced', lines: [{ time: 1, text: 'Saved' }] }]);
+    lyrics.show(track, 200, true);
+    expect(states.at(-1)?.lines[0]?.text).toBe('Saved');
+    expect(urls).toHaveLength(0);
+    lyrics.show({ ...track, id: 'BBBBBBBBBBB' }, 200, true);
+    await vi.waitFor(() => expect(learned).toBe(1));
+    expect(lyrics.cached().map(s => s.trackId)).toEqual([track.id, 'BBBBBBBBBBB']);
+    lyrics.dispose();
+  });
+});

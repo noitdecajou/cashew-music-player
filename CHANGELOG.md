@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.0-beta.5
+
+- New games: when a game not in the list is detected, the island asks whether to add it (Add, Decline, Later). Without an answer after 15 seconds it counts as "Later". Declined games are listed in the settings (add them, or allow them to be proposed again); postponed ones appear under "Recently detected", with Add and Decline.
+- "On track change" mode: the island shows its details for a few seconds at each new track.
+- Customizable global shortcut (Ctrl+Alt+I by default) showing the island's details for a few seconds, without the mouse (handy in games).
+- Click on the progress bar to seek; mouse wheel over the island sets the volume.
+- Island size (small, normal, large, extra large) and opacity.
+- Lyrics found are kept on disk (instant next time, also offline).
+- Settings: the Games lists no longer rebuild every 2 seconds (clicks and menus stay stable).
+
 ## 2.1.0-beta.4
 
 - Game detection: an application counts as a game when it is installed in a game store folder (Steam, Epic Games, GOG, Ubisoft, EA, Riot, Xbox, Amazon, Rockstar, Battle.net, itch, Heroic) or known to Windows as a game (Xbox Game Bar list), never because it is fullscreen: maximized or fullscreen browsers, videos and the Alt+Tab switcher are no longer taken for games. Browsers, Explorer, launchers and Windows overlays never count. Alt+Tab no longer makes the island blink. The game's executable path is asked for once per process.

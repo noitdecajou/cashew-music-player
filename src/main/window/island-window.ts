@@ -15,6 +15,7 @@ export class IslandWindow {
   private visible = false;
   private position: IslandPosition = 'center';
   private display = 0;
+  private scale = 1;
 
   constructor(
     private readonly load: PageLoader,
@@ -43,9 +44,10 @@ export class IslandWindow {
     );
   }
 
-  apply(visible: boolean, position: IslandPosition, display: number): void {
+  apply(visible: boolean, position: IslandPosition, display: number, scale = 1): void {
     this.position = position;
     this.display = display;
+    this.scale = scale;
     if (visible) {
       const win = this.ensure();
       this.place();
@@ -110,7 +112,7 @@ export class IslandWindow {
     if (!this.win || this.win.isDestroyed()) return;
     const displays = orderDisplays(screen.getAllDisplays(), screen.getPrimaryDisplay().id);
     const display = displays[this.display] ?? displays[0];
-    if (display) this.win.setBounds(islandBounds(display.bounds, this.position));
+    if (display) this.win.setBounds(islandBounds(display.bounds, this.position, this.scale));
   }
 
   dispose(): void {

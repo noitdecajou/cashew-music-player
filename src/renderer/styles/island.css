@@ -63,6 +63,11 @@ body.pos-right {
   height: var(--expanded-h);
   border-radius: 0 0 22px 22px;
 }
+.island.prompt-view {
+  width: var(--expanded-w);
+  height: 96px;
+  border-radius: 0 0 22px 22px;
+}
 
 /* ---------------------------------------------------------------- compact */
 .compact {
@@ -74,7 +79,8 @@ body.pos-right {
   padding: 0 12px 0 7px;
   transition: opacity 0.15s;
 }
-.expanded-view .compact {
+.expanded-view .compact,
+.prompt-view .compact {
   opacity: 0;
   pointer-events: none;
 }
@@ -251,6 +257,13 @@ button.play {
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.16);
   overflow: hidden;
+  cursor: pointer;
+  /* larger hit area than the visible bar */
+  outline: 6px solid transparent;
+  transition: height 0.12s;
+}
+.rail:hover {
+  height: 5px;
 }
 .rail .fill {
   height: 100%;
@@ -265,10 +278,83 @@ button.play {
   display: none;
 }
 
+/* Volume (mouse wheel) */
+.volume-badge {
+  position: absolute;
+  top: 10px;
+  right: 92px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.volume-badge[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------- question about a new game */
+.prompt {
+  position: absolute;
+  inset: 0;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.prompt-view .prompt {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0.08s;
+}
+.question {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.question .label {
+  font-size: 11px;
+  color: var(--muted);
+}
+.question .game {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.answers {
+  display: flex;
+  gap: 6px;
+}
+.answers button.answer {
+  width: auto;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  font: inherit;
+  font-size: 12px;
+}
+.answers button.answer:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.answers button.add {
+  background: var(--accent);
+  color: #231d33;
+  font-weight: 600;
+}
+.answers button.add:hover {
+  background: #ddd2ff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .island,
   .compact,
-  .expanded {
+  .expanded,
+  .prompt {
     transition: none;
   }
   .playing .bars i,

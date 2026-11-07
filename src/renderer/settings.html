@@ -65,12 +65,14 @@
       <section data-section="island" hidden>
         <h2>Island</h2>
         <p class="hint">
-          Une pastille en haut de l’écran : pochette et paroles, et au survol le titre, l’artiste, la progression, le
-          morceau suivant, lecture/pause et suivant. Elle ne prend jamais la main sur les autres fenêtres.
+          Une pastille en haut de l’écran : pochette et paroles, et au survol le titre, l’artiste, la progression
+          (cliquable), le morceau suivant, lecture/pause et suivant ; la molette règle le volume. Elle ne prend jamais
+          la main sur les autres fenêtres.
         </p>
         <h3>Afficher l’island</h3>
         <div class="segmented" data-setting="mode" role="radiogroup" aria-label="Afficher l’island">
           <button data-value="off">Jamais</button><button data-value="always">Toujours</button
+          ><button data-value="track">Au changement de morceau</button
           ><button data-value="games">Seulement en jeu</button>
         </div>
         <p class="hint mode-hint"></p>
@@ -79,6 +81,16 @@
           <button data-value="left">Gauche</button><button data-value="center">Centre</button
           ><button data-value="right">Droite</button>
         </div>
+        <h3>Taille</h3>
+        <div class="segmented" data-setting="size" role="radiogroup" aria-label="Taille">
+          <button data-value="small">Petite</button><button data-value="normal">Normale</button
+          ><button data-value="large">Grande</button><button data-value="xlarge">Très grande</button>
+        </div>
+        <h3>Opacité</h3>
+        <div class="range-row">
+          <input type="range" id="islandOpacity" min="50" max="100" step="5" aria-label="Opacité de l’island" />
+          <span class="range-value"></span>
+        </div>
         <h3>Écran</h3>
         <select id="islandDisplay" aria-label="Écran de l’island"></select>
         <h3>Heure</h3>
@@ -86,6 +98,21 @@
           <button data-value="none">Masquée</button><button data-value="left">À gauche</button
           ><button data-value="right">À droite</button>
         </div>
+        <h3>Raccourci : afficher les détails</h3>
+        <p class="hint">
+          Affiche l’island en grand quelques secondes, sans la souris (pratique en jeu), quel que soit le mode choisi
+          sauf « Jamais ».
+        </p>
+        <div class="shortcut-row">
+          <input
+            id="islandShortcut"
+            class="shortcut-input"
+            readonly
+            aria-label="Raccourci des détails de l’island"
+            placeholder="Aucun"
+          /><button id="resetIslandShortcut">Par défaut</button><button id="clearIslandShortcut">Désactiver</button>
+        </div>
+        <p class="hint island-shortcut-status"></p>
         <h3>Paroles</h3>
         <label class="check"><input type="checkbox" id="islandLyrics" /> Afficher les paroles</label>
         <p class="hint">
@@ -110,8 +137,14 @@
         <ol class="games" aria-label="Jeux"></ol>
         <div class="buttons"><button id="addGame">Ajouter un jeu…</button></div>
         <h3>Détectés récemment</h3>
-        <p class="hint">Jeux et applications plein écran vus depuis le lancement de cashew (hors navigateurs).</p>
+        <p class="hint">
+          Jeux et applications plein écran vus depuis le lancement de cashew (hors navigateurs), dont ceux mis à plus
+          tard. L’island propose aussi d’ajouter chaque nouveau jeu détecté.
+        </p>
         <ol class="recent" aria-label="Applications détectées"></ol>
+        <h3>Refusés</h3>
+        <p class="hint">Jeux que l’island ne propose plus d’ajouter.</p>
+        <ol class="declined" aria-label="Jeux refusés"></ol>
         <p class="hint">
           L’island s’affiche par-dessus les jeux en plein écran fenêtré (« sans bordure »). En plein écran exclusif,
           Windows ne permet aucun affichage par-dessus le jeu. cashew ne s’injecte jamais dans un jeu : aucun risque

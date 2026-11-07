@@ -39,10 +39,23 @@
         </div>
         <div class="progress">
           <span class="elapsed">0:00</span>
-          <div class="rail"><div class="fill"></div></div>
+          <div class="rail" title="Aller à ce moment"><div class="fill"></div></div>
           <span class="total">0:00</span>
         </div>
         <div class="upnext"></div>
+        <span class="volume-badge" hidden></span>
+      </div>
+      <div class="prompt" role="dialog" aria-label="Nouveau jeu détecté">
+        <div class="question">
+          <span class="label">Nouveau jeu détecté</span>
+          <strong class="game"></strong>
+          <span class="label">Ajouter à la liste de l’island ?</span>
+        </div>
+        <div class="answers">
+          <button class="answer add" data-answer="add">Ajouter</button
+          ><button class="answer" data-answer="decline">Refuser</button
+          ><button class="answer" data-answer="later">Plus tard</button>
+        </div>
       </div>
     </div>
     <script type="module" src="./src/island.ts"></script>

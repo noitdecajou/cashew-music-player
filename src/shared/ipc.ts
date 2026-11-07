@@ -1,4 +1,4 @@
-import type { IslandPrefs, IslandView, LyricsState } from './island';
+import type { GameAnswer, GamePrompt, IslandPrefs, IslandView, LyricsState } from './island';
 import type { MiniTheme } from './themes';
 import type { PlayerCommand, PlayerProgress, PlayerSnapshot, QueueState } from './player';
 
@@ -86,6 +86,7 @@ export interface Settings {
   shortcut: string;
   shortcutError: string;
   island: IslandPrefs;
+  islandShortcutError: string;
   /** Display names, primary first (the island's display is an index in this list). */
   displays: string[];
   /** Game detection works on this system (Windows). */
@@ -135,6 +136,9 @@ export interface ShellEvents {
   'lyrics:state': LyricsState;
   'island:view': IslandView;
   'settings:section': SettingsSection;
+  /** Island page: show the details for this many milliseconds. */
+  'island:peek': number;
+  'island:prompt': GamePrompt | null;
 }
 
 /** The API exposed to our renderer pages as window.player. */
@@ -160,6 +164,8 @@ export interface ShellApi {
   chooseGame(): Promise<Settings>;
   /** Island page: the pointer entered or left the pill. */
   islandHover(hover: boolean): void;
+  /** Island page: answer to "add this game to the list?". */
+  islandAnswer(answer: GameAnswer): void;
   on<K extends keyof ShellEvents>(channel: K, listener: (value: ShellEvents[K]) => void): () => void;
 }
 
@@ -175,6 +181,8 @@ export const SHELL_EVENT_CHANNELS: readonly (keyof ShellEvents)[] = [
   'lyrics:state',
   'island:view',
   'settings:section',
+  'island:peek',
+  'island:prompt',
 ];
 
 /** Errors thrown in main arrive prefixed by Electron: keep only our message. */

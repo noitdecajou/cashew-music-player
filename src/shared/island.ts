@@ -2,7 +2,9 @@
 // current track (lyrics when known). Pure rules and types, shared by main and
 // the island page, and unit-tested.
 
-export type IslandMode = 'off' | 'always' | 'games';
+export type IslandMode = 'off' | 'always' | 'track' | 'games';
+export type IslandSize = 'small' | 'normal' | 'large' | 'xlarge';
+export const ISLAND_SCALE: Record<IslandSize, number> = { small: 0.85, normal: 1, large: 1.2, xlarge: 1.4 };
 export type IslandPosition = 'left' | 'center' | 'right';
 export type ClockSide = 'none' | 'left' | 'right';
 
@@ -26,6 +28,13 @@ export interface IslandPrefs {
   /** In "games" mode, also show the island over any application recognized as a game (`isGame`). */
   autoFullscreen: boolean;
   games: GameRule[];
+  /** Games the user declined to add (executable names): never proposed again. */
+  declined: string[];
+  /** Global shortcut showing the island's details for a few seconds ('' = none). */
+  shortcut: string;
+  size: IslandSize;
+  /** Opacity of the pill, 50..100 (%). */
+  opacity: number;
 }
 
 export const DEFAULT_ISLAND: IslandPrefs = {
@@ -36,6 +45,10 @@ export const DEFAULT_ISLAND: IslandPrefs = {
   lyrics: true,
   autoFullscreen: true,
   games: [],
+  declined: [],
+  shortcut: 'Ctrl+Alt+I',
+  size: 'normal',
+  opacity: 94,
 };
 
 export const MAX_GAMES = 100;
@@ -73,7 +86,7 @@ export function sanitizeIsland(raw: unknown): IslandPrefs {
     if (games.length >= MAX_GAMES) break;
   }
   return {
-    mode: v.mode === 'always' || v.mode === 'games' ? v.mode : 'off',
+    mode: v.mode === 'always' || v.mode === 'track' || v.mode === 'games' ? v.mode : 'off',
     position: isPosition(v.position) ? v.position : DEFAULT_ISLAND.position,
     display:
       Number.isInteger(v.display) && (v.display as number) >= 0 && (v.display as number) < 16
@@ -83,6 +96,19 @@ export function sanitizeIsland(raw: unknown): IslandPrefs {
     lyrics: typeof v.lyrics === 'boolean' ? v.lyrics : DEFAULT_ISLAND.lyrics,
     autoFullscreen: typeof v.autoFullscreen === 'boolean' ? v.autoFullscreen : DEFAULT_ISLAND.autoFullscreen,
     games,
+    declined: [
+      ...new Set(
+        (Array.isArray(v.declined) ? v.declined : [])
+          .map(exeName)
+          .filter(exe => exe && !games.some(g => g.exe === exe)),
+      ),
+    ].slice(0, MAX_GAMES * 2),
+    shortcut: typeof v.shortcut === 'string' && v.shortcut.length <= 80 ? v.shortcut : DEFAULT_ISLAND.shortcut,
+    size: v.size === 'small' || v.size === 'large' || v.size === 'xlarge' ? v.size : 'normal',
+    opacity:
+      typeof v.opacity === 'number' && Number.isFinite(v.opacity)
+        ? Math.round(Math.min(100, Math.max(50, v.opacity)))
+        : DEFAULT_ISLAND.opacity,
   };
 }
 
@@ -158,6 +184,18 @@ const GAME_FOLDERS = [
  */
 export const notAGame = (exe: string): boolean => !exe || NOT_GAMES.has(exe);
 
+/** A game in front that the user has not been asked about yet (not listed, not declined, not postponed). */
+export function gameToPropose(
+  prefs: IslandPrefs,
+  foreground: Foreground | null,
+  postponed: ReadonlySet<string>,
+): Foreground | null {
+  if (prefs.mode === 'off' || !foreground?.game || !foreground.exe) return null;
+  const exe = foreground.exe;
+  if (prefs.games.some(g => g.exe === exe) || prefs.declined.includes(exe) || postponed.has(exe)) return null;
+  return foreground;
+}
+
 export function isGame(path: string, exe: string, windowsGames: ReadonlySet<string>): boolean {
   if (notAGame(exe)) return false;
   const p = path.toLowerCase().replace(/\//g, '\\');
@@ -170,19 +208,36 @@ export interface IslandDecision {
   position: IslandPosition;
 }
 
+/** Moments the island shows outside its mode: a peek (track change, shortcut), a question about a new game. */
+export interface IslandMoments {
+  peek: boolean;
+  prompt: boolean;
+}
+
 /**
- * Whether the island shows, and where. In "games" mode a listed game decides
- * on its own (enabled, position); an unlisted application recognized as a game
- * shows the island when automatic detection is on.
+ * Whether the island shows, and where. "always": while a track is loaded;
+ * "track": only for a moment at each track change (peek); "games": a listed
+ * game decides on its own (enabled, position), an unlisted application
+ * recognized as a game shows the island when automatic detection is on.
+ * A peek or a question about a new game shows it in any mode except off.
  */
-export function decideIsland(prefs: IslandPrefs, foreground: Foreground | null, hasTrack: boolean): IslandDecision {
+export function decideIsland(
+  prefs: IslandPrefs,
+  foreground: Foreground | null,
+  hasTrack: boolean,
+  moments: IslandMoments = { peek: false, prompt: false },
+): IslandDecision {
   const hidden = { visible: false, position: prefs.position };
-  if (!hasTrack || prefs.mode === 'off') return hidden;
-  if (prefs.mode === 'always') return { visible: true, position: prefs.position };
-  if (!foreground) return hidden;
-  const rule = prefs.games.find(g => g.exe === foreground.exe);
-  if (rule) return { visible: rule.enabled, position: rule.position };
-  if (prefs.autoFullscreen && foreground.game) return { visible: true, position: prefs.position };
+  if (prefs.mode === 'off') return hidden;
+  const rule = foreground ? prefs.games.find(g => g.exe === foreground.exe) : undefined;
+  const position = rule?.position ?? prefs.position;
+  if (moments.prompt) return { visible: true, position };
+  if (!hasTrack) return hidden;
+  if (moments.peek) return { visible: true, position };
+  if (prefs.mode === 'always') return { visible: true, position };
+  if (prefs.mode === 'track' || !foreground) return hidden;
+  if (rule) return { visible: rule.enabled, position };
+  if (prefs.autoFullscreen && foreground.game) return { visible: true, position };
   return hidden;
 }
 
@@ -199,8 +254,9 @@ export interface Box {
 }
 
 /** The island window hangs from the top edge of the display (not its work area). */
-export function islandBounds(display: Box, position: IslandPosition): Box {
-  const { width, height } = ISLAND_WINDOW;
+export function islandBounds(display: Box, position: IslandPosition, scale = 1): Box {
+  const width = Math.round(ISLAND_WINDOW.width * scale);
+  const height = Math.round(ISLAND_WINDOW.height * scale);
   const x =
     position === 'left'
       ? display.x + EDGE_MARGIN
@@ -285,4 +341,13 @@ export function sanitizeLyrics(raw: unknown): LyricsState | null {
 export interface IslandView {
   position: IslandPosition;
   clock: ClockSide;
+  scale: number;
+  opacity: number;
 }
+
+/** A new game in front: the island asks whether to add it to the list. */
+export interface GamePrompt {
+  exe: string;
+  name: string;
+}
+export type GameAnswer = 'add' | 'decline' | 'later';

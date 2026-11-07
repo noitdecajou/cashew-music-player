@@ -152,7 +152,8 @@ body.settings-view {
   padding: 5px 8px;
   max-width: 320px;
 }
-#shortcut {
+#shortcut,
+.shortcut-input {
   font: inherit;
   color: var(--text);
   background: var(--surface);
@@ -186,7 +187,8 @@ body.settings-view {
 
 /* Game lists */
 .games,
-.recent {
+.recent,
+.declined {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -202,8 +204,13 @@ body.settings-view {
   padding: 7px 10px;
   border-top: 1px solid var(--line);
 }
-.recent .game {
+.recent .game,
+.declined .game {
   grid-template-columns: minmax(0, 1fr) minmax(0, 170px) auto;
+}
+.game .actions {
+  display: flex;
+  gap: 6px;
 }
 .game:first-child {
   border-top: 0;
@@ -216,7 +223,8 @@ body.settings-view {
   font-size: 11px;
 }
 .games .empty,
-.recent .empty {
+.recent .empty,
+.declined .empty {
   padding: 10px 12px;
 }
 
@@ -245,4 +253,20 @@ body.settings-view {
 }
 .detected:empty {
   display: none;
+}
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 320px;
+}
+.range-row input {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.range-value {
+  min-width: 42px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }

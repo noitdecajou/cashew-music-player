@@ -75,36 +75,49 @@ async function refresh(): Promise<void> {
 // General
 const startup = $<HTMLInputElement>('#startup');
 const quiet = $<HTMLInputElement>('#quietStartup');
-const shortcut = $<HTMLInputElement>('#shortcut');
-const shortcutStatus = $('.shortcut-status');
 startup.addEventListener('change', () => void update({ startup: startup.checked }));
 quiet.addEventListener('change', () => void update({ quietStartup: quiet.checked }));
+
+/** A field that captures a key combination (global shortcuts are suspended meanwhile). */
+function shortcutField(input: HTMLInputElement, status: HTMLElement, save: (value: string) => void): void {
+  input.addEventListener('focus', () => {
+    api.captureShortcut(true);
+    setText(status, 'Appuie sur la nouvelle combinaison…');
+  });
+  input.addEventListener('blur', () => {
+    api.captureShortcut(false);
+    void refresh();
+  });
+  window.addEventListener('blur', () => {
+    if (document.activeElement === input) input.blur();
+  });
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Tab') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.key === 'Escape') {
+      input.blur();
+      return;
+    }
+    if (event.repeat || ['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) return;
+    const key = event.key === ' ' ? 'Space' : event.key.length === 1 ? event.key.toUpperCase() : event.key;
+    const parts = [event.ctrlKey && 'Ctrl', event.altKey && 'Alt', event.shiftKey && 'Shift', event.metaKey && 'Super'];
+    save([...parts.filter(Boolean), key].join('+'));
+  });
+}
+const shortcut = $<HTMLInputElement>('#shortcut');
+const shortcutStatus = $('.shortcut-status');
+shortcutField(shortcut, shortcutStatus, value => void update({ shortcut: value }));
 $('#resetShortcut').addEventListener('click', () => void update({ shortcut: 'Ctrl+Alt+M' }));
 $('#clearShortcut').addEventListener('click', () => void update({ shortcut: '' }));
-shortcut.addEventListener('focus', () => {
-  api.captureShortcut(true);
-  setText(shortcutStatus, 'Appuie sur la nouvelle combinaison…');
-});
-shortcut.addEventListener('blur', () => {
-  api.captureShortcut(false);
-  void refresh();
-});
-window.addEventListener('blur', () => {
-  if (document.activeElement === shortcut) shortcut.blur();
-});
-shortcut.addEventListener('keydown', event => {
-  if (event.key === 'Tab') return;
-  event.preventDefault();
-  event.stopPropagation();
-  if (event.key === 'Escape') {
-    shortcut.blur();
-    return;
-  }
-  if (event.repeat || ['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) return;
-  const key = event.key === ' ' ? 'Space' : event.key.length === 1 ? event.key.toUpperCase() : event.key;
-  const parts = [event.ctrlKey && 'Ctrl', event.altKey && 'Alt', event.shiftKey && 'Shift', event.metaKey && 'Super'];
-  void update({ shortcut: [...parts.filter(Boolean), key].join('+') });
-});
+const islandShortcut = $<HTMLInputElement>('#islandShortcut');
+const islandShortcutStatus = $('.island-shortcut-status');
+shortcutField(islandShortcut, islandShortcutStatus, value => void updateIsland({ shortcut: value }));
+$('#resetIslandShortcut').addEventListener('click', () => void updateIsland({ shortcut: 'Ctrl+Alt+I' }));
+$('#clearIslandShortcut').addEventListener('click', () => void updateIsland({ shortcut: '' }));
+const opacity = $<HTMLInputElement>('#islandOpacity');
+opacity.addEventListener('input', () => setText($('.range-value'), `${opacity.value} %`));
+opacity.addEventListener('change', () => void updateIsland({ opacity: Number(opacity.value) }));
 
 // Player: mini-player skins
 const grid = $('.theme-grid');
@@ -260,8 +273,18 @@ $('#diagnostics').addEventListener('click', async () => {
 const MODE_HINTS: Record<IslandPrefs['mode'], string> = {
   off: 'L’island est désactivée.',
   always: 'L’island reste affichée tant qu’un morceau est chargé.',
+  track: 'L’island apparaît quelques secondes, en grand, à chaque nouveau morceau.',
   games: 'L’island s’affiche quand un jeu de la liste (section Jeux) est au premier plan.',
 };
+
+/** Rebuilds a list only when its content changed (the Games section refreshes every 2 s). */
+const listKeys = new WeakMap<Element, string>();
+function renderList(list: Element, key: unknown, build: () => Node[]): void {
+  const k = JSON.stringify(key);
+  if (listKeys.get(list) === k) return;
+  listKeys.set(list, k);
+  list.replaceChildren(...build());
+}
 
 function render(settings: Settings): void {
   current = settings;
@@ -284,7 +307,7 @@ function render(settings: Settings): void {
   // Island
   const island = settings.island;
   for (const group of $$('.segmented[data-setting]')) {
-    const value = String(island[group.dataset.setting as 'mode' | 'position' | 'clock']);
+    const value = String(island[group.dataset.setting as 'mode' | 'position' | 'clock' | 'size']);
     for (const button of $$('button', group))
       button.setAttribute('aria-checked', String(button.dataset.value === value));
   }
@@ -297,6 +320,18 @@ function render(settings: Settings): void {
   if (island.display >= settings.displays.length)
     displaySelect.append(el('option', { value: String(island.display), selected: true }, 'Écran débranché'));
   $<HTMLInputElement>('#islandLyrics').checked = island.lyrics;
+  if (document.activeElement !== opacity) opacity.value = String(island.opacity);
+  setText($('.range-value'), `${island.opacity} %`);
+  islandShortcut.value = island.shortcut;
+  setText(
+    islandShortcutStatus,
+    settings.islandShortcutError ||
+      (island.shortcut
+        ? island.mode === 'off'
+          ? 'Inactif tant que l’island est désactivée.'
+          : 'Actif, même depuis un jeu ou une autre application.'
+        : 'Désactivé.'),
+  );
 
   // Games
   setText(
@@ -322,15 +357,13 @@ function render(settings: Settings): void {
           ` · ${known} jeu${known > 1 ? 'x' : ''} connu${known > 1 ? 's' : ''} de Windows`,
   );
   $<HTMLInputElement>('#autoFullscreen').checked = island.autoFullscreen;
-  const list = $('.games');
-  list.replaceChildren(
-    ...(island.games.length
+  renderList($('.games'), island.games, () =>
+    island.games.length
       ? island.games.map(game => gameRow(game, island.games))
-      : [el('li', { className: 'empty hint' }, 'Aucun jeu. Ajoute un jeu, ou un des jeux détectés ci-dessous.')]),
+      : [el('li', { className: 'empty hint' }, 'Aucun jeu. Ajoute un jeu, ou un des jeux détectés ci-dessous.')],
   );
-  const recent = $('.recent');
-  recent.replaceChildren(
-    ...(settings.recentApps.length
+  renderList($('.recent'), [settings.recentApps, island.games, island.declined], () =>
+    settings.recentApps.length
       ? settings.recentApps.map(app => {
           const add = el('button', {}, 'Ajouter');
           add.addEventListener('click', () =>
@@ -339,20 +372,54 @@ function render(settings: Settings): void {
               { exe: app.exe, name: app.title || app.exe.replace(/\.exe$/, ''), enabled: true, position: 'center' },
             ]),
           );
-          return el(
+          const decline = el('button', {}, 'Refuser');
+          decline.addEventListener('click', () => void updateIsland({ declined: [...island.declined, app.exe] }));
+          const row = el(
             'li',
-            { className: 'game' },
+            { className: 'game choice' },
             el('span', { className: 'name truncate' }, app.title || app.exe),
             el('span', { className: 'exe hint truncate' }, app.exe),
-            add,
+            el('span', { className: 'actions' }, add, decline),
           );
+          row.dataset.exe = app.exe;
+          return row;
         })
-      : [el('li', { className: 'empty hint' }, 'Rien pour l’instant.')]),
+      : [el('li', { className: 'empty hint' }, 'Rien pour l’instant.')],
+  );
+  renderList($('.declined'), [island.declined, island.games], () =>
+    island.declined.length
+      ? island.declined.map(exe => {
+          const add = el('button', {}, 'Ajouter');
+          add.addEventListener(
+            'click',
+            () =>
+              void updateIsland({
+                declined: island.declined.filter(d => d !== exe),
+                games: [...island.games, { exe, name: exe.replace(/\.exe$/, ''), enabled: true, position: 'center' }],
+              }),
+          );
+          const forget = el('button', { title: 'L’island pourra de nouveau proposer ce jeu' }, 'Ne plus refuser');
+          forget.addEventListener(
+            'click',
+            () => void updateIsland({ declined: island.declined.filter(d => d !== exe) }),
+          );
+          const row = el(
+            'li',
+            { className: 'game choice' },
+            el('span', { className: 'name truncate' }, exe.replace(/\.exe$/, '')),
+            el('span', { className: 'exe hint truncate' }, exe),
+            el('span', { className: 'actions' }, add, forget),
+          );
+          row.dataset.exe = exe;
+          return row;
+        })
+      : [el('li', { className: 'empty hint' }, 'Aucun.')],
   );
 }
 
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && document.activeElement !== shortcut) window.close();
+  if (event.key === 'Escape' && !(document.activeElement as HTMLElement | null)?.matches('.shortcut-input, #shortcut'))
+    window.close();
 });
 window.addEventListener('focus', () => void refresh());
 // The Games section follows the detection live.

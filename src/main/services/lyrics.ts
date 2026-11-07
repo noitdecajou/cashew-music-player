@@ -18,7 +18,7 @@ export type Fetcher = (url: string) => Promise<{ status: number; text(): Promise
 
 const API = 'https://lrclib.net/api';
 const MAX_BODY = 512 * 1024;
-const CACHE = 100;
+const CACHE = 500;
 
 interface LrclibRecord {
   trackName?: unknown;
@@ -56,7 +56,21 @@ export class Lyrics {
     private readonly settleMs = 1500,
     /** Without a duration by then, search by title and artist only. */
     private readonly durationWaitMs = 4000,
+    /** Called when new lyrics are found (to keep them on disk). */
+    private readonly onLearn: () => void = () => {},
   ) {}
+
+  /** Lyrics found earlier (from disk). */
+  seed(states: LyricsState[]): void {
+    for (const state of states)
+      if (state.status === 'synced' && !this.cache.has(state.trackId)) this.cache.set(state.trackId, state);
+    while (this.cache.size > CACHE) this.cache.delete(this.cache.keys().next().value as string);
+  }
+
+  /** Found lyrics, oldest first (what is kept on disk). */
+  cached(): LyricsState[] {
+    return [...this.cache.values()];
+  }
 
   /**
    * The island shows `track`: publish what is known, fetch the rest once. Called on
@@ -126,7 +140,10 @@ export class Lyrics {
     void this.fetchLyrics(track, this.duration).then(
       state => {
         // Only found lyrics are kept: a miss is tried again the next time the track plays.
-        if (state.status === 'synced') this.remember(state);
+        if (state.status === 'synced') {
+          this.remember(state);
+          this.onLearn();
+        }
         if (generation === this.generation) this.publish(state);
       },
       () => {

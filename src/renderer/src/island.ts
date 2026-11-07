@@ -3,7 +3,7 @@
 // progress, up next, play/pause and next.
 
 import type { ShellApi } from '../../shared/ipc';
-import { type IslandView, type LyricsState, lineAt } from '../../shared/island';
+import { type GamePrompt, type IslandView, type LyricsState, lineAt } from '../../shared/island';
 import type { PlayerProgress, PlayerSnapshot } from '../../shared/player';
 import { formatTime } from './format';
 import { $, $$, setText } from './dom';
@@ -28,7 +28,11 @@ let progressAt = 0;
 const LEAD_SECONDS = 0.3;
 let ticker = 0;
 let shownLine = '';
-let expanded = false;
+/** The pointer is over the pill (the window then takes clicks). */
+let hovering = false;
+/** Details shown for a moment without the mouse (track change, shortcut). */
+let peekTimer = 0;
+let prompt: GamePrompt | null = null;
 
 function setArt(url: string): void {
   for (const img of $$<HTMLImageElement>('.art')) {
@@ -101,7 +105,7 @@ function renderProgress(): void {
 
 function renderSnapshot(): void {
   const track = snapshot?.track ?? null;
-  island.hidden = !track;
+  island.hidden = !track && !prompt;
   if (!track) return;
   const playing = snapshot?.status === 'playing' || snapshot?.status === 'buffering';
   island.classList.toggle('playing', playing);
@@ -126,23 +130,80 @@ renderClock();
 
 function applyView(view: IslandView): void {
   document.body.className = `pos-${view.position}`;
+  // CSS zoom, not the page zoom: Chromium shares page zoom between pages of the same origin.
+  document.documentElement.style.setProperty('zoom', String(view.scale));
+  document.documentElement.style.setProperty('--pill', `rgba(10, 10, 14, ${(view.opacity / 100).toFixed(2)})`);
   $('.clock-left').hidden = view.clock !== 'left';
   $('.clock-right').hidden = view.clock !== 'right';
 }
 
-// --- Hover: the window lets clicks through except over the pill --------------
-function setExpanded(value: boolean): void {
-  if (value === expanded) return;
-  expanded = value;
-  if (value) renderProgress();
-  island.classList.toggle('expanded-view', value);
+// --- Views: compact, details (hover or peek), question about a new game -----------
+function renderView(): void {
+  const details = !prompt && (hovering || peekTimer !== 0);
+  if (details) renderProgress();
+  island.classList.toggle('expanded-view', details);
+  island.classList.toggle('prompt-view', !!prompt);
+  island.hidden = !snapshot?.track && !prompt;
+}
+
+/** The window lets clicks through except over the pill. */
+function setHovering(value: boolean): void {
+  if (value === hovering) return;
+  hovering = value;
   api.islandHover(value);
+  renderView();
 }
 document.addEventListener('mousemove', event => {
-  setExpanded(!island.hidden && island.contains(event.target as Node));
+  setHovering(!island.hidden && island.contains(event.target as Node));
 });
-document.addEventListener('mouseleave', () => setExpanded(false));
-window.addEventListener('blur', () => setExpanded(false));
+document.addEventListener('mouseleave', () => setHovering(false));
+window.addEventListener('blur', () => setHovering(false));
+
+function peek(ms: number): void {
+  window.clearTimeout(peekTimer);
+  peekTimer = window.setTimeout(() => {
+    peekTimer = 0;
+    renderView();
+  }, ms);
+  renderView();
+}
+
+// Seek: click on the progress bar. Volume: mouse wheel over the island.
+$('.rail').addEventListener('click', event => {
+  const track = snapshot?.track;
+  if (!track || !progress || progress.trackId !== track.id || !(progress.duration > 0)) return;
+  const rail = event.currentTarget as HTMLElement;
+  const box = rail.getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+  api.command({ type: 'seek', trackId: track.id, position: ratio * progress.duration });
+});
+island.addEventListener(
+  'wheel',
+  event => {
+    if (!snapshot || prompt) return;
+    event.preventDefault();
+    const step = event.deltaY < 0 ? 5 : -5;
+    const volume = Math.min(100, Math.max(0, Math.round((snapshot.volume + step) / 5) * 5));
+    if (volume === snapshot.volume) return;
+    snapshot = { ...snapshot, volume };
+    api.command({ type: 'volume', volume });
+    showVolume(volume);
+  },
+  { passive: false },
+);
+let volumeTimer = 0;
+function showVolume(volume: number): void {
+  const badge = $('.volume-badge');
+  setText(badge, `Volume ${volume} %`);
+  badge.hidden = false;
+  window.clearTimeout(volumeTimer);
+  volumeTimer = window.setTimeout(() => {
+    badge.hidden = true;
+  }, 1200);
+}
+
+for (const button of $$<HTMLButtonElement>('.answer'))
+  button.addEventListener('click', () => api.islandAnswer(button.dataset.answer as 'add'));
 
 $('.play').addEventListener('click', () => api.command({ type: 'toggle-play' }));
 $('.next').addEventListener('click', () => api.command({ type: 'next' }));
@@ -150,13 +211,14 @@ $('.next').addEventListener('click', () => api.command({ type: 'next' }));
 api.on('player:snapshot', value => {
   snapshot = value;
   renderSnapshot();
+  renderView();
   updateTicker();
 });
 api.on('player:progress', value => {
   progress = value;
   progressAt = performance.now();
   renderLine();
-  if (expanded) renderProgress();
+  if (island.classList.contains('expanded-view')) renderProgress();
 });
 api.on('lyrics:state', value => {
   lyrics = value;
@@ -164,3 +226,9 @@ api.on('lyrics:state', value => {
   updateTicker();
 });
 api.on('island:view', applyView);
+api.on('island:peek', ms => peek(Math.min(Math.max(ms, 500), 15000)));
+api.on('island:prompt', value => {
+  prompt = value;
+  setText($('.prompt .game'), value?.name ?? '');
+  renderView();
+});

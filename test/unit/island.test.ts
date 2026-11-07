@@ -3,6 +3,7 @@ import {
   DEFAULT_ISLAND,
   type IslandPrefs,
   decideIsland,
+  gameToPropose,
   isGame,
   exeName,
   islandBounds,
@@ -216,5 +217,53 @@ describe('foreground watcher', () => {
     expect(watcher.recent.map(r => r.exe)).toEqual(['warframe.x64.exe']);
     watcher.dispose();
     void changes;
+  });
+});
+
+describe('island v2: modes, questions, size', () => {
+  it('track mode: only during a peek; a peek or a question shows the island in any mode but off', () => {
+    expect(decideIsland(prefs({ mode: 'track' }), null, true).visible).toBe(false);
+    expect(decideIsland(prefs({ mode: 'track' }), null, true, { peek: true, prompt: false }).visible).toBe(true);
+    expect(decideIsland(prefs({ mode: 'games' }), null, true, { peek: true, prompt: false }).visible).toBe(true);
+    expect(decideIsland(prefs({ mode: 'games' }), null, false, { peek: false, prompt: true }).visible).toBe(true);
+    expect(decideIsland(prefs({ mode: 'off' }), null, true, { peek: true, prompt: true }).visible).toBe(false);
+  });
+
+  it('offers a game once: not listed, not declined, not postponed', () => {
+    const g = { exe: 'alpha.exe', title: 'Alpha', fullscreen: true, game: true };
+    expect(gameToPropose(prefs({ mode: 'games' }), g, new Set())).toBe(g);
+    expect(gameToPropose(prefs({ mode: 'games', declined: ['alpha.exe'] }), g, new Set())).toBeNull();
+    expect(gameToPropose(prefs({ mode: 'games' }), g, new Set(['alpha.exe']))).toBeNull();
+    expect(
+      gameToPropose(
+        prefs({ mode: 'games', games: [{ exe: 'alpha.exe', name: 'A', enabled: false, position: 'left' }] }),
+        g,
+        new Set(),
+      ),
+    ).toBeNull();
+    expect(gameToPropose(prefs({ mode: 'games' }), { ...g, game: false }, new Set())).toBeNull();
+    expect(gameToPropose(prefs({ mode: 'off' }), g, new Set())).toBeNull();
+  });
+
+  it('new preferences: declined list, shortcut, size, opacity', () => {
+    const p = sanitizeIsland({
+      games: [{ exe: 'a.exe' }],
+      declined: ['B.EXE', 'b.exe', 'a.exe', 'notes.txt'],
+      shortcut: 'Ctrl+Alt+K',
+      size: 'xlarge',
+      opacity: 20,
+    });
+    expect(p.declined).toEqual(['b.exe']);
+    expect(p).toMatchObject({ shortcut: 'Ctrl+Alt+K', size: 'xlarge', opacity: 50 });
+    expect(sanitizeIsland({ size: 'huge', opacity: 'x' })).toMatchObject({
+      size: 'normal',
+      opacity: 94,
+      shortcut: 'Ctrl+Alt+I',
+    });
+  });
+
+  it('the window grows with the size', () => {
+    const display = { x: 0, y: 0, width: 1920, height: 1080 };
+    expect(islandBounds(display, 'center', 1.2)).toEqual({ x: 684, y: 0, width: 552, height: 180 });
   });
 });

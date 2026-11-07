@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0-beta.2
+
+- Settings window: always opens in front, also when the player is pinned on top; failures are logged.
+- Google sign-in: the pages Google may show during a first sign-in (recovery options, security checks on gds.google.com, myaccount.google.com, www.google.com) are allowed; blocked navigations are written to the diagnostic log.
+- First start: the splash screen goes away as soon as YouTube Music is usable instead of waiting for the page to load completely (which could take minutes), and never stays more than 20 seconds.
+
 ## 2.1.0-beta.1
 
 - **Island** (optional, off by default): a pill at the top of the screen showing a small cover and the lyric line being sung (or title and artist). On hover it grows to show the cover, title, artist, progress and the next track, with play/pause and next. Position (left, center, right), display and clock (hidden, left, right) are configurable. It never takes the focus and works while the player window is hidden.

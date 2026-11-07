@@ -9,6 +9,10 @@ const ALLOWED_HOSTS = new Set([
   'consent.youtube.com',
   'consent.google.com',
   'www.youtube.com',
+  // Pages Google may show during a first sign-in (recovery options, security checks).
+  'gds.google.com',
+  'myaccount.google.com',
+  'www.google.com',
 ]);
 
 /**

@@ -8,6 +8,8 @@ describe('YouTube Music view navigation', () => {
       'https://accounts.google.com/signin',
       'https://accounts.google.fr/x',
       'https://accounts.google.co.uk/x',
+      'https://gds.google.com/web/recoveryoptions',
+      'https://myaccount.google.com/',
       'https://accounts.google.com.br/x',
       'https://consent.youtube.com/m',
     ])

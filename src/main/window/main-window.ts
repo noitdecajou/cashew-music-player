@@ -86,6 +86,8 @@ export class MainWindow {
     contents.on('did-start-navigation', event => {
       if (event.isMainFrame && !event.isSameDocument) this.setMusicLoading(true);
     });
+    // The page is usable at dom-ready; its full load can wait on slow resources for minutes.
+    contents.on('dom-ready', () => this.setMusicLoading(false));
     contents.on('did-finish-load', () => this.setMusicLoading(false));
     contents.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
       if (isMainFrame && code !== -3) this.setMusicLoading(false);
@@ -224,7 +226,13 @@ export class MainWindow {
     this.layout();
   }
 
+  private loadingTimer: NodeJS.Timeout | null = null;
+
   private setMusicLoading(loading: boolean): void {
+    if (this.loadingTimer) clearTimeout(this.loadingTimer);
+    this.loadingTimer = null;
+    // Never leave the splash up for long: after 20 s, show the page as it is.
+    if (loading) this.loadingTimer = setTimeout(() => this.setMusicLoading(false), 20000);
     if (loading === this.ui.musicLoading) return;
     this.setUi({ musicLoading: loading });
     this.layout();

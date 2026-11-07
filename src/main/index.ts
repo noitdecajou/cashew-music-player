@@ -20,6 +20,7 @@ import type {
   SearchScope,
   Settings,
   SettingsPatch,
+  SettingsSection,
   UiState,
   WindowAction,
 } from '../shared/ipc';
@@ -147,7 +148,10 @@ function main(): void {
     app.on('child-process-gone', (_event, details) => log('child process gone', details));
     if (app.isPackaged) checkInstallation();
     const prefs = new PreferenceStore(userData);
-    const ytm = new YtmView(host => notice(`Navigation bloquée : ${host}`));
+    const ytm = new YtmView(host => {
+      log(`navigation blocked: ${host}`);
+      notice(`Navigation bloquée : ${host}`);
+    });
     let snapshot: PlayerSnapshot = EMPTY_SNAPSHOT;
 
     const loadRenderer = (contents: Electron.WebContents, view?: 'drawer'): void => loadPage(contents, 'index', view);
@@ -173,12 +177,22 @@ function main(): void {
       contents => loadPage(contents, 'settings'),
       contents => {
         watchPage('settings', contents, () => contents.send('ui:state', window.state));
+        contents.on('did-finish-load', () => log('settings: loaded'));
         contents.on('did-finish-load', () => {
           contents.send('ui:state', window.state);
           contents.send('update:state', updater.state);
         });
       },
+      () => window.state.pinned,
     );
+    /** Opening the settings must never fail silently. */
+    function openSettings(section?: SettingsSection): void {
+      try {
+        settingsWindow.open(section);
+      } catch (error) {
+        notice(`Impossible d’ouvrir les réglages : ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
     let lyricsState: LyricsState | null = null;
     const island = new IslandWindow(
       contents => loadPage(contents, 'island'),
@@ -354,7 +368,7 @@ function main(): void {
     ipcMain.on('shell:window', (event, action) => {
       if (!fromUi(event) || !WINDOW_ACTIONS.includes(action)) return;
       if (action === 'repair-display') repairDisplay();
-      else if (action === 'toggle-settings') settingsWindow.open();
+      else if (action === 'toggle-settings') openSettings();
       else window.action(action);
     });
     ipcMain.on('shell:drag', (event, phase) => {
@@ -646,8 +660,8 @@ function main(): void {
       },
       command: type => ytm.send({ type }),
       quit: () => app.quit(),
-      update: () => settingsWindow.open('updates'),
-      settings: () => settingsWindow.open(),
+      update: () => openSettings('updates'),
+      settings: () => openSettings(),
       repair: () => repairDisplay(),
       openLogs: () => {
         void electronShell.openPath(logDirectory);

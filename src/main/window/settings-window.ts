@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, screen } from 'electron';
 import { log } from '../services/log';
 import { ICON, guardPage } from './main-window';
 import type { PageLoader } from './island-window';
@@ -16,7 +16,25 @@ export class SettingsWindow {
     private readonly onCreated: (contents: Electron.WebContents) => void,
     /** The player is pinned on top: the settings must come above it. */
     private readonly playerOnTop: () => boolean,
+    /** Where the player is: the settings open on the same display. */
+    private readonly playerBounds: () => Electron.Rectangle,
   ) {}
+
+  /** Centered on the player's display (moved there if it is on another one). */
+  private placeNearPlayer(win: BrowserWindow, force: boolean): void {
+    const target = screen.getDisplayMatching(this.playerBounds());
+    if (!force && screen.getDisplayMatching(win.getBounds()).id === target.id) return;
+    const area = target.workArea;
+    const { width, height } = win.getBounds();
+    const w = Math.min(width, area.width);
+    const h = Math.min(height, area.height);
+    win.setBounds({
+      x: area.x + Math.round((area.width - w) / 2),
+      y: area.y + Math.round((area.height - h) / 2),
+      width: w,
+      height: h,
+    });
+  }
 
   get contents(): Electron.WebContents | null {
     return this.win && !this.win.isDestroyed() ? this.win.webContents : null;
@@ -33,6 +51,7 @@ export class SettingsWindow {
 
   private bringToFront(win: BrowserWindow): void {
     if (win.isMinimized()) win.restore();
+    this.placeNearPlayer(win, false);
     win.setAlwaysOnTop(this.playerOnTop(), 'normal');
     if (!win.isVisible()) win.show();
     win.moveTop();
@@ -74,7 +93,7 @@ export class SettingsWindow {
     this.onCreated(win.webContents);
     if (section) win.webContents.once('did-finish-load', () => win.webContents.send('settings:section', section));
     this.load(win.webContents);
-    win.center();
+    this.placeNearPlayer(win, true);
     this.bringToFront(win);
   }
 

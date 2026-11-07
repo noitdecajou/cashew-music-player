@@ -77,7 +77,7 @@ describe('lyrics requests', () => {
   it('waits for the duration, fetches once, then serves the cache', async () => {
     const { fetcher, urls } = fake(() => reply(200, { syncedLyrics: '[00:01.00] Hi' }));
     const states: LyricsState[] = [];
-    const lyrics = new Lyrics(fetcher, s => states.push(s), 50);
+    const lyrics = new Lyrics(fetcher, s => states.push(s), 20, 60);
     lyrics.show(track, 0, true);
     expect(states.at(-1)?.status).toBe('loading');
     expect(urls).toHaveLength(0);
@@ -92,10 +92,48 @@ describe('lyrics requests', () => {
     lyrics.dispose();
   });
 
+  it('uses the duration reported after the track settles, not the first one', async () => {
+    const { fetcher, urls } = fake(() => reply(200, { syncedLyrics: '[00:01.00] Hi' }));
+    const lyrics = new Lyrics(fetcher, () => {}, 30, 60);
+    lyrics.show(track, 0, true);
+    lyrics.show(track, 185, true); // the previous track's duration, still reported
+    await new Promise(r => setTimeout(r, 10));
+    lyrics.show(track, 212, true);
+    await vi.waitFor(() => expect(urls).toHaveLength(1));
+    expect(urls[0]?.searchParams.get('duration')).toBe('212');
+    lyrics.dispose();
+  });
+
+  it('a miss is tried again the next time the track plays; turning the option on fetches', async () => {
+    let found = false;
+    const { fetcher, urls } = fake(url =>
+      found
+        ? reply(200, { syncedLyrics: '[00:01.00] Hi' })
+        : url.pathname.endsWith('/get')
+          ? reply(404, {})
+          : reply(200, []),
+    );
+    const states: LyricsState[] = [];
+    const lyrics = new Lyrics(fetcher, s => states.push(s), 0, 0);
+    lyrics.show(track, 200, true);
+    await vi.waitFor(() => expect(states.at(-1)?.status).toBe('none'));
+    found = true;
+    lyrics.show({ ...track, id: 'BBBBBBBBBBB' }, 0, false);
+    lyrics.show(track, 200, true);
+    await vi.waitFor(() => expect(states.at(-1)?.status).toBe('synced'));
+    lyrics.show(track, 200, false);
+    expect(states.at(-1)?.status).toBe('off');
+    const before = urls.length;
+    lyrics.show(track, 200, true);
+    expect(states.at(-1)?.status).toBe('synced'); // from the cache
+    expect(urls).toHaveLength(before);
+    lyrics.dispose();
+  });
+
   it('searches without the duration when it does not come', async () => {
     const { fetcher, urls } = fake(() => reply(200, [{ duration: 100, syncedLyrics: '[00:01.00] Hi' }]));
     const states: LyricsState[] = [];
-    const lyrics = new Lyrics(fetcher, s => states.push(s), 20);
+    const lyrics = new Lyrics(fetcher, s => states.push(s), 10, 20);
     lyrics.show(track, 0, true);
     await vi.waitFor(() => expect(states.at(-1)?.status).toBe('synced'));
     expect(urls.map(u => u.pathname)).toEqual(['/api/search']);
@@ -107,7 +145,7 @@ describe('lyrics requests', () => {
       throw new Error('offline');
     });
     const states: LyricsState[] = [];
-    const lyrics = new Lyrics(fetcher, s => states.push(s));
+    const lyrics = new Lyrics(fetcher, s => states.push(s), 10, 20);
     lyrics.show(track, 200, true);
     await vi.waitFor(() => expect(states.at(-1)?.status).toBe('none'));
     lyrics.show(track, 200, true);
@@ -121,8 +159,9 @@ describe('lyrics requests', () => {
         release = () => resolve(reply(200, { syncedLyrics: '[00:01.00] Old' }));
       });
     const states: LyricsState[] = [];
-    const lyrics = new Lyrics(slow, s => states.push(s));
+    const lyrics = new Lyrics(slow, s => states.push(s), 0, 0);
     lyrics.show(track, 200, true);
+    await new Promise(r => setTimeout(r, 5));
     lyrics.show({ ...track, id: 'BBBBBBBBBBB' }, 0, false);
     release();
     await new Promise(r => setTimeout(r, 10));

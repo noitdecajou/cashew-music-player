@@ -141,3 +141,19 @@ describe('synced lyrics', () => {
     expect(sanitizeLyrics({ trackId: 'x', status: 'stolen', lines: [] })).toBeNull();
   });
 });
+
+describe('fullscreen detection', () => {
+  it('a window covering its monitor, within a few pixels, is fullscreen', async () => {
+    const { coversMonitor } = await import('../../src/main/services/foreground');
+    const monitor = { left: 1920, top: 0, right: 3840, bottom: 1080 };
+    expect(coversMonitor(monitor, monitor)).toBe(true);
+    expect(coversMonitor({ left: 1921, top: 0, right: 3839, bottom: 1079 }, monitor)).toBe(true); // borderless, 1 px short
+    expect(coversMonitor({ left: 1920, top: 0, right: 3840, bottom: 1040 }, monitor)).toBe(false); // maximized, taskbar visible
+    expect(coversMonitor({ left: 0, top: 0, right: 1920, bottom: 1080 }, monitor)).toBe(false); // another monitor
+  });
+  it('an application without a readable executable still counts as fullscreen', () => {
+    expect(
+      decideIsland(prefs({ mode: 'games' }), { exe: '', title: 'Protected game', fullscreen: true }, true).visible,
+    ).toBe(true);
+  });
+});

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0-beta.3
+
+- Settings window: opens on the display of the player window (and moves there if it was left on another one).
+- Lyrics: in time with the singing (the clock is estimated between the player's position reports, lines show slightly ahead, shorter transition); after a track change, the request waits for the new track's duration, so lyrics no longer stop after the first song; a miss is tried again the next time the track plays. The option reads "Afficher les paroles" (off: title and artist only).
+- Game detection: windows a few pixels short of the full screen, Windows' own "full-screen application" signal, and games whose executable cannot be read now count; detection also runs in "always" mode and while the settings are open, and no longer stops after errors. The Games section shows the last application detected in front, live.
+
 ## 2.1.0-beta.2
 
 - Settings window: always opens in front, also when the player is pinned on top; failures are logged.

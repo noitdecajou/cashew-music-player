@@ -143,6 +143,7 @@ test('island in games mode: listed games decide, other fullscreen apps when dete
   );
   setForeground(null);
   await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'back to the desktop' });
+  assert.equal((await h.shell.evaluate(() => window.player.settings())).foreground.app.exe, 'other.exe', 'last seen');
 });
 
 test('settings window: island and games sections drive the island', async () => {
@@ -155,6 +156,7 @@ test('settings window: island and games sections drive the island', async () => 
   );
   await page.click('.sidebar [data-section="games"]');
   assert.equal(await page.locator('.games .game').count(), 2);
+  assert.match(await page.textContent('.detected'), /Other game \(other\.exe\) · plein écran détecté/);
   await page.click('.games .game[data-exe="quiet.exe"] button.icon');
   await h.until(async () => (await page.locator('.games .game').count()) === 1, { message: 'game removed' });
   await page.selectOption('.games .game[data-exe="game.exe"] select', 'right');

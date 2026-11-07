@@ -233,3 +233,16 @@ body.settings-view {
 .about .wordmark {
   font-size: 22px;
 }
+
+.detected {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.detected:empty {
+  display: none;
+}

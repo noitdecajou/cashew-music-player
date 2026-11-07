@@ -87,11 +87,11 @@
           ><button data-value="right">À droite</button>
         </div>
         <h3>Paroles</h3>
-        <label class="check"><input type="checkbox" id="islandLyrics" /> Paroles synchronisées (LRCLIB)</label>
+        <label class="check"><input type="checkbox" id="islandLyrics" /> Afficher les paroles</label>
         <p class="hint">
-          Le titre, l’artiste, l’album et la durée du morceau sont envoyés à lrclib.net, une base de paroles libre, pour
-          trouver les paroles. YouTube Music ne fournit pas de paroles synchronisées. Sans paroles, l’island affiche le
-          titre et l’artiste.
+          Désactivé : l’island affiche le titre et l’artiste. Activé : les paroles synchronisées viennent de lrclib.net,
+          une base de paroles libre, à qui sont envoyés le titre, l’artiste, l’album et la durée du morceau (YouTube
+          Music ne fournit pas de paroles synchronisées). Sans paroles trouvées, l’island affiche le titre et l’artiste.
         </p>
       </section>
 
@@ -99,6 +99,7 @@
         <h2>Jeux</h2>
         <p class="hint games-mode-hint"></p>
         <p class="hint games-unsupported" hidden>La détection des jeux fonctionne sous Windows.</p>
+        <p class="detected" aria-live="polite"></p>
         <label class="check"
           ><input type="checkbox" id="autoFullscreen" /> Afficher l’island au-dessus de toute application en plein écran
           (jeux non listés)</label

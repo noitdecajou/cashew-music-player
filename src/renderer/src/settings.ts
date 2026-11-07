@@ -306,6 +306,18 @@ function render(settings: Settings): void {
       : 'Ces réglages servent quand l’island est réglée sur « Seulement en jeu » (section Island).',
   );
   $('.games-unsupported').hidden = settings.gamesSupported;
+  const seen = settings.foreground.app;
+  setText(
+    $('.detected'),
+    !settings.gamesSupported
+      ? ''
+      : seen
+        ? `Dernière application au premier plan : ${seen.title || seen.exe}${seen.exe ? ` (${seen.exe})` : ''} · ` +
+          (seen.fullscreen ? 'plein écran détecté' : 'pas en plein écran')
+        : settings.foreground.error
+          ? `Détection en échec : ${settings.foreground.error}`
+          : 'Bascule sur ton jeu (Alt+Tab) puis reviens ici : il s’affichera ci-dessous.',
+  );
   $<HTMLInputElement>('#autoFullscreen').checked = island.autoFullscreen;
   const list = $('.games');
   list.replaceChildren(
@@ -340,5 +352,9 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && document.activeElement !== shortcut) window.close();
 });
 window.addEventListener('focus', () => void refresh());
+// The Games section follows the detection live.
+window.setInterval(() => {
+  if (!$('section[data-section="games"]').hidden && document.visibilityState === 'visible') void refresh();
+}, 2000);
 void refresh();
 void current;

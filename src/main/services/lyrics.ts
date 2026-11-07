@@ -44,19 +44,25 @@ export class Lyrics {
   private readonly cache = new Map<string, LyricsState>();
   private current = '';
   private started = '';
+  private disabledFor = '';
+  private duration = 0;
   private generation = 0;
   private timer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly fetcher: Fetcher,
     private readonly publish: (state: LyricsState) => void,
-    private readonly durationWaitMs = 2500,
+    /** Right after a track change the player may still report the previous duration. */
+    private readonly settleMs = 1500,
+    /** Without a duration by then, search by title and artist only. */
+    private readonly durationWaitMs = 4000,
   ) {}
 
   /**
    * The island shows `track`: publish what is known, fetch the rest once. Called on
-   * every track change and when the duration becomes known; LRCLIB matches on the
-   * duration (±2 s), so the request waits a little for it, then searches without.
+   * every track change and with each duration report. LRCLIB matches on the
+   * duration (±2 s): the request waits for the duration to settle, then uses the
+   * latest one reported for this track.
    */
   show(track: LyricsTrack | null, duration: number, enabled: boolean): void {
     if (!track) {
@@ -64,51 +70,67 @@ export class Lyrics {
       return;
     }
     if (!enabled) {
-      this.reset(track.id);
-      this.publish({ trackId: track.id, status: 'off', lines: [] });
+      // Forget the track: turning the option back on fetches it.
+      if (this.disabledFor !== track.id) {
+        this.reset('');
+        this.disabledFor = track.id;
+        this.publish({ trackId: track.id, status: 'off', lines: [] });
+      }
       return;
     }
+    this.disabledFor = '';
     const cached = this.cache.get(track.id);
     if (cached) {
-      this.reset(track.id);
-      this.started = track.id;
-      this.publish(cached);
+      if (this.current !== track.id || this.started !== track.id) {
+        this.reset(track.id);
+        this.started = track.id;
+        this.publish(cached);
+      }
       return;
     }
-    if (this.started === track.id) return;
     if (this.current !== track.id) {
       this.reset(track.id);
       this.publish({ trackId: track.id, status: 'loading', lines: [] });
+      this.timer = setTimeout(() => this.settled(track), this.settleMs);
     }
-    if (duration > 0) this.start(track, duration);
-    else this.timer ??= setTimeout(() => this.start(track, 0), this.durationWaitMs);
+    if (duration > 0) this.duration = duration;
   }
 
   dispose(): void {
     this.reset('');
   }
 
+  private settled(track: LyricsTrack): void {
+    this.timer = null;
+    if (this.duration > 0) this.start(track);
+    else this.timer = setTimeout(() => this.start(track), Math.max(0, this.durationWaitMs - this.settleMs));
+  }
+
   private reset(trackId: string): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
-    if (trackId !== this.current) this.started = '';
+    if (trackId !== this.current) {
+      this.started = '';
+      this.duration = 0;
+    }
     this.current = trackId;
     this.generation++;
   }
 
-  private start(track: LyricsTrack, duration: number): void {
+  private start(track: LyricsTrack): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     if (this.current !== track.id || this.started === track.id) return;
     this.started = track.id;
     const generation = ++this.generation;
-    void this.fetchLyrics(track, duration).then(
+    void this.fetchLyrics(track, this.duration).then(
       state => {
-        this.remember(state);
+        // Only found lyrics are kept: a miss is tried again the next time the track plays.
+        if (state.status === 'synced') this.remember(state);
         if (generation === this.generation) this.publish(state);
       },
       () => {
-        // Network error: show the title; a later track tries again.
+        // Network error: show the title; the next time the track plays tries again.
         if (generation === this.generation) this.publish({ trackId: track.id, status: 'none', lines: [] });
       },
     );
@@ -153,7 +175,9 @@ export class Lyrics {
     });
     const candidates = (Array.isArray(results) ? results : []) as LrclibRecord[];
     const synced = candidates.filter(r => typeof r.syncedLyrics === 'string' && r.syncedLyrics);
-    const close = duration > 0 ? synced.filter(r => Math.abs(Number(r.duration) - duration) <= 3) : synced;
+    // The closest duration wins (a different cut of the song is likely off by more than 10 s).
+    const gap = (r: LrclibRecord): number => Math.abs(Number(r.duration) - duration) || 0;
+    const close = duration > 0 ? synced.filter(r => gap(r) <= 10).sort((a, b) => gap(a) - gap(b)) : synced;
     return fromRecord(close[0] ?? null) ?? none;
   }
 }

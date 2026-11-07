@@ -8,13 +8,35 @@ import { type Foreground, exeName } from '../../shared/island';
 
 export type ForegroundReader = () => Foreground | null;
 
+/** The foreground window covers its whole monitor (within a few pixels). */
+export function coversMonitor(
+  window: { left: number; top: number; right: number; bottom: number },
+  monitor: { left: number; top: number; right: number; bottom: number },
+): boolean {
+  const t = EDGE_TOLERANCE;
+  return (
+    window.left <= monitor.left + t &&
+    window.top <= monitor.top + t &&
+    window.right >= monitor.right - t &&
+    window.bottom >= monitor.bottom - t
+  );
+}
+
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+/** Windows' own "a full-screen application is running" states (SHQueryUserNotificationState). */
+const QUNS_BUSY = 2;
+const QUNS_RUNNING_D3D_FULL_SCREEN = 3;
+/** Borderless games may stop a few pixels short of the monitor edges. */
+const EDGE_TOLERANCE = 4;
 const MONITOR_DEFAULTTONEAREST = 2;
 /** Shell windows: the desktop is "fullscreen" too but never a game. */
 const SHELL_CLASSES = new Set(['Progman', 'WorkerW', 'Shell_TrayWnd', 'Shell_SecondaryTrayWnd']);
 
 /** Reads the foreground window on Windows; null when unavailable. */
-export function windowsForeground(log: (...parts: unknown[]) => void): ForegroundReader | null {
+export function windowsForeground(
+  log: (...parts: unknown[]) => void,
+  onError: (message: string) => void = () => {},
+): ForegroundReader | null {
   if (process.platform !== 'win32') return null;
   try {
     const koffi = require('koffi') as typeof import('koffi');
@@ -49,6 +71,13 @@ export function windowsForeground(log: (...parts: unknown[]) => void): Foregroun
       'int __stdcall QueryFullProcessImageNameW(void *hProcess, uint32 dwFlags, _Out_ uint16 *lpExeName, _Inout_ uint32 *lpdwSize)',
     );
     const CloseHandle = kernel32.func('int __stdcall CloseHandle(void *hObject)');
+    let notificationState: ((state: number[]) => number) | null = null;
+    try {
+      const shell32 = koffi.load('shell32.dll');
+      notificationState = shell32.func('int32 __stdcall SHQueryUserNotificationState(_Out_ int32 *pquns)');
+    } catch (error) {
+      log('foreground: no notification state', error);
+    }
 
     const wide = (read: (buffer: Uint16Array, size: number) => number, size = 260): string => {
       const buffer = new Uint16Array(size);
@@ -57,18 +86,18 @@ export function windowsForeground(log: (...parts: unknown[]) => void): Foregroun
     };
     const own = process.pid;
     let failures = 0;
+    log('foreground: ready');
 
     return () => {
-      if (failures > 5) return null; // something is wrong with this system: stop trying
       try {
         const hwnd = GetForegroundWindow();
         if (!hwnd) return null;
         if (SHELL_CLASSES.has(wide((b, n) => GetClassNameW(hwnd, b, n), 128))) return null;
         const pid = [0];
         GetWindowThreadProcessId(hwnd, pid);
-        if (!pid[0] || pid[0] === own) return null;
-        const handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid[0]);
+        if (pid[0] === own) return null;
         let path = '';
+        const handle = pid[0] ? OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid[0]) : null;
         if (handle) {
           try {
             const size = [1024];
@@ -79,8 +108,8 @@ export function windowsForeground(log: (...parts: unknown[]) => void): Foregroun
             CloseHandle(handle);
           }
         }
+        // Some protected games refuse to name their executable: they still count as fullscreen apps.
         const exe = exeName(path);
-        if (!exe) return null;
         const rect = { left: 0, top: 0, right: 0, bottom: 0 };
         const info = {
           cbSize: koffi.sizeof(MONITORINFO),
@@ -89,20 +118,26 @@ export function windowsForeground(log: (...parts: unknown[]) => void): Foregroun
           dwFlags: 0,
         };
         let fullscreen = false;
-        if (GetWindowRect(hwnd, rect) && GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), info)) {
-          const m = info.rcMonitor;
-          fullscreen = rect.left <= m.left && rect.top <= m.top && rect.right >= m.right && rect.bottom >= m.bottom;
+        if (GetWindowRect(hwnd, rect) && GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), info))
+          fullscreen = coversMonitor(rect, info.rcMonitor);
+        if (!fullscreen && notificationState) {
+          const state = [0];
+          if (notificationState(state) === 0)
+            fullscreen = state[0] === QUNS_BUSY || state[0] === QUNS_RUNNING_D3D_FULL_SCREEN;
         }
         failures = 0;
-        return { exe, title: wide((b, n) => GetWindowTextW(hwnd, b, n), 200).slice(0, 80), fullscreen };
+        const title = wide((b, n) => GetWindowTextW(hwnd, b, n), 200).slice(0, 80);
+        return exe || title ? { exe, title, fullscreen } : null;
       } catch (error) {
-        failures++;
-        log('foreground: read failed', error);
+        // Keep trying (the next window may be fine); log the first failures only.
+        if (failures++ < 3) log('foreground: read failed', error);
+        onError(error instanceof Error ? error.message : String(error));
         return null;
       }
     };
   } catch (error) {
     log('foreground: unavailable', error);
+    onError(error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -126,6 +161,8 @@ export class ForegroundWatcher {
   private last: Foreground | null = null;
   /** Fullscreen applications seen recently, newest first: offered in the game list. */
   readonly recent: Foreground[] = [];
+  /** Last application seen in front (diagnostics in the settings). */
+  lastSeen: Foreground | null = null;
 
   constructor(
     private readonly read: ForegroundReader | null,
@@ -158,7 +195,8 @@ export class ForegroundWatcher {
 
   private tick(): void {
     const now = this.read?.() ?? null;
-    if (now?.fullscreen) {
+    if (now) this.lastSeen = now;
+    if (now?.fullscreen && now.exe) {
       const index = this.recent.findIndex(r => r.exe === now.exe);
       if (index >= 0) this.recent.splice(index, 1);
       this.recent.unshift(now);

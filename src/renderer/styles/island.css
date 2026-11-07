@@ -108,12 +108,12 @@ body.pos-right {
   color: #e4e4ea;
 }
 .line .text.enter {
-  animation: line-in 0.28s ease-out;
+  animation: line-in 0.16s ease-out;
 }
 @keyframes line-in {
   from {
-    opacity: 0;
-    transform: translateY(6px);
+    opacity: 0.35;
+    transform: translateY(3px);
   }
 }
 .clock {

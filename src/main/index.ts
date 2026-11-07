@@ -178,12 +178,15 @@ function main(): void {
       contents => {
         watchPage('settings', contents, () => contents.send('ui:state', window.state));
         contents.on('did-finish-load', () => log('settings: loaded'));
+        contents.once('destroyed', () => setImmediate(refreshIsland));
+        setImmediate(refreshIsland);
         contents.on('did-finish-load', () => {
           contents.send('ui:state', window.state);
           contents.send('update:state', updater.state);
         });
       },
       () => window.state.pinned,
+      () => window.win.getBounds(),
     );
     /** Opening the settings must never fail silently. */
     function openSettings(section?: SettingsSection): void {
@@ -483,6 +486,7 @@ function main(): void {
       recentApps: foreground.recent
         .filter(r => !prefs.value.island.games.some(g => g.exe === r.exe))
         .map(r => ({ exe: r.exe, title: r.title })),
+      foreground: { app: foreground.lastSeen, error: foregroundError },
     });
     handle('settings:get', () => settings());
     handle('settings:update', raw => {
@@ -531,15 +535,19 @@ function main(): void {
 
     // --- Island: visibility, games, lyrics ------------------------------------
     let islandDecision = decideIsland(prefs.value.island, null, false);
+    let foregroundError = '';
     const foreground = new ForegroundWatcher(
       process.env.MP_FAKE_FOREGROUND && !app.isPackaged
         ? fileForeground(process.env.MP_FAKE_FOREGROUND)
-        : windowsForeground(log),
+        : windowsForeground(log, message => {
+            foregroundError = message;
+          }),
       () => refreshIsland(),
     );
     function refreshIsland(): void {
       const p = prefs.value.island;
-      foreground.setActive(p.mode === 'games');
+      // Also while the settings are open: the Games section lists what is detected.
+      foreground.setActive(p.mode !== 'off' || !!settingsWindow.contents);
       const decision = decideIsland(p, foreground.current, !!snapshot.track);
       const moved = decision.position !== islandDecision.position;
       islandDecision = decision;
@@ -571,12 +579,9 @@ function main(): void {
         island.contents?.send('lyrics:state', state);
       },
     );
-    let lastDuration = 0;
     function showLyrics(duration: number): void {
-      if (duration > 0) lastDuration = duration;
-      if (snapshot.track?.id && duration === 0) lastDuration = 0;
       if (prefs.value.island.mode === 'off') return;
-      lyrics.show(snapshot.track, lastDuration, prefs.value.island.lyrics);
+      lyrics.show(snapshot.track, duration, prefs.value.island.lyrics);
     }
 
     // --- Updates (GitHub Releases) -------------------------------------------

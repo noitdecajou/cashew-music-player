@@ -22,6 +22,11 @@ const playIcon = $<SVGUseElement>('.play use');
 let snapshot: PlayerSnapshot | null = null;
 let lyrics: LyricsState | null = null;
 let progress: PlayerProgress | null = null;
+/** When the last position arrived: the player reports it ~4 times a second, the clock in between is estimated. */
+let progressAt = 0;
+/** Lines appear this much before their time stamp, so they read as they are sung. */
+const LEAD_SECONDS = 0.3;
+let ticker = 0;
 let shownLine = '';
 let expanded = false;
 
@@ -38,12 +43,34 @@ function setArt(url: string): void {
 }
 
 /** The compact text: the line being sung, else "title — artist". */
+function isPlaying(): boolean {
+  return snapshot?.status === 'playing';
+}
+
+/** The position now: the last one reported, plus the time elapsed while playing (at most 1 s). */
+function estimatedPosition(): number {
+  if (!progress) return 0;
+  const elapsed = isPlaying() ? Math.min((performance.now() - progressAt) / 1000, 1) : 0;
+  const position = progress.position + elapsed;
+  return progress.duration > 0 ? Math.min(position, progress.duration) : position;
+}
+
+/** While synced lyrics play, the line follows the estimated clock (10 times a second). */
+function updateTicker(): void {
+  const active = isPlaying() && lyrics?.status === 'synced' && lyrics.trackId === snapshot?.track?.id && !island.hidden;
+  if (active && !ticker) ticker = window.setInterval(renderLine, 100);
+  else if (!active && ticker) {
+    window.clearInterval(ticker);
+    ticker = 0;
+  }
+}
+
 function renderLine(): void {
   const track = snapshot?.track;
   let text = track ? [track.title, track.artist].filter(Boolean).join(' — ') : '';
   let isLyric = false;
   if (track && lyrics?.trackId === track.id && lyrics.status === 'synced' && progress?.trackId === track.id) {
-    const index = lineAt(lyrics.lines, progress.position + 0.2);
+    const index = lineAt(lyrics.lines, estimatedPosition() + LEAD_SECONDS);
     const sung = index >= 0 ? lyrics.lines[index]?.text : undefined;
     if (sung) {
       text = sung;
@@ -123,14 +150,17 @@ $('.next').addEventListener('click', () => api.command({ type: 'next' }));
 api.on('player:snapshot', value => {
   snapshot = value;
   renderSnapshot();
+  updateTicker();
 });
 api.on('player:progress', value => {
   progress = value;
+  progressAt = performance.now();
   renderLine();
   if (expanded) renderProgress();
 });
 api.on('lyrics:state', value => {
   lyrics = value;
   renderLine();
+  updateTicker();
 });
 api.on('island:view', applyView);

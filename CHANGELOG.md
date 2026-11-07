@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.0
+
+- **Island** (optional, off by default): a pill at the top of the screen with a small cover and the lyric line being sung, or title and artist. On hover: cover, title, artist, progress (click to seek), next track, play/pause and next; the mouse wheel sets the volume. Shown always, for a few seconds at each track change, or only over games. Position, display, clock, size and opacity are configurable, and a customizable shortcut (Ctrl+Alt+I) shows the details without the mouse. It never takes the focus and works while the player is hidden.
+- **Synced lyrics** from LRCLIB (optional): in time with the singing, kept on disk once found.
+- **Games**: games are recognized by their install folder (Steam, Epic Games, GOG, Ubisoft, EA, Riot, Xbox…) or because Windows knows them, never because they are fullscreen (browsers and videos never count). The island offers each new game (add, decline, later); per-game settings (shown or not, position). Nothing is injected into games.
+- **Settings** in their own window with a sidebar, opened on the player's display; "Settings" entry in the notification-area menu.
+- **Fixes**: Google sign-in pages shown during a first sign-in are allowed (sign-in needed two attempts); the splash screen goes away as soon as YouTube Music is usable (first start could take minutes).
+
+The beta notes below detail each step.
+
 ## 2.1.0-beta.5
 
 - New games: when a game not in the list is detected, the island asks whether to add it (Add, Decline, Later). Without an answer after 15 seconds it counts as "Later". Declined games are listed in the settings (add them, or allow them to be proposed again); postponed ones appear under "Recently detected", with Add and Decline.

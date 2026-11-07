@@ -308,7 +308,6 @@ button.play {
 .prompt-view .prompt {
   opacity: 1;
   pointer-events: auto;
-  transition-delay: 0.08s;
 }
 .question {
   display: flex;

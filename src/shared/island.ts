@@ -35,6 +35,8 @@ export interface IslandPrefs {
   size: IslandSize;
   /** Opacity of the pill, 50..100 (%). */
   opacity: number;
+  /** While the mini-player is shown: keep the island, or hide it. */
+  withMini: 'keep' | 'hide';
 }
 
 export const DEFAULT_ISLAND: IslandPrefs = {
@@ -49,6 +51,7 @@ export const DEFAULT_ISLAND: IslandPrefs = {
   shortcut: 'Ctrl+Alt+I',
   size: 'normal',
   opacity: 94,
+  withMini: 'keep',
 };
 
 export const MAX_GAMES = 100;
@@ -105,6 +108,7 @@ export function sanitizeIsland(raw: unknown): IslandPrefs {
     ].slice(0, MAX_GAMES * 2),
     shortcut: typeof v.shortcut === 'string' && v.shortcut.length <= 80 ? v.shortcut : DEFAULT_ISLAND.shortcut,
     size: v.size === 'small' || v.size === 'large' || v.size === 'xlarge' ? v.size : 'normal',
+    withMini: v.withMini === 'hide' ? 'hide' : 'keep',
     opacity:
       typeof v.opacity === 'number' && Number.isFinite(v.opacity)
         ? Math.round(Math.min(100, Math.max(50, v.opacity)))
@@ -212,6 +216,8 @@ export interface IslandDecision {
 export interface IslandMoments {
   peek: boolean;
   prompt: boolean;
+  /** The mini-player is on screen. */
+  mini?: boolean;
 }
 
 /**
@@ -233,6 +239,7 @@ export function decideIsland(
   const position = rule?.position ?? prefs.position;
   if (moments.prompt) return { visible: true, position };
   if (!hasTrack) return hidden;
+  if (moments.mini && prefs.withMini === 'hide') return hidden;
   if (moments.peek) return { visible: true, position };
   if (prefs.mode === 'always') return { visible: true, position };
   if (prefs.mode === 'track' || !foreground) return hidden;

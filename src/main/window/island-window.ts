@@ -64,6 +64,18 @@ export class IslandWindow {
     }
   }
 
+  /** Creates the (hidden) window ahead of time: the first appearance is then instant. */
+  preload(): void {
+    this.ensure();
+  }
+
+  /** Back above the other "always on top" windows (on Windows they share one level). */
+  raise(): void {
+    if (!this.visible || !this.win || this.win.isDestroyed()) return;
+    this.win.setAlwaysOnTop(true, 'screen-saver');
+    this.win.moveTop();
+  }
+
   /** The pointer entered or left the pill. */
   setHover(hover: boolean): void {
     if (!this.win || this.win.isDestroyed()) return;

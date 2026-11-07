@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1
+
+- Island with the mini-player: by default the island stays on screen next to the mini-player; a setting can hide it instead ("Avec le mini-player"). Switching to the mini-player or pinning it no longer puts the island behind it.
+- Games mode: clicking the mini-player or the settings during a game no longer hides the island (cashew's own windows do not count as leaving the game).
+- New-game question appears faster: the island window is prepared in advance, detection runs every second, and the list of games Windows knows is read at startup.
+
 ## 2.1.0
 
 - **Island** (optional, off by default): a pill at the top of the screen with a small cover and the lyric line being sung, or title and artist. On hover: cover, title, artist, progress (click to seek), next track, play/pause and next; the mouse wheel sets the volume. Shown always, for a few seconds at each track change, or only over games. Position, display, clock, size and opacity are configurable, and a customizable shortcut (Ctrl+Alt+I) shows the details without the mouse. It never takes the focus and works while the player is hidden.

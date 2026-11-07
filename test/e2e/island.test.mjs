@@ -197,6 +197,26 @@ test('island in games mode: listed games decide; each new game is offered (add, 
   );
 });
 
+test('island: clicking the mini-player during a game keeps the island; mini-player option', async () => {
+  await settings({ mode: 'games', autoFullscreen: true });
+  setForeground(steamGame('Beta'));
+  await h.until(async () => (await islandWindow()).visible, { timeout: 6000, message: 'over the game' });
+  setForeground({ own: true }); // the mini-player or the settings in front
+  await new Promise(r => setTimeout(r, 3500));
+  assert.equal((await islandWindow()).visible, true, 'still shown');
+  await settings({ mode: 'always' });
+  await h.shell.evaluate(() => window.player.window('toggle-mini'));
+  await h.shell.waitForSelector('body.mini');
+  await new Promise(r => setTimeout(r, 500));
+  assert.equal((await islandWindow()).visible, true, 'both: mini-player and island');
+  await settings({ withMini: 'hide' });
+  await h.until(async () => !(await islandWindow()).visible, { message: 'hidden with the mini-player' });
+  await h.shell.evaluate(() => window.player.window('toggle-mini'));
+  await h.shell.waitForSelector('body.large');
+  await h.until(async () => (await islandWindow()).visible, { message: 'back with the large player' });
+  await settings({ withMini: 'keep' });
+});
+
 test('island: "track change" mode shows the details for a moment at each new track', async () => {
   setForeground(null);
   await settings({ mode: 'track' });

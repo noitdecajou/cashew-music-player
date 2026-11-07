@@ -365,8 +365,15 @@ function main(): void {
     window.onState((state: UiState) => {
       send('ui:state', state);
       updateStreams();
+      // Mini/large switches and pinning put the player back on top: the island goes back above it.
+      refreshIsland();
+      island.raise();
     });
-    for (const event of ['show', 'hide', 'minimize', 'restore'] as const) window.win.on(event as 'show', updateStreams);
+    for (const event of ['show', 'hide', 'minimize', 'restore'] as const)
+      window.win.on(event as 'show', () => {
+        updateStreams();
+        refreshIsland();
+      });
 
     // --- IPC: player and window -------------------------------------------
     ipcMain.on('shell:command', (event, raw) => {
@@ -633,7 +640,11 @@ function main(): void {
       // Also while the settings are open: the Games section lists what is detected.
       foreground.setActive(p.mode !== 'off' || !!settingsWindow.contents);
       updatePrompt();
-      const decision = decideIsland(p, foreground.current, !!snapshot.track, { peek: peeking, prompt: !!prompt });
+      const decision = decideIsland(p, foreground.current, !!snapshot.track, {
+        peek: peeking,
+        prompt: !!prompt,
+        mini: window.state.mini && window.visible,
+      });
       const moved = decision.position !== islandDecision.position;
       islandDecision = decision;
       island.apply(decision.visible, decision.position, p.display, ISLAND_SCALE[p.size]);
@@ -647,7 +658,11 @@ function main(): void {
       const p = prefs.value.island;
       if (p.lyrics !== before.lyrics) showLyrics(0);
       if (p.mode === 'off') islandShortcut.suspend(true);
-      else islandShortcut.suspend(false);
+      else {
+        islandShortcut.suspend(false);
+        foreground.prepare();
+        island.preload();
+      }
       refreshIsland();
       island.contents?.send('island:view', islandView());
     }
@@ -850,6 +865,11 @@ function main(): void {
     loadRenderer(shell);
     ytm.load();
     refreshIsland();
+    // The island ready ahead of time: no delay when it first appears (a game, a question).
+    if (prefs.value.island.mode !== 'off') {
+      foreground.prepare();
+      setTimeout(() => island.preload(), 3000);
+    }
   });
 
   app.on('window-all-closed', () => app.quit());

@@ -14,7 +14,8 @@ export interface RawForeground {
   title: string;
   fullscreen: boolean;
 }
-export type ForegroundReader = () => RawForeground | null;
+/** 'own': one of cashew's windows is in front (mini-player, settings): what was detected before stays. */
+export type ForegroundReader = () => RawForeground | 'own' | null;
 
 /** The foreground window covers its whole monitor (within a few pixels). */
 export function coversMonitor(
@@ -106,7 +107,7 @@ export function windowsForeground(
         if (SHELL_CLASSES.has(wide((b, n) => GetClassNameW(hwnd, b, n), 128))) return null;
         const pid = [0];
         GetWindowThreadProcessId(hwnd, pid);
-        if (pid[0] === own) return null;
+        if (pid[0] === own) return 'own';
         // The executable's path is asked once per process (minimal "query limited
         // information" right, as Task Manager does): games are not touched again
         // while they stay in front.
@@ -160,6 +161,7 @@ export function fileForeground(path: string): ForegroundReader {
   return () => {
     try {
       const v = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+      if (v.own === true) return 'own';
       const full = String(v.path ?? v.exe ?? '');
       const exe = exeName(full);
       return exe
@@ -217,7 +219,7 @@ export class ForegroundWatcher {
     private readonly read: ForegroundReader | null,
     private readonly onChange: (foreground: Foreground | null) => void,
     private readonly loadGames: () => Promise<Set<string>> = async () => new Set(),
-    private readonly intervalMs = 1500,
+    private readonly intervalMs = 1000,
   ) {}
 
   get supported(): boolean {
@@ -231,6 +233,11 @@ export class ForegroundWatcher {
   /** Number of games Windows knows (diagnostics). */
   get knownGames(): number {
     return [...this.windowsGames].filter(g => g.includes('\\')).length;
+  }
+
+  /** Reads the list of games Windows knows ahead of time (it takes a moment). */
+  prepare(): void {
+    if (this.read) this.refreshGames();
   }
 
   setActive(active: boolean): void {
@@ -259,7 +266,9 @@ export class ForegroundWatcher {
 
   private tick(): void {
     this.refreshGames();
-    const raw = this.read?.() ?? null;
+    const read = this.read?.() ?? null;
+    if (read === 'own') return;
+    const raw = read;
     // Alt+Tab or a glance at the desktop: keep the previous state for a moment.
     if (!raw && this.last && this.gaps++ < 2) return;
     this.gaps = 0;

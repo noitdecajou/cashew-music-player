@@ -307,7 +307,7 @@ function render(settings: Settings): void {
   // Island
   const island = settings.island;
   for (const group of $$('.segmented[data-setting]')) {
-    const value = String(island[group.dataset.setting as 'mode' | 'position' | 'clock' | 'size']);
+    const value = String(island[group.dataset.setting as 'mode' | 'position' | 'clock' | 'size' | 'withMini']);
     for (const button of $$('button', group))
       button.setAttribute('aria-checked', String(button.dataset.value === value));
   }

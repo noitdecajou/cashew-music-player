@@ -267,3 +267,36 @@ describe('island v2: modes, questions, size', () => {
     expect(islandBounds(display, 'center', 1.2)).toEqual({ x: 684, y: 0, width: 552, height: 180 });
   });
 });
+
+describe('island with the mini-player', () => {
+  it('kept by default, hidden on request (a question still shows)', () => {
+    const mini = { peek: false, prompt: false, mini: true };
+    expect(decideIsland(prefs({ mode: 'always' }), null, true, mini).visible).toBe(true);
+    expect(decideIsland(prefs({ mode: 'always', withMini: 'hide' }), null, true, mini).visible).toBe(false);
+    expect(
+      decideIsland(prefs({ mode: 'always', withMini: 'hide' }), null, true, { ...mini, prompt: true }).visible,
+    ).toBe(true);
+    expect(sanitizeIsland({}).withMini).toBe('keep');
+  });
+
+  it("cashew's own windows in front do not change what was detected", async () => {
+    const { ForegroundWatcher } = await import('../../src/main/services/foreground');
+    let raw: unknown = {
+      exe: 'game.exe',
+      path: 'D:\\SteamLibrary\\steamapps\\common\\G\\game.exe',
+      title: 'G',
+      fullscreen: true,
+    };
+    const watcher = new ForegroundWatcher(
+      () => raw as never,
+      () => {},
+      async () => new Set(),
+      60_000,
+    );
+    watcher.setActive(true);
+    raw = 'own';
+    for (let i = 0; i < 5; i++) (watcher as unknown as { tick(): void }).tick();
+    expect(watcher.current?.exe).toBe('game.exe');
+    watcher.dispose();
+  });
+});

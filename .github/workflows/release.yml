@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publier la version de package.json (crée l’étiquette v<version>)
+        description: Publish the package.json version (creates the v<version> tag)
         type: boolean
         default: false
 
@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "Seuls les commits de main peuvent être publiés (lance le workflow depuis main)."; exit 1
+            echo "Only commits of main can be published (run the workflow from main)."; exit 1
           fi
       - run: npm run typecheck
       - run: npm run lint
@@ -60,7 +60,7 @@ jobs:
           PUBLISHER: ${{ vars.SIGNPATH_PUBLISHER_NAME }}
         run: |
           if [ "$SIGN" = "true" ]; then
-            if [ -z "$PUBLISHER" ]; then echo "Signature active : définis la variable SIGNPATH_PUBLISHER_NAME (docs/signing.md)."; exit 1; fi
+            if [ -z "$PUBLISHER" ]; then echo "Signing is enabled: set the SIGNPATH_PUBLISHER_NAME variable (docs/signing.md)."; exit 1; fi
             npx electron-builder --win --publish never "-c.win.signtoolOptions.publisherName=$PUBLISHER"
           else
             npx electron-builder --win --publish never
@@ -137,7 +137,7 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           tag="v$version"
           if [ "$GITHUB_REF_TYPE" != "tag" ] && git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
-            echo "La version $version est déjà publiée : change la version dans package.json."; exit 1
+            echo "Version $version is already published: change the version in package.json."; exit 1
           fi
           awk -v v="$version" '$0 == "## " v {found=1; next} /^## / && found {exit} found' CHANGELOG.md > notes.md
           [ -s notes.md ] || echo "Music Player $version" > notes.md

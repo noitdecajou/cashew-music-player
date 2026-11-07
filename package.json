@@ -3,9 +3,9 @@
   "productName": "Music Player",
   "version": "2.0.0",
   "private": true,
-  "description": "Lecteur YouTube Music avec mini-player pour Windows",
+  "description": "YouTube Music desktop player with a mini-player, for Windows",
   "license": "MIT",
-  "author": "Ben Deurveilher",
+  "author": "noitdecajou",
   "repository": {
     "type": "git",
     "url": "https://github.com/noitdecajou/cashew-music-player.git"

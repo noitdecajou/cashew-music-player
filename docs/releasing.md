@@ -1,47 +1,44 @@
-# Publier une version
+# Releasing
 
-Les versions sont construites et publiées par GitHub Actions (`.github/workflows/release.yml`) sur un
-runner Windows. Les applications installées trouvent la nouvelle version dans les **Releases** du dépôt
-(fichier `latest.yml` publié avec l’installeur).
+Versions are built and published by GitHub Actions (`.github/workflows/release.yml`) on a Windows runner.
+Installed applications find a new version in the repository **Releases** (the `latest.yml` file published with
+the installer).
 
-## Prérequis (une seule fois)
+## Requirements
 
-- Le dépôt doit être **public** : sinon personne ne peut télécharger l’installeur, et les applications
-  installées ne peuvent pas vérifier les mises à jour (GitHub → Settings → General → Danger Zone → Change visibility).
-- GitHub → Settings → Actions → General → Workflow permissions : « Read and write permissions »
-  (le workflow crée la Release avec le jeton fourni par GitHub).
+- The repository must be **public**: otherwise the installer cannot be downloaded and installed applications
+  cannot check for updates.
+- The workflow declares the permissions it needs (`contents: write` to create the release); the repository default
+  (Settings → Actions → General → Workflow permissions) can stay read-only.
+- Settings → Actions → General → Actions permissions must allow actions created by GitHub and
+  `signpath/github-action-submit-signing-request@*`.
 
-## Publier
+## Publishing
 
-1. Mettre à jour `CHANGELOG.md`.
-2. Changer la version dans `package.json` (par exemple `2.0.0`, ou `2.1.0-beta.1` pour une préversion), puis
-   `npm.cmd install --package-lock-only`.
-3. Commit et push sur `main`, puis **au choix** :
-   - sur GitHub : **Actions → Release → Run workflow**, cocher **Publier**, puis **Run workflow** ;
-   - ou en ligne de commande, créer et pousser l’étiquette :
+1. Update `CHANGELOG.md`.
+2. Change the version in `package.json` (for example `2.1.0`, or `2.1.0-beta.1` for a prerelease), then run
+   `npm install --package-lock-only`.
+3. Commit and push to `main`, then either:
+   - on GitHub: **Actions → Release → Run workflow** from `main`, tick **Publish**, then **Run workflow**;
+   - or create and push the tag:
 
    ```powershell
-   git commit -am "Version 2.0.0"
-   git tag v2.0.0
-   git push origin main v2.0.0
+   git tag v2.1.0
+   git push origin main v2.1.0
    ```
 
-4. Le workflow vérifie que l’étiquette correspond à `package.json` (et qu’elle n’existe pas déjà), lance les tests, construit
-   `MusicPlayer-Setup-2.0.0.exe` et publie la Release, avec la section correspondante de `CHANGELOG.md`
-   comme notes. Une version avec suffixe (`-beta.N`) est publiée comme préversion.
+4. The workflow checks that the commit is on `main`, that the tag matches `package.json` and does not exist yet,
+   runs the type check, lint and tests, builds `MusicPlayer-Setup-<version>.exe` and publishes the release with the
+   matching `CHANGELOG.md` section as notes. A version with a suffix (`-beta.N`) is published as a prerelease.
 
-Les applications installées en version stable ne proposent que des versions stables ; une préversion
-(`-beta.N`) propose aussi les préversions suivantes.
+Installed stable versions are only offered stable versions; a prerelease is also offered the following
+prereleases, then the next stable version.
 
-Le badge « Latest » de GitHub ne désigne que des versions stables : pendant la bêta, le README renvoie à la
-liste des Releases. À la sortie de la 2.0.0, remettre le lien `releases/latest` dans le README.
+## Building without publishing
 
-## Construire sans publier
+**Actions → Release → Run workflow** without ticking **Publish**: the installer is available in the run artifacts.
+Locally: `npm run dist:win` (output in `dist/`).
 
-Actions → Release → **Run workflow** sans cocher « Publier » : l’installeur est disponible dans les artefacts de l’exécution.
-En local : `npm.cmd run dist:win` (sortie dans `dist/`).
+## Code signing
 
-## Signature
-
-L’installeur n’est pas signé : SmartScreen avertit au premier lancement. Une signature (certificat de
-signature de code, ou Azure Trusted Signing) supprimerait cet avertissement ; à prévoir avant une diffusion large.
+Releases are not signed for now; see [signing.md](signing.md).

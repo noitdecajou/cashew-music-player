@@ -87,12 +87,12 @@ try {
   check(
     'snapshot: track identified with its Music title',
     snapshot?.track?.title,
-    snapshot ? `« ${snapshot.track.title} » — ${snapshot.track.artist}` : 'aucune carte pour la vidéo de test',
+    snapshot ? `"${snapshot.track.title}" — ${snapshot.track.artist}` : 'no card for the test video',
   );
   check(
     'snapshot: "up next" read from the queue',
     snapshot?.next?.title,
-    snapshot?.next ? `« ${snapshot.next.title} »` : '',
+    snapshot?.next ? `"${snapshot.next.title}"` : '',
   );
   check(
     'snapshot: shuffle and repeat states read',
@@ -122,7 +122,7 @@ try {
   check(
     'search returns tracks with id, title and artist',
     songs.length >= 5 && songs.every(s => s.videoId && s.title),
-    search?.error ?? `${songs.length} résultats, ex. « ${songs[0]?.title ?? '?'} » — ${songs[0]?.artist ?? '?'}`,
+    search?.error ?? `${songs.length} results, e.g. "${songs[0]?.title ?? '?'}" — ${songs[0]?.artist ?? '?'}`,
   );
 
   await shell.evaluate(() => {
@@ -139,7 +139,7 @@ try {
   check(
     'queue store readable (≥ 10 items, current one found)',
     queue && queue.current >= 0,
-    queue ? `${queue.items.length} éléments, en cours : ${queue.current}` : 'file vide ou illisible',
+    queue ? `${queue.items.length} items, current: ${queue.current}` : 'queue empty or unreadable',
   );
 
   if (queue) {
@@ -179,11 +179,11 @@ try {
 
 const failed = checks.filter(c => !c.ok);
 const report = [
-  `# Vérification YouTube Music — ${new Date().toISOString().slice(0, 10)}`,
+  `# YouTube Music check — ${new Date().toISOString().slice(0, 10)}`,
   '',
   failed.length
-    ? `**${failed.length} vérification(s) en échec** : YouTube Music a probablement changé ce dont l’app dépend (voir docs/ytm-bridge.md).`
-    : 'Tout fonctionne.',
+    ? `**${failed.length} check(s) failed**: YouTube Music probably changed something the app depends on (see docs/ytm-bridge.md).`
+    : 'All checks passed.',
   '',
   ...checks.map(c => `- ${c.ok ? '✅' : '❌'} ${c.name}${c.detail ? ` — ${c.detail}` : ''}`),
   '',

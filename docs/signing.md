@@ -1,86 +1,91 @@
-# Signature de code (SignPath Foundation)
+# Code signing (SignPath Foundation)
 
-L’installeur et `Music Player.exe` peuvent être signés gratuitement par **SignPath Foundation**, qui
-fournit un certificat aux projets open source. La signature réduit les avertissements SmartScreen et aide
-l’application à gagner la confiance des antivirus.
+**Status:** releases are not signed. A request to SignPath Foundation (free certificates for open source projects)
+was declined in November 2026 for lack of project reputation (users, stars, downloads). The release workflow is
+ready for signing and publishes unsigned releases until the settings below exist; a new request can be made if the
+project gains an audience.
 
-Le workflow Release est **déjà prêt** : tant que SignPath n’est pas configuré, il publie comme aujourd’hui,
-sans signature. Dès que les réglages ci-dessous existent sur GitHub, chaque version **publiée** est signée.
-Les simples constructions de contrôle ne sont pas signées.
+Signing reduces SmartScreen warnings and helps with antivirus trust.
 
-**État (novembre 2026)** : demande refusée faute de réputation (SignPath Foundation demande un projet qui
-a déjà une audience : utilisateurs, étoiles, téléchargements). Les versions sont publiées sans signature ;
-refaire la demande quand le projet sera connu. Rien d’autre n’est à changer d’ici là.
+## What the workflow does when signing is configured
 
-## Ce que fait le workflow
+1. builds the application (`dist/win-unpacked`);
+2. sends it to SignPath, which signs `Music Player.exe` (artifact configuration `app`);
+3. rebuilds the installer from the signed application (`--prepackaged`);
+4. sends the installer to SignPath (artifact configuration `installer`);
+5. recomputes the hash, size and `.blockmap` of the signed installer in `latest.yml`
+   (`build/update-metadata.cjs`), without which installed applications would reject the update;
+6. publishes the release.
 
-1. construit l’application (`dist/win-unpacked`) ;
-2. l’envoie à SignPath, qui signe `Music Player.exe` (configuration `app`) ;
-3. reconstruit l’installeur à partir de l’application signée (`--prepackaged`) ;
-4. envoie l’installeur à SignPath (configuration `installer`) ;
-5. recalcule l’empreinte, la taille et le `.blockmap` de l’installeur signé dans `latest.yml`
-   (`build/update-metadata.cjs`), sans quoi les applications installées refuseraient la mise à jour ;
-6. publie la Release.
+Only published versions are signed; build-only runs are not. Electron libraries (`ffmpeg.dll`, etc.) are not signed:
+they are third-party files, which SignPath Foundation does not sign for another project.
 
-Les bibliothèques d’Electron (`ffmpeg.dll`, etc.) ne sont pas signées par Electron et ne le sont pas
-ici non plus : ce sont des fichiers tiers, que SignPath Foundation ne signe pas pour un autre projet.
+## Setup
 
-## Mise en place (une fois)
+1. **Requirements**: public repository, open source license (MIT), at least one published release, actively
+   maintained project, and some reputation.
+2. **README section**, required by SignPath Foundation, to add back before applying:
 
-1. **Conditions** : dépôt **public**, licence open source (MIT ✓), au moins une version déjà publiée, projet
-   activement maintenu. Rendre le dépôt public avant la demande.
-2. **Section « Code signing policy » dans le README** (exigée par SignPath Foundation) : elle est déjà
-   rédigée dans le README ; la vérifier (rôles, confidentialité).
-3. **Demande** sur https://signpath.org/apply avec l’adresse du dépôt. SignPath vérifie le projet ; compter
-   quelques jours.
-4. Dans l’espace SignPath du projet, une fois accepté :
-   - activer la double authentification sur ton compte ;
-   - créer le projet (par exemple `cashew-music-player`) relié au dépôt GitHub, avec la source « GitHub
-     Actions » (« Trusted Build System ») ;
-   - créer deux **artifact configurations** et y coller le contenu de :
-     - `build/signpath/app.xml`, avec le *slug* **`app`** ;
-     - `build/signpath/installer.xml`, avec le *slug* **`installer`** ;
-   - noter le *slug* de la **signing policy** de publication (en général `release-signing`) ;
-   - créer un **API token** pour l’intégration CI.
-5. Sur GitHub, dépôt → Settings → Secrets and variables → Actions :
-   - onglet **Secrets** : `SIGNPATH_API_TOKEN` = le jeton ;
-   - onglet **Variables** :
-     - `SIGNPATH_ORGANIZATION_ID` = l’identifiant de l’organisation SignPath,
-     - `SIGNPATH_PROJECT_SLUG` = le slug du projet,
-     - `SIGNPATH_SIGNING_POLICY_SLUG` = le slug de la signing policy,
-     - `SIGNPATH_PUBLISHER_NAME` = le nom (CN) du certificat qui signe, tel qu’il apparaît dans les
-       propriétés de l’installeur signé → Signatures numériques (pour SignPath Foundation :
-       `SignPath Foundation`). **Obligatoire** : sans elle, le workflow refuse de publier une version
-       signée.
-6. Publier une version comme d’habitude (docs/releasing.md). Selon la politique choisie, SignPath peut
-   demander une **approbation manuelle** de chaque signature : le workflow attend alors ta validation sur
-   le site de SignPath.
+   ```markdown
+   ## Code signing policy
 
-## Après la première version signée
+   Free code signing provided by [SignPath.io](https://signpath.io), certificate by
+   [SignPath Foundation](https://signpath.org).
 
-- Les versions signées inscrivent `SIGNPATH_PUBLISHER_NAME` dans `resources/app-update.yml` : elles
-  n’installent plus qu’une mise à jour signée par cet éditeur (vérification Authenticode d’electron-updater).
-  Sans cela, la seule vérification était l’empreinte de `latest.yml`, publiée au même endroit que
-  l’installeur (audit de sécurité, 2.0.0-beta.8). Toutes les versions suivantes doivent donc être signées
-  avec le même certificat.
-- Les applications déjà installées (non signées) acceptent la première version signée normalement.
+   - Committers and reviewers: [noitdecajou](https://github.com/noitdecajou)
+   - Approvers: [noitdecajou](https://github.com/noitdecajou)
 
-## Qui peut publier
+   Signed binaries are built only by the public GitHub Actions workflow of this repository
+   (`.github/workflows/release.yml`), from the sources of this repository.
 
-- Le workflow ne publie que des commits de `main` (lancé depuis `main`, ou étiquette posée sur un commit de
-  `main`).
-- Toute personne ayant le droit d’écriture sur le dépôt peut lancer Release : garder ce droit pour soi
+   Privacy policy: this program will not transfer any information to other networked systems unless specifically
+   requested by the user or the person installing or operating it, except the connections described in "Privacy"
+   above (YouTube Music, and GitHub to check for updates).
+   ```
+
+3. **Request** at https://signpath.org/apply with the repository URL.
+4. In the SignPath project space, once accepted:
+   - enable two-factor authentication on the account;
+   - create the project (for example `cashew-music-player`), linked to the GitHub repository, with the "GitHub
+     Actions" source ("Trusted Build System");
+   - create two **artifact configurations** with the content of:
+     - `build/signpath/app.xml`, slug **`app`**;
+     - `build/signpath/installer.xml`, slug **`installer`**;
+   - note the slug of the release **signing policy** (usually `release-signing`);
+   - create an **API token** for CI.
+5. On GitHub, repository → Settings → Secrets and variables → Actions:
+   - **Secrets**: `SIGNPATH_API_TOKEN` = the token;
+   - **Variables**:
+     - `SIGNPATH_ORGANIZATION_ID` = the SignPath organization id,
+     - `SIGNPATH_PROJECT_SLUG` = the project slug,
+     - `SIGNPATH_SIGNING_POLICY_SLUG` = the signing policy slug,
+     - `SIGNPATH_PUBLISHER_NAME` = the common name (CN) of the signing certificate, as shown in the signed
+       installer's properties → Digital Signatures (for SignPath Foundation: `SignPath Foundation`). **Required**:
+       without it, the workflow refuses to publish a signed release.
+6. Publish a version as usual ([releasing.md](releasing.md)). Depending on the policy, SignPath may require a
+   **manual approval** of each signing request; the workflow then waits for it.
+
+## After the first signed release
+
+- Signed releases write `SIGNPATH_PUBLISHER_NAME` to `resources/app-update.yml`: they only install updates signed
+  by that publisher (electron-updater Authenticode check). Without it, the only check is the `latest.yml` hash,
+  published next to the installer (security audit, 2.0.0-beta.8). Every later version must therefore be signed with
+  the same certificate.
+- Installed unsigned applications accept the first signed release normally.
+
+## Who can publish
+
+- The workflow only publishes commits of `main` (run from `main`, or a tag on a commit of `main`).
+- Anyone with write access to the repository can run the release workflow: write access stays with the owner
   (Settings → Collaborators).
-- Protéger les étiquettes `v*`, pour qu’une version publiée ne puisse être ni déplacée ni supprimée :
-  Settings → **Rules** → **Rulesets** → **New ruleset** → **New tag ruleset** :
-  - nom : `versions` ; **Enforcement status** : **Active** ;
-  - **Target tags** → **Add target** → **Include by pattern** → `v*` ;
-  - règles : **Restrict updates** et **Restrict deletions** ;
-  - ne **pas** cocher **Restrict creations** : le workflow crée lui-même l’étiquette quand « Publier » est
-    coché, et cette règle le bloquerait.
+- `v*` tags are protected so that a published version can be neither moved nor deleted: Settings → **Rules** →
+  **Rulesets** → **New ruleset** → **New tag ruleset**:
+  - name `versions`; **Enforcement status**: **Active**;
+  - **Target tags** → **Add target** → **Include by pattern** → `v*`;
+  - rules: **Restrict updates** and **Restrict deletions**;
+  - **Restrict creations** must stay unchecked: the workflow creates the tag itself when **Publish** is ticked.
 
-  Sur un compte GitHub gratuit, les rulesets ne s’appliquent qu’aux dépôts **publics** : à faire au
-  passage du dépôt en public.
-- Optionnel, pour exiger une approbation avant chaque publication : créer un environnement `release`
-  (Settings → Environments) avec « Required reviewers », y déplacer `SIGNPATH_API_TOKEN`, et ajouter
-  `environment: release` au job du workflow.
+  On a free GitHub account, rulesets only apply to public repositories.
+- Optional, to require an approval before each publication: create a `release` environment (Settings →
+  Environments) with "Required reviewers", move `SIGNPATH_API_TOKEN` into it, and add `environment: release` to the
+  workflow job.

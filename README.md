@@ -1,101 +1,68 @@
 # cashew
 
-Lecteur **YouTube Music** pour **Windows**, avec un mini-player toujours à portée de main.
+A **YouTube Music** desktop player for **Windows**, with an always-at-hand mini-player.
 
-cashew affiche le site officiel de YouTube Music dans une fenêtre dédiée et y ajoute ce qui manque
-à un onglet de navigateur : un mini-player compact à 5 apparences, une recherche rapide dans tes playlists,
-une file d’attente interactive, la reprise de la dernière écoute et un raccourci global.
+cashew shows the official YouTube Music website in a dedicated window and adds what a browser tab lacks:
+a compact mini-player with 5 skins, fast search across the user's playlists, an interactive queue, resume of
+the last session and a global shortcut. The interface is in French.
 
 | Actuel | Autoradio | Hi-fi |
 |---|---|---|
-| ![Mini-player Actuel](docs/screenshots/mini-modern.png) | ![Mini-player Autoradio](docs/screenshots/mini-autoradio.png) | ![Mini-player Hi-fi](docs/screenshots/mini-hifi.png) |
+| ![Actuel mini-player](docs/screenshots/mini-modern.png) | ![Autoradio mini-player](docs/screenshots/mini-autoradio.png) | ![Hi-fi mini-player](docs/screenshots/mini-hifi.png) |
 
-![Mini-player Autoradio 2000 (HF)](docs/screenshots/mini-autoradio-hf.png)
+![Autoradio 2000 (HF) mini-player](docs/screenshots/mini-autoradio-hf.png)
 
-![Mini-player Hi-Fi de salon (HF)](docs/screenshots/mini-hifi-hf.png)
+![Hi-Fi de salon (HF) mini-player](docs/screenshots/mini-hifi-hf.png)
 
-## Fonctions
+## Features
 
-- **Mini-player** : Actuel, Autoradio, Hi-fi, Autoradio 2000 (HF), Hi-Fi de salon (HF). Progression qu’on fait
-  glisser, volume intégré, épinglage au premier plan, barre de fenêtre masquable, déplacement à la poignée.
-- **Recherche** dans les titres de tes playlists (même hors ligne), parmi tes playlists (avec favoris) ou dans tout
-  YouTube Music ; « Lire maintenant » et « Lire ensuite ».
-- **File d’attente** en direct : clic pour lire un titre, retrait d’un titre.
-- **Reprise** de la dernière écoute après redémarrage, à la bonne position.
-- **Raccourci global** (Ctrl+Alt+M par défaut), démarrage avec Windows, plein écran vidéo, mises à jour intégrées.
+- **Mini-player** in 5 skins: Actuel, Autoradio, Hi-fi, Autoradio 2000 (HF), Hi-Fi de salon (HF). Draggable
+  progress bar, built-in volume, pin on top, optional title bar, move by the grip.
+- **Search** across the tracks of the user's playlists (also offline), across the playlists themselves (with
+  favorites) or the whole of YouTube Music; play now or play next.
+- **Live queue**: click a track to play it, remove a track.
+- **Resume** of the last track after a restart, at the same position.
+- **Global shortcut** (Ctrl+Alt+M by default), start with Windows, video fullscreen, built-in updates.
 
-## Installer (Windows 10/11, 64 bits)
+## Installation (Windows 10/11, 64-bit)
 
-1. Ouvrir la page [**Releases**](https://github.com/noitdecajou/cashew-music-player/releases), prendre la version
-   la plus récente (en haut de la liste) et, dans **Assets**, télécharger `MusicPlayer-Setup-<version>.exe`
-   (pas « Source code »).
-2. Lancer l’installeur. Tant que l’application n’est pas signée, Windows SmartScreen peut afficher « Windows a
-   protégé votre ordinateur » : cliquer sur **Informations complémentaires** puis **Exécuter quand même**.
-3. Se connecter à YouTube Music dans le grand lecteur.
+1. Open the [**latest release**](https://github.com/noitdecajou/cashew-music-player/releases/latest) and download
+   `MusicPlayer-Setup-<version>.exe` from **Assets** (not "Source code").
+2. Run the installer. The application is not code-signed, so Windows SmartScreen may show "Windows protected your
+   PC": select **More info**, then **Run anyway**.
+3. Sign in to YouTube Music in the large player.
 
-**Mises à jour :** cashew vérifie au démarrage puis toutes les 6 heures. Quand une version est disponible, un
-message l’annonce ; **Réglages → Mises à jour → Télécharger et installer**, puis **Redémarrer et installer**.
-Rien n’est téléchargé sans ton accord.
+**Updates:** cashew checks at startup and every 6 hours. When a version is available, a message announces it;
+it is installed from **Réglages → Mises à jour** (Settings → Updates). Nothing is downloaded without the user's
+consent.
 
-**Antivirus :** certains antivirus signalent à tort des fichiers d’Electron (le moteur de l’application). Si la
-fenêtre reste vide ou qu’un message indique des fichiers manquants, réinstaller cashew, ou restaurer les fichiers
-depuis Sécurité Windows → Historique de protection.
+**Antivirus:** some antivirus products wrongly flag Electron files (the engine of the application). If the window
+stays blank or a message reports missing files, reinstall cashew, or restore the files from Windows Security →
+Protection history.
 
-## Confidentialité
+## Privacy
 
-- Ta connexion Google reste dans le profil local de l’application, sur ton PC (comme dans un navigateur).
-  cashew ne lit ni ne transmet tes identifiants.
-- cashew ne contient aucun suivi ni statistique d’utilisation.
-- Connexions réseau : **music.youtube.com** et les services Google nécessaires à YouTube Music (lecture, connexion),
-  et **github.com** pour vérifier les mises à jour. Rien d’autre.
-- Données locales (dans `%APPDATA%\Music Player`) : préférences, index de tes playlists pour la recherche hors ligne,
-  dernier titre écouté, journal de diagnostic.
+- The Google sign-in stays in the application's local profile on the PC, as in a browser. cashew neither reads
+  nor transmits credentials.
+- cashew contains no tracking and no usage statistics.
+- Network connections: **music.youtube.com** and the Google services YouTube Music needs (playback, sign-in), and
+  **github.com** to check for updates. Nothing else.
+- Local data (in `%APPDATA%\Music Player`): preferences, an index of the user's playlists for offline search,
+  the last track played, a diagnostic log.
 
-## Avertissement
+## Disclaimer
 
-cashew est un projet indépendant, **non affilié à YouTube ni à Google**. YouTube et YouTube Music sont des marques
-de Google LLC. cashew affiche le site officiel de YouTube Music ; son utilisation reste soumise aux conditions
-d’utilisation de YouTube. Un abonnement YouTube Music Premium n’est pas fourni : les fonctions disponibles sont
-celles de ton compte.
+cashew is an independent project, **not affiliated with YouTube or Google**. YouTube and YouTube Music are
+trademarks of Google LLC. cashew displays the official YouTube Music website; its use remains subject to the
+YouTube Terms of Service. No YouTube Music Premium subscription is provided: the available features are those of
+the user's account.
 
-## Code signing policy
+## Documentation
 
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by
-[SignPath Foundation](https://signpath.org) — *une fois le projet accepté par SignPath Foundation
-(voir [docs/signing.md](docs/signing.md)).*
+[Architecture](docs/architecture.md) · [YouTube Music bridge](docs/ytm-bridge.md) · [Roadmap](docs/roadmap.md) ·
+[Releasing](docs/releasing.md) · [Code signing](docs/signing.md) · [Security](docs/security.md) ·
+[Changelog](CHANGELOG.md)
 
-- Committers and reviewers: [Ben Deurveilher](https://github.com/noitdecajou)
-- Approvers: [Ben Deurveilher](https://github.com/noitdecajou)
+## License
 
-Les binaires signés sont construits uniquement par le workflow GitHub Actions public de ce dépôt
-(`.github/workflows/release.yml`), à partir des sources de ce dépôt.
-
-Privacy policy: this program will not transfer any information to other networked systems unless specifically
-requested by the user or the person installing or operating it, except the connections described in
-« Confidentialité » above (YouTube Music, and GitHub to check for updates).
-
-## Développer
-
-Dans le dossier du projet :
-
-```powershell
-npm.cmd ci
-npm.cmd run dev        # développement, rechargement à chaud
-npm.cmd run build ; npm.cmd start   # version compilée
-```
-
-| Commande | Rôle |
-|---|---|
-| `npm.cmd test` | Tests unitaires (Vitest) |
-| `npm.cmd run test:e2e` | Tests de bout en bout dans un vrai Electron, contre une fausse page YouTube Music |
-| `npm.cmd run test:live` | Vérification contre le vrai music.youtube.com (aussi lancée chaque semaine par GitHub Actions) |
-| `npm.cmd run typecheck` | Vérification TypeScript |
-| `npm.cmd run dist:win` | Installeur local, sans publication (`dist/`) |
-
-Documentation : [architecture](docs/architecture.md) · [pont YouTube Music](docs/ytm-bridge.md) ·
-[feuille de route](docs/roadmap.md) · [publier une version](docs/releasing.md) · [signature](docs/signing.md) ·
-[historique](CHANGELOG.md)
-
-## Licence
-
-[MIT](LICENSE) © 2026 Ben Deurveilher
+[MIT](LICENSE) © 2026 noitdecajou

@@ -129,6 +129,18 @@ export class YtmView {
     return this.ready;
   }
 
+  /** Lyrics for cashew's lyrics host in the page (src/preload/ytm-lyrics.ts). */
+  sendLyrics(state: unknown): void {
+    const contents = this.view.webContents;
+    if (!contents.isDestroyed()) contents.send('ytm:lyrics', state);
+  }
+
+  /** Opens, closes or toggles the immersive lyrics view in the page. */
+  lyricsView(action: 'toggle' | 'open' | 'close'): void {
+    const contents = this.view.webContents;
+    if (!contents.isDestroyed()) contents.send('ytm:lyrics-view', action);
+  }
+
   send(command: PlayerCommand): void {
     const contents = this.view.webContents;
     if (!contents.isDestroyed()) contents.send('ytm:command', command);

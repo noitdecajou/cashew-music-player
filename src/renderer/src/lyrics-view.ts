@@ -1,36 +1,22 @@
-// Lyrics view of the player (side panel, or immersive over the whole YouTube
-// Music area): lines scroll smoothly to keep the sung one in view, the sung
-// line fills as it goes, other lines fade, a click on a line goes there.
-// Synced lyrics come from LRCLIB; otherwise YouTube Music's own (plain) lyrics.
+// Lyrics panel of the mini-player (the large player shows them in YouTube
+// Music's own Lyrics tab: src/preload/ytm-lyrics.ts). Synced lyrics from the
+// shared renderer; otherwise YouTube Music's own (plain) lyrics, or a status.
 
-import { type LyricLine, type LyricsState, LYRICS_LEAD_SECONDS, estimatePosition, lineAt } from '../../shared/island';
+import '../../shared/lyrics.css';
+import { type LyricsState, estimatePosition } from '../../shared/island';
+import { createLyricsLines } from '../../shared/lyrics-renderer';
 import type { PlayerProgress, PlayerSnapshot } from '../../shared/player';
-import { $, el, setText } from './dom';
-
-/** A gap this long between two lines is an instrumental break: shown as dots. */
-const INTERLUDE_SECONDS = 5;
-/** After a manual scroll, the view follows the song again after this delay. */
-const MANUAL_SCROLL_MS = 3500;
-
-interface Row {
-  time: number;
-  /** Time of the next row (end of this one). */
-  end: number;
-  text: string;
-  interlude: boolean;
-  element: HTMLElement;
-}
+import { $, setText } from './dom';
 
 export interface LyricsView {
-  /** The view is shown (the panel is 'lyrics' or 'lyrics-full'). */
-  setOpen(open: boolean, immersive: boolean): void;
+  /** The panel is shown. */
+  setOpen(open: boolean): void;
 }
 
 export function setupLyricsView(): LyricsView {
   const api = window.player;
   const section = $('section[data-panel="lyrics"]');
   const scroll = $('.lyrics-scroll', section);
-  const list = $('.lyrics-lines', section);
   const plain = $('.lyrics-plain', section);
   const status = $('.lyrics-status', section);
 
@@ -38,191 +24,76 @@ export function setupLyricsView(): LyricsView {
   let progress: PlayerProgress | null = null;
   let progressAt = 0;
   let lyrics: LyricsState | null = null;
-  let rows: Row[] = [];
-  let builtFor = '';
-  let active = -2;
   let open = false;
-  let frame = 0;
-  let timer = 0;
-  let manualUntil = 0;
-  let manualShift = 0;
 
   const playing = (): boolean => snapshot?.status === 'playing';
-  const offset = (): number => lyrics?.offset ?? 0;
+  const current = (): LyricsState | null =>
+    lyrics && snapshot?.track && lyrics.trackId === snapshot.track.id ? lyrics : null;
 
-  /** Synced lines of the track on display are shown. */
-  const syncing = (): boolean =>
-    open && lyrics?.status === 'synced' && lyrics.trackId === snapshot?.track?.id && rows.length > 0;
-
-  /** Position now (estimated between the player's reports). */
-  function position(): number {
-    if (!progress || progress.trackId !== snapshot?.track?.id) return 0;
-    return estimatePosition(progress, performance.now() - progressAt, playing());
-  }
-
-  function seekTo(time: number): void {
-    const track = snapshot?.track;
-    if (!track) return;
-    manualUntil = 0;
-    api.command({ type: 'seek', trackId: track.id, position: Math.max(0, time + offset()) });
-  }
-
-  /** Builds the rows of the current lyrics, with dots for instrumental breaks. */
-  function build(lines: LyricLine[]): void {
-    rows = [];
-    const add = (time: number, text: string, interlude: boolean): void => {
-      const element = el('div', { className: interlude ? 'lyric interlude' : 'lyric', role: 'listitem' });
-      if (interlude)
-        element.append(
-          el('span', { className: 'dot' }),
-          el('span', { className: 'dot' }),
-          el('span', { className: 'dot' }),
-        );
-      else element.append(el('span', { className: 'words' }, text || '♪'));
-      element.addEventListener('click', () => seekTo(time));
-      rows.push({ time, end: Infinity, text, interlude, element });
-    };
-    const first = lines[0];
-    if (first && first.time >= INTERLUDE_SECONDS) add(0, '', true);
-    lines.forEach((line, i) => {
-      const next = lines[i + 1];
-      if (!line.text && next && next.time - line.time >= INTERLUDE_SECONDS) add(line.time, '', true);
-      else add(line.time, line.text, false);
-    });
-    rows.forEach((row, i) => (row.end = rows[i + 1]?.time ?? row.time + 6));
-    list.replaceChildren(...rows.map(r => r.element));
-    active = -2;
-    manualShift = 0;
-  }
-
-  /** Scrolls so the sung line sits a third of the way down (smooth, CSS transition), plus the manual shift. */
-  function place(index: number): void {
-    const row = rows[Math.max(0, index)];
-    if (!row) return;
-    const target = scroll.clientHeight * 0.36 - (row.element.offsetTop + row.element.offsetHeight / 2);
-    list.style.transform = `translateY(${Math.round(target + manualShift)}px)`;
-  }
-
-  /** Marks the sung line, scrolls to it and fills it. Cheap: safe to call often. */
-  function render(): void {
-    if (!syncing()) return;
-    const now = position() + LYRICS_LEAD_SECONDS - offset();
-    const index = lineAt(rows, now);
-    const manual = Date.now() < manualUntil;
-    if (index !== active) {
-      rows.forEach((row, i) => {
-        row.element.classList.toggle('active', i === index);
-        row.element.classList.toggle('past', i < index);
-      });
-      active = index;
-      if (!manual) {
-        manualShift = 0;
-        place(index);
-      }
-    } else if (!manual && manualShift) {
-      // Back to the song after a manual scroll.
-      manualShift = 0;
-      place(index);
-    }
-    // The sung line fills from left to right over its duration.
-    const row = rows[index];
-    if (row) {
-      const fill = Math.min(1, Math.max(0, (now - row.time) / Math.max(0.5, Math.min(row.end - row.time, 12))));
-      row.element.style.setProperty('--fill', fill.toFixed(3));
-    }
-  }
-
-  // Two clocks: a timer that always runs while synced lines are shown (the sung
-  // line and the scroll never depend on animation frames, which Chromium may hold
-  // back for a native view), and animation frames while playing, for a smooth fill.
-  function frameLoop(): void {
-    frame = 0;
-    render();
-    if (syncing() && playing()) frame = requestAnimationFrame(frameLoop);
-  }
-  function schedule(): void {
-    render();
-    const run = syncing();
-    if (run && playing() && !frame) frame = requestAnimationFrame(frameLoop);
-    if (run && !timer) timer = window.setInterval(render, 200);
-    else if (!run && timer) {
-      window.clearInterval(timer);
-      timer = 0;
-    }
-  }
+  const lines = createLyricsLines({
+    scroller: scroll,
+    playing,
+    now: () =>
+      progress && progress.trackId === snapshot?.track?.id
+        ? estimatePosition(progress, performance.now() - progressAt, playing())
+        : 0,
+    seek: time => {
+      const track = snapshot?.track;
+      if (track)
+        api.command({ type: 'seek', trackId: track.id, position: Math.max(0, time + (current()?.offset ?? 0)) });
+    },
+  });
+  scroll.insertBefore(lines.element, plain);
 
   /** What to show: synced lines, plain text, or a status message. */
   function show(): void {
     const track = snapshot?.track ?? null;
     setText($('.lyrics-title', section), track?.title ?? '');
     setText($('.lyrics-artist', section), track ? [track.artist, track.album].filter(Boolean).join(' · ') : '');
-    for (const img of [
-      $<HTMLImageElement>('.lyrics-art', section),
-      $<HTMLImageElement>('.lyrics-backdrop-art', section),
-    ])
-      if (track?.artwork && img.getAttribute('src') !== track.artwork) img.src = track.artwork;
-    const current = track && lyrics?.trackId === track.id ? lyrics : null;
-    const synced = current?.status === 'synced';
+    const art = $<HTMLImageElement>('.lyrics-art', section);
+    if (track?.artwork && art.getAttribute('src') !== track.artwork) art.src = track.artwork;
+    const state = current();
+    const synced = state?.status === 'synced' && state.lines.length > 0;
     section.classList.toggle('synced', synced);
-    list.hidden = !synced;
-    plain.hidden = current?.status !== 'plain';
-    if (synced && current && builtFor !== `${current.trackId}:${current.lines.length}`) {
-      builtFor = `${current.trackId}:${current.lines.length}`;
-      build(current.lines);
-    }
-    if (!synced) builtFor = '';
-    if (current?.status === 'plain') setText(plain, current.plain ?? '');
+    lines.element.hidden = !synced;
+    if (synced && state) lines.set(`${state.trackId}:${state.lines.length}`, state.lines, state.offset ?? 0);
+    lines.run(open && synced);
+    plain.hidden = state?.status !== 'plain';
+    setText(plain, state?.status === 'plain' ? (state.plain ?? '') : '');
     setText(
       status,
       !track
         ? 'Aucun morceau en lecture.'
-        : !current || current.status === 'loading'
+        : !state || state.status === 'loading'
           ? 'Recherche des paroles…'
-          : current.status === 'none'
+          : state.status === 'none' || state.status === 'off'
             ? 'Pas de paroles pour ce morceau.'
-            : current.status === 'off'
-              ? 'Paroles synchronisées désactivées (Réglages → Island → Paroles).'
-              : current.status === 'plain'
-                ? 'Pas de paroles synchronisées pour ce morceau : voici le texte de YouTube Music, sans défilement.'
-                : '',
+            : state.status === 'plain'
+              ? 'Pas de paroles synchronisées pour ce morceau : voici le texte de YouTube Music, sans défilement.'
+              : '',
     );
-    setText($('.lyrics-source', section), current?.source ? `Paroles : ${current.source}` : '');
-    const o = current?.offset ?? 0;
+    setText($('.lyrics-source', section), state?.source ? `Paroles : ${state.source}` : '');
+    const o = state?.offset ?? 0;
     $('.lyrics-offset', section).hidden = !synced;
     setText(
       $('.lyrics-offset-value', section),
       o ? `${o > 0 ? '+' : '−'}${Math.abs(o).toFixed(1).replace('.', ',')} s` : 'calées',
     );
-    active = -2;
-    schedule();
   }
 
-  // Manual scroll with the wheel: the view follows the song again a moment later.
-  scroll.addEventListener(
-    'wheel',
-    event => {
-      if (lyrics?.status !== 'synced') return;
-      event.preventDefault();
-      manualShift -= event.deltaY;
-      manualUntil = Date.now() + MANUAL_SCROLL_MS;
-      place(active);
-    },
-    { passive: false },
-  );
   for (const button of section.querySelectorAll<HTMLButtonElement>('[data-shift]'))
     button.addEventListener('click', () => api.islandLyricsOffset(Number(button.dataset.shift)));
-  new ResizeObserver(() => place(Math.max(0, active))).observe(scroll);
 
   api.on('player:snapshot', value => {
     const changed = value.track?.id !== snapshot?.track?.id;
     snapshot = value;
     if (changed) show();
-    else schedule();
+    else lines.update();
   });
   api.on('player:progress', value => {
     progress = value;
     progressAt = performance.now();
-    schedule();
+    lines.update();
   });
   api.on('lyrics:state', value => {
     lyrics = value;
@@ -230,13 +101,10 @@ export function setupLyricsView(): LyricsView {
   });
 
   return {
-    setOpen(value, immersive) {
+    setOpen(value) {
       open = value;
-      document.body.classList.toggle('lyrics-immersive', value && immersive);
-      if (value) {
-        show();
-        scroll.focus({ preventScroll: true });
-      } else schedule(); // stops the clocks
+      show();
+      if (value) scroll.focus({ preventScroll: true });
     },
   };
 }

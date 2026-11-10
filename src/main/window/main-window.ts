@@ -103,8 +103,7 @@ export class MainWindow {
     // reliable for this: on Windows the view can take focus while the drawer is
     // being attached, which closed the drawer as soon as it opened.
     this.ytm.view.webContents.on('before-mouse-event', (_event, mouse) => {
-      if (mouse.type === 'mouseDown' && !this.ui.mini && this.ui.panel !== 'none' && this.ui.panel !== 'lyrics-full')
-        this.setPanel('none');
+      if (mouse.type === 'mouseDown' && !this.ui.mini && this.ui.panel !== 'none') this.setPanel('none');
     });
     this.win.on('closed', () => {
       if (this.drawer && !this.drawer.webContents.isDestroyed()) this.drawer.webContents.close();
@@ -288,10 +287,6 @@ export class MainWindow {
     if (this.ui.mini) {
       const top = this.titleBarHeight() + miniContentSize(this.ui.theme, false).height;
       drawer.setBounds({ x: 0, y: top, width: Math.max(1, width), height: Math.max(1, height - top) });
-    } else if (this.ui.panel === 'lyrics-full') {
-      // Immersive lyrics: the whole area under the toolbar.
-      const top = TITLE_BAR_HEIGHT + LARGE_TOOLBAR_HEIGHT;
-      drawer.setBounds({ x: 0, y: top, width: Math.max(1, width), height: Math.max(1, height - top) });
     } else {
       const top = TITLE_BAR_HEIGHT + LARGE_TOOLBAR_HEIGHT;
       drawer.setBounds({
@@ -332,8 +327,6 @@ export class MainWindow {
   }
 
   setPanel(panel: Panel): void {
-    // The mini-player has no room for immersive lyrics: the panel instead.
-    if (panel === 'lyrics-full' && this.ui.mini) panel = 'lyrics';
     if (panel === this.ui.panel || (panel !== 'none' && this.ui.videoFullscreen)) return;
     this.drag = null;
     this.setUi({ panel });
@@ -416,10 +409,19 @@ export class MainWindow {
         this.setPanel(this.ui.panel === 'queue' ? 'none' : 'queue');
         break;
       case 'toggle-lyrics':
-        this.setPanel(this.ui.panel === 'lyrics' ? 'none' : 'lyrics');
+        // Large player: YouTube Music's own Lyrics tab, taken over by cashew's
+        // synced lyrics (src/preload/ytm-lyrics.ts). Mini-player: the lyrics panel.
+        if (this.ui.mini) this.setPanel(this.ui.panel === 'lyrics' ? 'none' : 'lyrics');
+        else {
+          this.setPanel('none');
+          this.ytm.send({ type: 'open-lyrics' });
+        }
         break;
       case 'toggle-lyrics-full':
-        this.setPanel(this.ui.panel === 'lyrics-full' ? 'lyrics' : 'lyrics-full');
+        if (!this.ui.mini) {
+          this.setPanel('none');
+          this.ytm.lyricsView('toggle');
+        }
         break;
       case 'toggle-settings': // opens the settings window (main process)
         break;

@@ -671,28 +671,39 @@ export function pageAgent(): void {
     document.addEventListener(type, onMedia, true);
   }
 
-  // The lyrics tab of the player page: cashew's lyrics view (synced) opens over
-  // it. The tab is recognized by its page type, not its (translated) title.
-  document.addEventListener(
-    'click',
-    event => {
-      const tab = event
-        .composedPath()
-        .find((node): node is HTMLElement => node instanceof HTMLElement && node.tagName === 'TP-YT-PAPER-TAB');
-      const page = tab?.closest('ytmusic-player-page') as any;
-      if (!tab || !page) return;
-      const index = [...page.querySelectorAll('tp-yt-paper-tab')].indexOf(tab);
-      const tabs = call(() => page.tabs ?? page.data?.tabs, null);
-      const pageType = call(
-        () =>
-          tabs?.[index]?.tabRenderer?.endpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
-            ?.browseEndpointContextMusicConfig?.pageType,
-        '',
-      );
-      if (pageType === 'MUSIC_PAGE_TYPE_TRACK_LYRICS') emit({ kind: 'lyrics-tab' });
-    },
-    true,
-  );
+  // YouTube Music's Lyrics tab, recognized by its page type (not its translated
+  // title), is marked for cashew's lyrics host (isolated world), which cannot
+  // read the page's own data.
+  function lyricsTab(): HTMLElement | null {
+    const page = document.querySelector('ytmusic-player-page') as any;
+    if (!page) return null;
+    const tabs = call(() => page.tabs ?? page.data?.tabs, null);
+    if (!Array.isArray(tabs)) return null;
+    const index = tabs.findIndex(
+      (tab: any) =>
+        tab?.tabRenderer?.endpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
+          ?.browseEndpointContextMusicConfig?.pageType === 'MUSIC_PAGE_TYPE_TRACK_LYRICS',
+    );
+    const headers = page.querySelectorAll('tp-yt-paper-tab');
+    const tab = index >= 0 ? (headers[index] as HTMLElement | undefined) : undefined;
+    for (const header of headers) if (header !== tab) header.removeAttribute('data-cashew-lyrics');
+    tab?.setAttribute('data-cashew-lyrics', '');
+    return tab ?? null;
+  }
+  setInterval(lyricsTab, 1000);
+
+  /** Opens the player page (if needed) on its Lyrics tab. */
+  function openLyrics(): void {
+    const layout = document.querySelector('ytmusic-app-layout');
+    if (layout && !layout.hasAttribute('player-page-open')) click('.toggle-player-page-button');
+    let tries = 0;
+    const select = (): void => {
+      const tab = lyricsTab();
+      if (tab) tab.click();
+      else if (++tries < 10) setTimeout(select, 150);
+    };
+    setTimeout(select, 50);
+  }
 
   function click(selector: string): boolean {
     const button = document.querySelector(`ytmusic-player-bar ${selector}`) as HTMLElement | null;
@@ -735,6 +746,9 @@ export function pageAgent(): void {
         break;
       case 'repeat':
         click('.repeat');
+        break;
+      case 'open-lyrics':
+        openLyrics();
         break;
       case 'seek':
         if (call(() => player?.getVideoData?.()?.video_id, '') === command.trackId)

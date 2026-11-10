@@ -81,6 +81,8 @@ export type PlayerCommand =
   | { type: 'mute'; muted: boolean }
   | { type: 'progress-stream'; enabled: boolean }
   | { type: 'queue-watch'; enabled: boolean }
+  /** Show YouTube Music's player page on its Lyrics tab (cashew's lyrics take it over). */
+  | { type: 'open-lyrics' }
   | { type: 'op'; id: number; op: string; payload: unknown };
 
 /** Messages the page agent sends to main. */
@@ -90,8 +92,12 @@ export type AgentMessage =
   | { kind: 'queue'; queue: QueueState }
   | { kind: 'op-result'; id: number; ok: boolean; value: unknown; error: string }
   | { kind: 'ready' }
-  /** The user clicked the Lyrics tab of YouTube Music's player page. */
-  | { kind: 'lyrics-tab' };
+  /** The lyrics host of the YouTube Music page is (re)loaded: send it the lyrics. */
+  | { kind: 'lyrics-host' }
+  /** cashew's lyrics are shown in the page (Lyrics tab or immersive view), or no longer. */
+  | { kind: 'lyrics-view'; open: boolean; immersive: boolean }
+  /** Per-track lyrics correction from the page's lyrics footer. */
+  | { kind: 'lyrics-offset'; delta: number };
 
 export const VIDEO_ID = /^[\w-]{11}$/;
 export const PLAYLIST_ID = /^[\w-]{2,200}$/;
@@ -118,7 +124,11 @@ export function sanitizeAgentMessage(raw: unknown): AgentMessage | null {
   if (!raw || typeof raw !== 'object') return null;
   const message = raw as Record<string, unknown>;
   if (message.kind === 'ready') return { kind: 'ready' };
-  if (message.kind === 'lyrics-tab') return { kind: 'lyrics-tab' };
+  if (message.kind === 'lyrics-host') return { kind: 'lyrics-host' };
+  if (message.kind === 'lyrics-view')
+    return { kind: 'lyrics-view', open: message.open === true, immersive: message.immersive === true };
+  if (message.kind === 'lyrics-offset')
+    return message.delta === 0.5 || message.delta === -0.5 ? { kind: 'lyrics-offset', delta: message.delta } : null;
   if (message.kind === 'op-result') {
     if (!Number.isSafeInteger(message.id)) return null;
     // The value is validated by the caller, per operation (see shared/ops.ts).

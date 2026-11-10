@@ -2,8 +2,8 @@ import type { GameAnswer, GamePrompt, IslandEvent, IslandPrefs, IslandView, Lyri
 import type { MiniTheme } from './themes';
 import type { PlayerCommand, PlayerProgress, PlayerSnapshot, QueueState } from './player';
 
-/** 'lyrics': side panel; 'lyrics-full': immersive lyrics over the whole YouTube Music area (large player). */
-export type Panel = 'none' | 'search' | 'queue' | 'lyrics' | 'lyrics-full';
+/** 'lyrics': the mini-player's lyrics panel (the large player uses YouTube Music's Lyrics tab). */
+export type Panel = 'none' | 'search' | 'queue' | 'lyrics';
 
 export interface UiState {
   mini: boolean;

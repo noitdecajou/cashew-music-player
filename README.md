@@ -26,9 +26,9 @@ the last session and a global shortcut. The interface is in French.
   progress (click to seek), three lyric lines, previous/play/pause/next, volume with the mouse wheel, cover color. Always shown, on each track
   change (compact or detailed), or only over games (per-game settings, new games offered), with a shortcut to show
   the details, adjustable size and opacity, subtle animations (can be turned off).
-- **Lyrics view**: synced lyrics that scroll and fill as they are sung, click a line to go there, immersive mode
-  over the blurred cover; it also opens from YouTube Music's own Lyrics tab, and shows YouTube Music's lyrics
-  (without timing) when no synced ones exist.
+- **Synced lyrics in YouTube Music's Lyrics tab** (like Better Lyrics): the sung line lights up word by word and
+  stays in view, click a line to go there; full screen with the cover and its colors; YouTube Music's own lyrics
+  when no synced ones exist. A lyrics panel in the mini-player.
 - **Global shortcut** (Ctrl+Alt+M by default), start with Windows, video fullscreen, built-in updates.
 
 ## Installation (Windows 10/11, 64-bit)
@@ -53,8 +53,8 @@ Protection history.
   nor transmits credentials.
 - cashew contains no tracking and no usage statistics.
 - Network connections: **music.youtube.com** and the Google services YouTube Music needs (playback, sign-in),
-  **github.com** to check for updates, and, while the island or the lyrics view is on and synced lyrics are
-  allowed, **lrclib.net** (the title, artist, album and duration of the track being played). Nothing else.
+  **github.com** to check for updates, and, while the island shows lyrics or the lyrics are open, **lrclib.net**
+  (the title, artist, album and duration of the track being played). Nothing else.
 - Game detection reads, locally, which application is in front, its install folder and the list of games Windows
   knows; nothing is sent. Nothing is injected into games.
 - Local data (in `%APPDATA%\Music Player`): preferences (including the game list), an index of the user's

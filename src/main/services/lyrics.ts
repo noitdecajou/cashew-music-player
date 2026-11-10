@@ -1,11 +1,10 @@
-// Synced lyrics for the island, from LRCLIB (https://lrclib.net): a free,
-// open database of time-stamped lyrics, no account needed. Only the title,
-// artist, album and duration of the track are sent, and only when the
-// option is on. YouTube Music's own lyrics are plain text (no timing), so they
-// cannot follow the song.
+// Synced lyrics for the island and the lyrics views: YouTube Music's own when
+// it has timed ones (see ytm-synced.ts), else LRCLIB (https://lrclib.net), a
+// free, open database of time-stamped lyrics, no account needed. Only the
+// title, artist, album and duration of the track are sent to LRCLIB.
 
 import { readFileSync } from 'node:fs';
-import { type LyricsState, parseLrc } from '../../shared/island';
+import { type LyricLine, type LyricsState, parseLrc } from '../../shared/island';
 
 export interface LyricsTrack {
   id: string;
@@ -15,6 +14,18 @@ export interface LyricsTrack {
 }
 
 export type Fetcher = (url: string) => Promise<{ status: number; text(): Promise<string> }>;
+
+/** Another source of synced lyrics, asked first (YouTube Music's own). */
+export type SyncedSource = (track: LyricsTrack) => Promise<{ lines: LyricLine[]; source: string } | null>;
+
+export interface LyricsOptions {
+  /** Asked before LRCLIB; its failures are only reported. */
+  first?: SyncedSource;
+  /** A source failed (network, server): for the diagnostic log. */
+  onError?: (source: string, error: unknown) => void;
+  /** Delay before trying again after a network error (once per track). */
+  retryMs?: number;
+}
 
 const API = 'https://lrclib.net/api';
 const MAX_BODY = 512 * 1024;
@@ -58,6 +69,7 @@ export class Lyrics {
     private readonly durationWaitMs = 4000,
     /** Called when new lyrics are found (to keep them on disk). */
     private readonly onLearn: () => void = () => {},
+    private readonly options: LyricsOptions = {},
   ) {}
 
   /** Lyrics found earlier (from disk). */
@@ -131,10 +143,10 @@ export class Lyrics {
     this.generation++;
   }
 
-  private start(track: LyricsTrack): void {
+  private start(track: LyricsTrack, retry = true): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
-    if (this.current !== track.id || this.started === track.id) return;
+    if (this.current !== track.id || (retry && this.started === track.id)) return;
     this.started = track.id;
     const generation = ++this.generation;
     void this.fetchLyrics(track, this.duration).then(
@@ -146,9 +158,13 @@ export class Lyrics {
         }
         if (generation === this.generation) this.publish(state);
       },
-      () => {
-        // Network error: show the title; the next time the track plays tries again.
-        if (generation === this.generation) this.publish({ trackId: track.id, status: 'none', lines: [] });
+      error => {
+        this.options.onError?.('lrclib', error);
+        if (generation !== this.generation) return;
+        // Network error: one more try a moment later, then the title; the next time
+        // the track plays tries again.
+        if (retry) this.timer = setTimeout(() => this.start(track, false), this.options.retryMs ?? 3000);
+        else this.publish({ trackId: track.id, status: 'none', lines: [] });
       },
     );
   }
@@ -170,11 +186,25 @@ export class Lyrics {
   }
 
   async fetchLyrics(track: LyricsTrack, duration: number): Promise<LyricsState> {
+    if (this.options.first) {
+      try {
+        const found = await this.options.first(track);
+        if (found?.lines.length)
+          return {
+            trackId: track.id,
+            status: 'synced',
+            lines: found.lines,
+            source: `YouTube Music${found.source ? ` · ${found.source}` : ''}`,
+          };
+      } catch (error) {
+        this.options.onError?.('youtube music', error);
+      }
+    }
     const none: LyricsState = { trackId: track.id, status: 'none', lines: [] };
     const fromRecord = (record: LrclibRecord | null): LyricsState | null => {
       if (!record || record.instrumental === true) return record ? none : null;
       const lines = parseLrc(record.syncedLyrics);
-      return lines.length ? { trackId: track.id, status: 'synced', lines } : null;
+      return lines.length ? { trackId: track.id, status: 'synced', lines, source: 'LRCLIB' } : null;
     };
     if (duration > 0) {
       const exact = await this.get('get', {

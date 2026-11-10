@@ -15,7 +15,6 @@ const TITLES: Record<Panel, string> = {
   search: 'Rechercher',
   queue: 'File d’attente',
   lyrics: 'Paroles',
-  'lyrics-full': 'Paroles',
 };
 
 /** The drawer page: a separate native view stacked over YouTube Music. */
@@ -51,14 +50,13 @@ export function startDrawer(): void {
     if (state.panel === current) return;
     current = state.panel;
     setText($('.panel-title', panel), TITLES[state.panel]);
-    const shown = state.panel === 'lyrics-full' ? 'lyrics' : state.panel;
-    for (const section of $$('section[data-panel]', panel)) section.hidden = section.dataset.panel !== shown;
-    // The lyrics have their own header (cover, title, full screen, close).
-    document.body.classList.toggle('lyrics-panel', shown === 'lyrics');
+    for (const section of $$('section[data-panel]', panel)) section.hidden = section.dataset.panel !== state.panel;
+    // The lyrics have their own header (cover, title, close).
+    document.body.classList.toggle('lyrics-panel', state.panel === 'lyrics');
     notice('');
     if (state.panel === 'search') search.open();
     queue.setOpen(state.panel === 'queue');
-    lyrics.setOpen(shown === 'lyrics', state.panel === 'lyrics-full');
+    lyrics.setOpen(state.panel === 'lyrics');
   });
   api.on('ui:notice', notice);
 
@@ -66,15 +64,6 @@ export function startDrawer(): void {
     if (event.key === 'Escape') {
       event.preventDefault();
       api.window('close-panel');
-    } else if (
-      (current === 'lyrics' || current === 'lyrics-full') &&
-      event.key.toLowerCase() === 'f' &&
-      !event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey
-    ) {
-      event.preventDefault();
-      api.window('toggle-lyrics-full');
     } else if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       api.window('toggle-search');

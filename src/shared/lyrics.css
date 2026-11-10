@@ -1,0 +1,308 @@
+/* Synced lyrics lines (src/shared/lyrics-renderer.ts), in YouTube Music's Lyrics
+   tab, the immersive view and the mini-player panel. Class names start with
+   "cl-" so they never meet YouTube Music's own. */
+
+.cl-lines {
+  --cl-size: 24px;
+  --cl-dim: rgba(255, 255, 255, 0.36);
+  box-sizing: border-box;
+  padding-inline: 4px;
+  font-size: var(--cl-size);
+  font-weight: 700;
+  line-height: 1.32;
+  letter-spacing: -0.01em;
+}
+.cl-line {
+  padding: 8px 10px;
+  margin: 2px -10px;
+  border-radius: 10px;
+  color: var(--cl-dim);
+  cursor: pointer;
+  transform-origin: left center;
+  transition:
+    color 0.35s,
+    opacity 0.35s,
+    transform 0.4s cubic-bezier(0.22, 0.8, 0.25, 1);
+  user-select: none;
+  overflow-wrap: anywhere;
+}
+.cl-line:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.cl-line.cl-active {
+  color: var(--cl-dim);
+  transform: scale(1.015);
+}
+/* Words already sung are white; the word being sung fills from the left (--fill). */
+.cl-active .cl-word.cl-sung {
+  color: #fff;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.22);
+}
+.cl-active .cl-word[style*='--fill'] {
+  background: linear-gradient(90deg, #fff calc(var(--fill) * 100%), var(--cl-dim) calc(var(--fill) * 100% + 0.35em));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.cl-word {
+  transition: color 0.18s;
+}
+
+/* Instrumental break: three breathing dots */
+.cl-line.cl-interlude {
+  display: flex;
+  gap: 8px;
+  padding-block: 16px;
+}
+.cl-dot {
+  width: 0.38em;
+  height: 0.38em;
+  border-radius: 50%;
+  background: currentColor;
+}
+.cl-interlude.cl-active .cl-dot {
+  background: #fff;
+  animation: cl-breathe 1.4s ease-in-out infinite;
+}
+.cl-interlude.cl-active .cl-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.cl-interlude.cl-active .cl-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes cl-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* Footer: source, per-track correction, immersive view */
+.cl-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+}
+.cl-source {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cl-foot button {
+  flex: none;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  font: inherit;
+  cursor: pointer;
+}
+.cl-foot button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.cl-offset {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.cl-offset-value {
+  min-width: 46px;
+  text-align: center;
+}
+
+/* --- YouTube Music's Lyrics tab: our lines replace its content ------------- */
+#tab-renderer:not([cashew-lyrics]) > .cl-tab {
+  display: none !important;
+}
+#tab-renderer[cashew-lyrics] > :not(.cl-tab) {
+  display: none !important;
+}
+#tab-renderer[cashew-lyrics] {
+  scrollbar-width: none;
+}
+#tab-renderer[cashew-lyrics]::-webkit-scrollbar {
+  display: none;
+}
+.cl-tab {
+  position: relative;
+  padding: 0 8px;
+  font-family: 'YouTube Sans', Roboto, 'Segoe UI', sans-serif;
+}
+/* Lines fade out under the top edge and into the footer. */
+.cl-tab::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: block;
+  height: 40px;
+  margin-bottom: -40px;
+  background: linear-gradient(var(--ytmusic-general-background-c, #030303), transparent);
+  pointer-events: none;
+}
+.cl-tab .cl-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-top: 28px;
+  background: linear-gradient(transparent, var(--ytmusic-general-background-c, #030303) 26px);
+}
+
+/* --- Immersive view: over the whole YouTube Music page ---------------------- */
+.cl-immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  grid-template-columns: minmax(240px, 42%) 1fr;
+  overflow: hidden;
+  background: #050505;
+  color: #fff;
+  font-family: 'YouTube Sans', Roboto, 'Segoe UI', sans-serif;
+  animation: cl-fade-in 0.35s ease-out;
+}
+.cl-immersive[hidden] {
+  display: none;
+}
+@keyframes cl-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* Background: the cover, huge and blurred, darker toward the left. */
+.cl-bg {
+  position: absolute;
+  inset: -25%;
+  width: 150%;
+  height: 150%;
+  object-fit: cover;
+  filter: blur(90px) saturate(1.7) brightness(0.62);
+  pointer-events: none;
+}
+.cl-immersive::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.12) 100%),
+    radial-gradient(120% 90% at 85% 50%, transparent 40%, rgba(0, 0, 0, 0.35) 100%);
+  pointer-events: none;
+}
+.cl-side {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  min-width: 0;
+  text-align: center;
+}
+.cl-cover {
+  width: min(62%, 46vh, 360px);
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  background: rgba(255, 255, 255, 0.06);
+}
+.cl-title {
+  max-width: 100%;
+  font-size: clamp(15px, 1.6vw, 22px);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cl-artist {
+  max-width: 100%;
+  margin-top: -8px;
+  font-size: clamp(12px, 1.1vw, 15px);
+  color: rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cl-main {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding-right: 6%;
+}
+.cl-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  outline: none;
+  -webkit-mask-image: linear-gradient(transparent 0, #000 12%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(transparent 0, #000 12%, #000 84%, transparent 100%);
+}
+.cl-scroll::-webkit-scrollbar {
+  display: none;
+}
+.cl-scroll:focus,
+.cl-scroll:focus-visible,
+#tab-renderer[cashew-lyrics]:focus-visible {
+  outline: none !important;
+}
+.cl-immersive .cl-lines {
+  --cl-size: clamp(20px, 2.5vw, 38px);
+  --cl-dim: rgba(255, 255, 255, 0.4);
+  max-width: 900px;
+}
+.cl-plain {
+  max-width: 820px;
+  padding: 18vh 0 30vh;
+  white-space: pre-line;
+  font-size: clamp(16px, 1.6vw, 22px);
+  font-weight: 600;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+  user-select: text;
+}
+.cl-status {
+  margin: auto 0;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.cl-status:empty,
+.cl-plain:empty {
+  display: none;
+}
+.cl-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.cl-close:hover {
+  background: rgba(255, 255, 255, 0.18);
+}

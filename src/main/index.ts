@@ -48,6 +48,7 @@ import {
   windowsPresentationMode,
 } from './services/foreground';
 import { Lyrics, fixtureFetcher as fixtureLyrics } from './services/lyrics';
+import { fetchYtmSynced, netPost } from './services/ytm-synced';
 import { pendingWrites, readJson, writeJson } from './services/json-file';
 import { Library } from './services/library';
 import { PreferenceStore } from './services/preferences';
@@ -235,7 +236,7 @@ function main(): void {
       contents.send('island:view', islandView());
       contents.send('player:snapshot', snapshot);
       contents.send('island:prompt', prompt);
-      if (lyricsState) contents.send('lyrics:state', lyricsState);
+      if (lyricsState) contents.send('lyrics:state', forIsland(lyricsState));
     }
 
     /** Our own UI with full rights: the window shell, the drawer view and the settings window. */
@@ -320,6 +321,8 @@ function main(): void {
 
     // --- Player messages ----------------------------------------------------
     let streaming: boolean | null = null;
+    /** cashew's lyrics are shown in the YouTube Music page (Lyrics tab or immersive view). */
+    let pageLyricsOpen = false;
     let queueWatching: boolean | null = null;
     function updateStreams(): void {
       const visible = window.visible || island.isVisible;
@@ -336,9 +339,22 @@ function main(): void {
 
     ytm.subscribe(message => {
       switch (message.kind) {
-        case 'lyrics-tab':
-          // cashew's synced view replaces YouTube Music's own lyrics tab.
-          if (!window.state.mini) window.setPanel('lyrics');
+        // cashew's lyrics in the YouTube Music page (src/preload/ytm-lyrics.ts).
+        case 'lyrics-host':
+          pageLyricsOpen = false;
+          if (lyricsState) ytm.sendLyrics(lyricsState);
+          return;
+        case 'lyrics-view': {
+          const opened = message.open && !pageLyricsOpen;
+          pageLyricsOpen = message.open;
+          if (opened) {
+            showLyrics(0);
+            if (lyricsState) ytm.sendLyrics(lyricsState);
+          }
+          return;
+        }
+        case 'lyrics-offset':
+          shiftLyrics(message.delta);
           return;
         case 'ready':
           streaming = null;
@@ -386,8 +402,12 @@ function main(): void {
     });
 
     let lastPanel = window.state.panel;
+    let wasMini = window.state.mini;
     window.onState((state: UiState) => {
       send('ui:state', state);
+      // The immersive lyrics live in the YouTube Music page, hidden in the mini-player.
+      if (state.mini && !wasMini) ytm.lyricsView('close');
+      wasMini = state.mini;
       if (state.panel !== lastPanel) {
         lastPanel = state.panel;
         if (lyricsViewOpen()) {
@@ -756,7 +776,10 @@ function main(): void {
       const before = prefs.value.island;
       prefs.update({ island: sanitizeIsland(next) });
       const p = prefs.value.island;
-      if (p.lyrics !== before.lyrics) showLyrics(0);
+      if (p.lyrics !== before.lyrics) {
+        showLyrics(0);
+        if (lyricsState) island.contents?.send('lyrics:state', forIsland(lyricsState));
+      }
       island.setCaptureProtection(p.hideFromCapture);
       if (p.idleMinutes !== before.idleMinutes) {
         if (idleTimer) clearTimeout(idleTimer);
@@ -792,12 +815,15 @@ function main(): void {
       publishLyrics({ ...lyricsState, offset: next });
     }
 
-    // Synced lyrics: only while the island is on (nothing is requested otherwise).
+    // Synced lyrics: only while the island shows them or a lyrics view is open
+    // (nothing is requested otherwise). YouTube Music's own timed lyrics first,
+    // then LRCLIB; YouTube Music's plain text when neither has synced ones.
     const lyricsFile = join(userData, 'lyrics-cache.json');
     let lyricsSaveTimer: NodeJS.Timeout | null = null;
+    const lyricsFixture = process.env.MP_LYRICS_FIXTURE && !app.isPackaged ? process.env.MP_LYRICS_FIXTURE : '';
     const lyrics = new Lyrics(
-      process.env.MP_LYRICS_FIXTURE && !app.isPackaged
-        ? fixtureLyrics(process.env.MP_LYRICS_FIXTURE)
+      lyricsFixture
+        ? fixtureLyrics(lyricsFixture)
         : url =>
             net.fetch(url, {
               headers: { 'User-Agent': `cashew-music-player/${app.getVersion()} (${REPOSITORY_URL})` },
@@ -806,11 +832,10 @@ function main(): void {
         const state = sanitizeLyrics({
           ...(raw as object),
           offset: lyricsOffsets.get((raw as LyricsState).trackId) ?? 0,
-          source: (raw as LyricsState).status === 'synced' ? 'LRCLIB' : '',
         });
         if (!state) return;
         publishLyrics(state);
-        // Nothing synced: the lyrics view shows YouTube Music's own lyrics (no timing).
+        // Nothing synced: the lyrics views show YouTube Music's own lyrics (no timing).
         if ((state.status === 'none' || state.status === 'off') && lyricsViewOpen()) void plainLyrics(state.trackId);
       },
       undefined,
@@ -820,18 +845,28 @@ function main(): void {
         if (lyricsSaveTimer) clearTimeout(lyricsSaveTimer);
         lyricsSaveTimer = setTimeout(() => void writeJson(lyricsFile, lyrics.cached()), 2000);
       },
+      {
+        first: lyricsFixture ? undefined : track => fetchYtmSynced(netPost(net.fetch.bind(net)), track.id),
+        onError: (source, error) => log(`lyrics: ${source} failed`, String(error)),
+      },
     );
     void readJson(lyricsFile).then(raw => {
       const states = (Array.isArray(raw) ? raw : []).map(sanitizeLyrics).filter(s => s?.status === 'synced');
       lyrics.seed(states as LyricsState[]);
     });
-    /** Lyrics go to the island and to our pages (lyrics panel). */
+    /** Without its lyrics option, the island shows the title and artist. */
+    function forIsland(state: LyricsState): LyricsState {
+      return prefs.value.island.lyrics ? state : { trackId: state.trackId, status: 'off', lines: [] };
+    }
+    /** Lyrics go to the island, our pages (lyrics panel) and the YouTube Music page. */
     function publishLyrics(state: LyricsState): void {
       lyricsState = state;
-      island.contents?.send('lyrics:state', state);
+      island.contents?.send('lyrics:state', forIsland(state));
       for (const contents of uiContents()) contents.send('lyrics:state', state);
+      ytm.sendLyrics(state);
     }
-    const lyricsViewOpen = (): boolean => window.state.panel === 'lyrics' || window.state.panel === 'lyrics-full';
+    /** A lyrics view is shown: the mini-player's panel, or cashew's lyrics in the YouTube Music page. */
+    const lyricsViewOpen = (): boolean => window.state.panel === 'lyrics' || (pageLyricsOpen && !window.state.mini);
     // YouTube Music's own lyrics (plain text), asked once per track.
     const plainCache = new Map<string, { text: string; source: string }>();
     async function plainLyrics(trackId: string): Promise<void> {
@@ -861,7 +896,8 @@ function main(): void {
     /** Lyrics are fetched while the island is on or the lyrics view is open. */
     function showLyrics(duration: number): void {
       if (prefs.value.island.mode === 'off' && !lyricsViewOpen()) return;
-      lyrics.show(snapshot.track, duration, prefs.value.island.lyrics);
+      // The island's lyrics option, or a lyrics view the user opened.
+      lyrics.show(snapshot.track, duration, prefs.value.island.lyrics || lyricsViewOpen());
       if (
         lyricsViewOpen() &&
         snapshot.track &&

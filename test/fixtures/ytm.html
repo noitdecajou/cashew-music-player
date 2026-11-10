@@ -18,16 +18,23 @@
     <button class="shuffle"></button>
     <button class="repeat"></button>
     <ytmusic-like-button-renderer like-status="INDIFFERENT"></ytmusic-like-button-renderer>
+    <button class="toggle-player-page-button"></button>
   </ytmusic-player-bar>
+  <ytmusic-app-layout></ytmusic-app-layout>
   <ytmusic-player-queue><div id="contents"></div></ytmusic-player-queue>
   <!-- Player page tabs (Up next, Lyrics, Comments, Related), as on the real site. -->
   <ytmusic-player-page>
     <tp-yt-paper-tabs>
-      <div><tp-yt-paper-tab class="tab-header">Up next</tp-yt-paper-tab></div>
-      <div><tp-yt-paper-tab class="tab-header"><span>Lyrics</span></tp-yt-paper-tab></div>
-      <div><tp-yt-paper-tab class="tab-header">Comments</tp-yt-paper-tab></div>
-      <div><tp-yt-paper-tab class="tab-header">Related</tp-yt-paper-tab></div>
+      <div><tp-yt-paper-tab class="tab-header iron-selected" aria-selected="true">Up next</tp-yt-paper-tab></div>
+      <div><tp-yt-paper-tab class="tab-header" aria-selected="false"><span>Lyrics</span></tp-yt-paper-tab></div>
+      <div><tp-yt-paper-tab class="tab-header" aria-selected="false">Comments</tp-yt-paper-tab></div>
+      <div><tp-yt-paper-tab class="tab-header" aria-selected="false">Related</tp-yt-paper-tab></div>
     </tp-yt-paper-tabs>
+    <div id="side-panel">
+      <ytmusic-tab-renderer id="tab-renderer" style="display: block; height: 400px; width: 360px; overflow-y: scroll">
+        <div class="native-content">Up next list</div>
+      </ytmusic-tab-renderer>
+    </div>
   </ytmusic-player-page>
 </ytmusic-app>
 <script>
@@ -40,6 +47,20 @@
         : undefined,
     },
   });
+  // Tabs: a click selects one (its content is a placeholder); the player bar
+  // button opens and closes the player page.
+  const tabHeaders = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tab')];
+  for (const header of tabHeaders)
+    header.addEventListener('click', () => {
+      for (const other of tabHeaders) {
+        other.classList.toggle('iron-selected', other === header);
+        other.setAttribute('aria-selected', String(other === header));
+      }
+      document.querySelector('#tab-renderer .native-content').textContent = header.textContent.trim() + ' content';
+    });
+  document.querySelector('.toggle-player-page-button').addEventListener('click', () =>
+    document.querySelector('ytmusic-app-layout').toggleAttribute('player-page-open'),
+  );
   document.querySelector('ytmusic-player-page').tabs = [
     pageTab('Up next'),
     pageTab('Lyrics', 'MUSIC_PAGE_TYPE_TRACK_LYRICS'),

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { LyricsState } from '../../src/shared/island';
 import { type Fetcher, Lyrics, simplifyTitle } from '../../src/main/services/lyrics';
+import { fetchYtmSynced, lyricsBrowseId, parseTimedLyrics } from '../../src/main/services/ytm-synced';
 
 const track = { id: 'AAAAAAAAAAA', title: 'Song (Official Video)', artist: 'Artist', album: 'Album' };
 const reply = (status: number, body: unknown) => ({ status, text: async () => JSON.stringify(body) });
@@ -21,7 +22,12 @@ describe('LRCLIB lyrics', () => {
   it('asks /api/get with title, artist, album and duration', async () => {
     const { fetcher, urls } = fake(() => reply(200, { syncedLyrics: '[00:01.00] Hello' }));
     const state = await new Lyrics(fetcher, () => {}).fetchLyrics(track, 212.6);
-    expect(state).toEqual({ trackId: track.id, status: 'synced', lines: [{ time: 1, text: 'Hello' }] });
+    expect(state).toEqual({
+      trackId: track.id,
+      status: 'synced',
+      lines: [{ time: 1, text: 'Hello' }],
+      source: 'LRCLIB',
+    });
     expect(urls[0]?.origin + urls[0]!.pathname).toBe('https://lrclib.net/api/get');
     expect(Object.fromEntries(urls[0]!.searchParams)).toEqual({
       track_name: 'Song (Official Video)',
@@ -140,16 +146,48 @@ describe('lyrics requests', () => {
     lyrics.dispose();
   });
 
-  it('a network error shows the title (no lyrics), without retrying the same track', async () => {
+  it('a network error is logged and tried once more, then shows the title (no further retry)', async () => {
     const fetcher = vi.fn(async () => {
       throw new Error('offline');
     });
     const states: LyricsState[] = [];
-    const lyrics = new Lyrics(fetcher, s => states.push(s), 10, 20);
+    const errors: string[] = [];
+    const lyrics = new Lyrics(fetcher, s => states.push(s), 10, 20, undefined, {
+      retryMs: 10,
+      onError: source => errors.push(source),
+    });
     lyrics.show(track, 200, true);
     await vi.waitFor(() => expect(states.at(-1)?.status).toBe('none'));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(errors).toEqual(['lrclib', 'lrclib']);
     lyrics.show(track, 200, true);
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    await new Promise(r => setTimeout(r, 30));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("YouTube Music's own synced lyrics are asked first; LRCLIB when it has none or fails", async () => {
+    const { fetcher, urls } = fake(() => reply(200, { syncedLyrics: '[00:01.00] From LRCLIB' }));
+    const ytm = new Lyrics(fetcher, () => {}, 0, 0, undefined, {
+      first: async () => ({ lines: [{ time: 2, text: 'From YouTube Music' }], source: 'Musixmatch' }),
+    });
+    expect(await ytm.fetchLyrics(track, 200)).toEqual({
+      trackId: track.id,
+      status: 'synced',
+      lines: [{ time: 2, text: 'From YouTube Music' }],
+      source: 'YouTube Music · Musixmatch',
+    });
+    expect(urls).toHaveLength(0);
+    const errors: string[] = [];
+    const failing = new Lyrics(fetcher, () => {}, 0, 0, undefined, {
+      first: async () => {
+        throw new Error('blocked');
+      },
+      onError: source => errors.push(source),
+    });
+    expect((await failing.fetchLyrics(track, 200)).source).toBe('LRCLIB');
+    expect(errors).toEqual(['youtube music']);
+    const none = new Lyrics(fetcher, () => {}, 0, 0, undefined, { first: async () => null });
+    expect((await none.fetchLyrics(track, 200)).lines[0]?.text).toBe('From LRCLIB');
   });
 
   it('a late answer for a previous track is not shown', async () => {
@@ -189,5 +227,79 @@ describe('lyrics kept on disk', () => {
     await vi.waitFor(() => expect(learned).toBe(1));
     expect(lyrics.cached().map(s => s.trackId)).toEqual([track.id, 'BBBBBBBBBBB']);
     lyrics.dispose();
+  });
+});
+
+describe("YouTube Music's synced lyrics", () => {
+  const next = {
+    contents: {
+      singleColumnMusicWatchNextResultsRenderer: {
+        tabbedRenderer: {
+          watchNextTabbedResultsRenderer: {
+            tabs: [
+              { tabRenderer: { title: 'Up next' } },
+              {
+                tabRenderer: {
+                  endpoint: {
+                    browseEndpoint: {
+                      browseId: 'MPLYt_abc',
+                      browseEndpointContextSupportedConfigs: {
+                        browseEndpointContextMusicConfig: { pageType: 'MUSIC_PAGE_TYPE_TRACK_LYRICS' },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  };
+  const browse = (lines: unknown[]) => ({
+    contents: {
+      elementRenderer: {
+        newElement: {
+          type: {
+            componentType: {
+              model: {
+                timedLyricsModel: { lyricsData: { timedLyricsData: lines, sourceMessage: 'Source: Musixmatch' } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  it('finds the lyrics page and reads time-stamped lines', async () => {
+    expect(lyricsBrowseId(next)).toBe('MPLYt_abc');
+    expect(lyricsBrowseId({})).toBe('');
+    const timed = browse([
+      { lyricLine: 'Two', cueRange: { startTimeMilliseconds: '2500', endTimeMilliseconds: '4000' } },
+      { lyricLine: '♪', cueRange: { startTimeMilliseconds: '1000', endTimeMilliseconds: '2500' } },
+    ]);
+    expect(parseTimedLyrics(timed)).toEqual({
+      lines: [
+        { time: 1, text: '' },
+        { time: 2.5, text: 'Two' },
+      ],
+      source: 'Musixmatch',
+    });
+    const posts: string[] = [];
+    const found = await fetchYtmSynced(async (url, body) => {
+      posts.push(`${url.split('/').pop()} ${JSON.stringify(body).includes('IOS_MUSIC')}`);
+      return url.includes('/next') ? next : timed;
+    }, 'AAAAAAAAAAA');
+    expect(found?.lines).toHaveLength(2);
+    expect(posts).toEqual(['next?prettyPrint=false false', 'browse?prettyPrint=false true']);
+  });
+
+  it('plain text only (no timing), or nothing: no synced lyrics', async () => {
+    expect(parseTimedLyrics(browse([{ lyricLine: 'No timing' }]))).toBeNull();
+    expect(parseTimedLyrics(browse([]))).toBeNull();
+    expect(parseTimedLyrics({ contents: { sectionListRenderer: {} } })).toBeNull();
+    expect(await fetchYtmSynced(async () => ({}), 'AAAAAAAAAAA')).toBeNull();
+    expect(await fetchYtmSynced(async () => next, 'not an id')).toBeNull();
   });
 });

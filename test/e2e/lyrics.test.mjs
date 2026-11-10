@@ -39,8 +39,9 @@ after(async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test('large player: "Paroles" opens YouTube Music\'s Lyrics tab, taken over by cashew\'s synced lines', async () => {
-  await h.shell.click('#toolbar [data-window="toggle-lyrics"]');
+test("large player: no toolbar button; YouTube Music's Lyrics tab is taken over by cashew's synced lines", async () => {
+  assert.equal(await h.shell.locator('#toolbar [data-window="toggle-lyrics"]').count(), 0, 'no toolbar button');
+  await h.shell.evaluate(() => window.player.window('toggle-lyrics'));
   await h.until(() => page(`document.querySelector('ytmusic-app-layout').hasAttribute('player-page-open')`), {
     message: 'player page opened',
   });

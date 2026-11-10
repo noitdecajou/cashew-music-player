@@ -1,8 +1,14 @@
 # Changelog
 
+## 2.3.0
+
+- **Synced lyrics in YouTube Music's Lyrics tab**, like Better Lyrics: the sung line lights up word by word and stays in view, a click on a line goes there, the mouse wheel scrolls freely, per-track correction (±0.5 s). **Full screen**: cover, title and artist on the left, lyrics on the right, over the blurred colors of the cover (Escape leaves it). Without synced lyrics, YouTube Music's own lyrics stay. A lyrics panel in the mini-player.
+- **More lyrics found**: YouTube Music's own synced lyrics when it has them, then LRCLIB; network failures are tried again and logged.
+- **Island**: livelier, subtle animations (appearing, hover, new track), even with Windows animations off (can be turned off); "On track change" mode compact or detailed; darker background.
+
 ## 2.3.0-beta.3
 
-- **Lyrics, rebuilt like Better Lyrics**: in the large player, cashew's synced lyrics now take the place of YouTube Music's own **Lyrics tab** ("Paroles" in the toolbar opens it): the sung line lights up word by word, the view glides to keep it in sight, a click on a line goes there, the mouse wheel scrolls freely. **Full screen** ("Plein écran" under the lyrics): cover, title and artist on the left, lyrics on the right, over the blurred colors of the cover; Escape leaves it. When no synced lyrics exist, YouTube Music's own lyrics stay in the tab. The mini-player keeps its lyrics panel, with the same engine.
+- **Lyrics, rebuilt like Better Lyrics**: in the large player, cashew's synced lyrics now take the place of YouTube Music's own **Lyrics tab**: the sung line lights up word by word, the view glides to keep it in sight, a click on a line goes there, the mouse wheel scrolls freely. **Full screen** ("Plein écran" under the lyrics): cover, title and artist on the left, lyrics on the right, over the blurred colors of the cover; Escape leaves it. When no synced lyrics exist, YouTube Music's own lyrics stay in the tab. The mini-player keeps its lyrics panel, with the same engine.
 - **More lyrics found**: YouTube Music's own synced lyrics are used when it has them, then LRCLIB. Opening the lyrics fetches them even when the island's lyrics option is off (that option now only concerns the island). A network failure is tried again once and written to the diagnostic log.
 
 ## 2.3.0-beta.2

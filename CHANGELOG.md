@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.0
+
+- **Fixes**: island buttons and the new-game question respond reliably; the playing equalizer moves even with Windows animations turned off; the island stays next to the mini-player (or hides, as chosen); Settings → Games: "Recently detected" first, collapsible lists.
+- **Island on hover**: previous button, click on the cover to open the player, three lyric lines, per-track lyrics correction (±0.5 s).
+- **Cover color**: the equalizer, progress bar and glow take the color of the cover.
+- **Events**: shows for a moment on pause, resume and volume changes (option).
+- **Discretion**: hide after a pause of 1 to 10 minutes (option), invisible in screenshots and screen sharing (Windows 10 2004 and later), steps aside in Windows presentation mode.
+
 ## 2.2.0-beta.1
 
 - Fixes: island buttons and the new-game question respond reliably (main now watches the cursor over the pill; the page's mouse events were unreliable on Windows while clicks go through); the playing equalizer moves even when Windows animations are turned off; Settings → Games: "Recently detected" comes first and the three lists can be collapsed (remembered).

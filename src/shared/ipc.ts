@@ -1,4 +1,4 @@
-import type { GameAnswer, GamePrompt, IslandPrefs, IslandView, LyricsState } from './island';
+import type { GameAnswer, GamePrompt, IslandEvent, IslandPrefs, IslandView, LyricsState } from './island';
 import type { MiniTheme } from './themes';
 import type { PlayerCommand, PlayerProgress, PlayerSnapshot, QueueState } from './player';
 
@@ -139,6 +139,9 @@ export interface ShellEvents {
   /** Island page: show the details for this many milliseconds. */
   'island:peek': number;
   'island:prompt': GamePrompt | null;
+  /** Island page: the cursor entered or left the pill (watched by main). */
+  'island:hover': boolean;
+  'island:event': IslandEvent;
 }
 
 /** The API exposed to our renderer pages as window.player. */
@@ -166,6 +169,12 @@ export interface ShellApi {
   islandHover(hover: boolean): void;
   /** Island page: answer to "add this game to the list?". */
   islandAnswer(answer: GameAnswer): void;
+  /** Island page: where the pill is (CSS pixels, window coordinates). */
+  islandPill(rect: { x: number; y: number; width: number; height: number }): void;
+  /** Island page: show the player window. */
+  islandOpenPlayer(): void;
+  /** Island page: move this track's lyrics by `delta` seconds. */
+  islandLyricsOffset(delta: number): void;
   on<K extends keyof ShellEvents>(channel: K, listener: (value: ShellEvents[K]) => void): () => void;
 }
 
@@ -183,6 +192,8 @@ export const SHELL_EVENT_CHANNELS: readonly (keyof ShellEvents)[] = [
   'settings:section',
   'island:peek',
   'island:prompt',
+  'island:hover',
+  'island:event',
 ];
 
 /** Errors thrown in main arrive prefixed by Electron: keep only our message. */

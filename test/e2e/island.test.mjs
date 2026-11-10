@@ -35,7 +35,12 @@ const calls = async type => (await h.ytm('__fake.calls')).filter(c => c[0] === t
 before(async () => {
   h = await launch({
     userData: profile,
-    env: { MP_LYRICS_FIXTURE: lyricsFile, MP_FAKE_FOREGROUND: foregroundFile },
+    // MP_TIME_SCALE: minutes of the "hide after a pause" option last 100 ms here.
+    env: { MP_LYRICS_FIXTURE: lyricsFile, MP_FAKE_FOREGROUND: foregroundFile, MP_TIME_SCALE: '600' },
+  });
+  await h.app.evaluate(({ ipcMain }) => {
+    globalThis.__pills = [];
+    ipcMain.on('island:pill', (_e, rect) => globalThis.__pills.push(rect));
   });
   await h.ytm('__fake.start(0)');
   await h.until(async () => (await h.shell.textContent('#toolbar .title')) === 'Premier titre', { message: 'playing' });
@@ -113,6 +118,103 @@ test('island: click on the progress bar seeks, the mouse wheel sets the volume',
   await h.until(async () => (await calls('setVolume')).length > volumeCalls, { message: 'volume' });
   assert.match(await island.textContent('.volume-badge'), /Volume \d+ %/);
   await island.mouse.move(5, 140);
+});
+
+test('island v3: main reports the hover; previous, cover opens the player; pill position reported', async () => {
+  // Main watches the real cursor and tells the page (simulated here: no real cursor in tests).
+  await h.app.evaluate(({ webContents }) =>
+    webContents
+      .getAllWebContents()
+      .find(w => w.getURL().includes('island.html'))
+      .send('island:hover', true),
+  );
+  await island.waitForSelector('#island.expanded-view');
+  await new Promise(r => setTimeout(r, 400));
+  const pill = (await h.app.evaluate(() => globalThis.__pills)).at(-1);
+  assert.equal(pill.width, 430, 'expanded pill width reported');
+  assert.equal(pill.y, 0, 'hangs from the top');
+  const before = (await calls('.previous-button')).length;
+  await island.click('.expanded .prev');
+  await h.until(async () => (await calls('.previous-button')).length > before, { message: 'previous' });
+  await h.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find(w => w.webContents.getURL().includes('index.html'))
+      .hide(),
+  );
+  await island.click('.expanded .cover');
+  await h.until(
+    () =>
+      h.app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()
+          .find(w => w.webContents.getURL().includes('index.html'))
+          .isVisible(),
+      ),
+    { message: 'player shown' },
+  );
+  await h.app.evaluate(({ webContents }) =>
+    webContents
+      .getAllWebContents()
+      .find(w => w.getURL().includes('island.html'))
+      .send('island:hover', false),
+  );
+  await h.until(async () => !(await island.getAttribute('#island', 'class')).includes('expanded-view'), {
+    message: 'collapsed',
+  });
+});
+
+test('island v3: three lyric lines on hover, per-track correction kept on disk', async () => {
+  await h.ytm('__fake.start(0)');
+  await h.until(async () => /ligne/i.test(await island.textContent('.line .text')), { message: 'lyrics' });
+  await island.hover('#island');
+  await island.waitForSelector('#island.expanded-view.with-lyrics');
+  assert.equal(await island.isVisible('.karaoke'), true);
+  assert.match(await island.textContent('.k-now'), /ligne|♪/);
+  assert.equal(await island.textContent('.offset-value'), 'calées');
+  await island.click('.shift[data-shift="0.5"]');
+  await h.until(async () => (await island.textContent('.offset-value')) === '+0,5 s', { message: 'offset shown' });
+  const userData = await h.app.evaluate(({ app }) => app.getPath('userData'));
+  await h.until(
+    async () => {
+      try {
+        return JSON.parse(readFileSync(join(userData, 'lyrics-offsets.json'), 'utf8')).AAAAAAAAAAA === 0.5;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'offset saved' },
+  );
+  await island.click('.shift[data-shift="-0.5"]');
+  await h.until(async () => (await island.textContent('.offset-value')) === 'calées', { message: 'back to 0' });
+  await island.mouse.move(5, 210);
+});
+
+test('island v3: cover color, pause and volume messages', async () => {
+  await h.until(
+    async () => !!(await island.evaluate(() => document.documentElement.style.getPropertyValue('--tint'))),
+    { message: 'tint from the cover' },
+  );
+  await h.shell.evaluate(() => window.player.command({ type: 'toggle-play' }));
+  await h.until(async () => (await island.textContent('.line .text')) === '⏸ En pause', { message: 'pause message' });
+  await h.shell.evaluate(() => window.player.command({ type: 'toggle-play' }));
+  await h.until(async () => (await island.textContent('.line .text')) === '▶ Lecture', { message: 'play message' });
+  await h.shell.evaluate(() => window.player.command({ type: 'volume', volume: 40 }));
+  await h.until(async () => (await island.textContent('.line .text')) === 'Volume 40 %', { message: 'volume message' });
+});
+
+test('island v3: hidden after a pause (option), back on play; out of screen captures', async () => {
+  await settings({ idleMinutes: 1 }); // 100 ms here
+  await h.shell.evaluate(() => window.player.command({ type: 'pause' }));
+  await h.until(async () => !(await islandWindow()).visible, { message: 'hidden after the pause' });
+  await h.shell.evaluate(() => window.player.command({ type: 'play' }));
+  await h.until(async () => (await islandWindow()).visible, { message: 'back on play' });
+  await settings({ idleMinutes: 0 });
+  const isProtected = await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find(win => win.getTitle() === 'cashew island');
+    return typeof w.isContentProtected === 'function' ? w.isContentProtected() : null;
+  });
+  // Content protection exists on Windows and macOS only.
+  if (isProtected !== null && process.platform !== 'linux')
+    assert.equal(isProtected, true, 'excluded from captures by default');
 });
 
 test('island: position, clock and lyrics option follow the settings', async () => {
@@ -268,6 +370,12 @@ test('settings window: island and games sections drive the island', async () => 
   assert.match(await page.textContent('.detected'), /Jeu Beta \(beta\.exe\) · reconnue comme jeu, plein écran/);
   assert.equal(await page.locator('.declined .game[data-exe="alpha.exe"]').count(), 1, 'declined listed');
   assert.equal(await page.locator('.recent .game[data-exe="beta.exe"] button').count(), 2, 'add or decline');
+  // Lists: recently detected first; "declined" collapsed by default, opens on click.
+  const order = await page.$$eval('details.group', groups => groups.map(g => g.dataset.group));
+  assert.deepEqual(order, ['recent', 'games', 'declined']);
+  assert.equal(await page.isVisible('.declined'), false, 'declined collapsed');
+  assert.equal(await page.textContent('details[data-group="declined"] .count'), '1');
+  await page.click('details[data-group="declined"] summary');
   await page.click('.declined .game[data-exe="alpha.exe"] button:has-text("Ne plus refuser")');
   await h.until(async () => (await page.locator('.declined .game').count()) === 0, { message: 'no longer declined' });
   await page.click('.games .game[data-exe="quiet.exe"] button.icon');

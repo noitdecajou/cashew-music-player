@@ -24,7 +24,9 @@ function installFixture(target: Electron.Session): void {
       // Distinct, generated artwork per track (screenshots); real requests never reach here.
       const hue = [...url.pathname].reduce((sum, c) => (sum * 31 + c.charCodeAt(0)) % 360, 7);
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="hsl(${hue} 55% 55%)"/><stop offset="1" stop-color="hsl(${(hue + 60) % 360} 50% 28%)"/></linearGradient></defs><rect width="10" height="10" fill="url(#g)"/><circle cx="6.5" cy="4" r="2.2" fill="hsl(${(hue + 180) % 360} 60% 75% / .55)"/></svg>`;
-      return new Response(svg, { headers: { 'content-type': 'image/svg+xml' } });
+      return new Response(svg, {
+        headers: { 'content-type': 'image/svg+xml', 'access-control-allow-origin': '*' },
+      });
     }
     if (url.hostname === 'i.ytimg.com') return new Response('', { status: 404 });
     return net.fetch(request, { bypassCustomProtocolHandlers: true });

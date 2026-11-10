@@ -156,6 +156,31 @@ export function windowsForeground(
   }
 }
 
+/**
+ * Windows presentation mode (SHQueryUserNotificationState): the user said
+ * "I am presenting"; the island stays out of the way. null outside Windows.
+ */
+export function windowsPresentationMode(log: (...parts: unknown[]) => void): (() => boolean) | null {
+  if (process.platform !== 'win32') return null;
+  try {
+    const koffi = require('koffi') as typeof import('koffi');
+    const shell32 = koffi.load('shell32.dll');
+    const query = shell32.func('int32 __stdcall SHQueryUserNotificationState(_Out_ int32 *pquns)');
+    const QUNS_PRESENTATION_MODE = 4;
+    return () => {
+      try {
+        const state = [0];
+        return query(state) === 0 && state[0] === QUNS_PRESENTATION_MODE;
+      } catch {
+        return false;
+      }
+    };
+  } catch (error) {
+    log('presentation mode: unavailable', error);
+    return null;
+  }
+}
+
 /** Test-only: the foreground is read from a JSON file ({path, title, fullscreen}). */
 export function fileForeground(path: string): ForegroundReader {
   return () => {

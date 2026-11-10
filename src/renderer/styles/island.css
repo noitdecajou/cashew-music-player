@@ -6,6 +6,8 @@
   --muted: #a6a9b8;
   --faint: #6f7385;
   --accent: #c9b9ff;
+  /* The cover's color when it has one (set by the page), else the accent. */
+  --tone: var(--tint, var(--accent));
   --compact-w: 340px;
   --compact-h: 32px;
   --expanded-w: 430px;
@@ -48,7 +50,9 @@ body.pos-right {
   height: var(--compact-h);
   background: var(--pill);
   border-radius: 0 0 16px 16px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.35),
+    0 2px 14px color-mix(in srgb, var(--tone) 22%, transparent);
   overflow: hidden;
   transition:
     width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -62,6 +66,9 @@ body.pos-right {
   width: var(--expanded-w);
   height: var(--expanded-h);
   border-radius: 0 0 22px 22px;
+}
+.island.expanded-view.with-lyrics {
+  height: calc(var(--expanded-h) + 76px);
 }
 .island.prompt-view {
   width: var(--expanded-w);
@@ -146,8 +153,8 @@ body.pos-right {
   width: 2.5px;
   height: 4px;
   border-radius: 2px;
-  background: var(--accent);
-  opacity: 0.85;
+  background: var(--tone);
+  opacity: 0.9;
 }
 .playing .bars i {
   animation: bar 0.9s ease-in-out infinite alternate;
@@ -243,6 +250,88 @@ button svg {
 button.play {
   background: rgba(255, 255, 255, 0.12);
 }
+button.prev,
+button.next {
+  width: 28px;
+  height: 28px;
+}
+button.cover {
+  width: auto;
+  height: auto;
+  padding: 0;
+  border-radius: 9px;
+  background: none;
+}
+button.cover:hover {
+  background: none;
+  filter: brightness(1.12);
+}
+
+/* Three lyric lines on hover, with the per-track correction */
+.karaoke {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0 0;
+  text-align: center;
+}
+.karaoke[hidden] {
+  display: none;
+}
+.k-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 16px;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.k-now {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  min-height: 19px;
+}
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.foot .upnext {
+  flex: 1;
+  min-width: 0;
+}
+.offset {
+  flex: none;
+  display: none;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--faint);
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.with-lyrics .offset {
+  display: flex;
+}
+.offset:hover {
+  opacity: 1;
+}
+.offset button.shift {
+  width: auto;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 10px;
+  color: var(--muted);
+}
+.offset-value {
+  min-width: 34px;
+  text-align: center;
+}
 .progress {
   display: flex;
   align-items: center;
@@ -268,7 +357,8 @@ button.play {
 .rail .fill {
   height: 100%;
   width: 0;
-  background: var(--accent);
+  background: var(--tone);
+  transition: background-color 0.4s;
 }
 .upnext {
   font-size: 11px;
@@ -356,7 +446,7 @@ button.play {
   .prompt {
     transition: none;
   }
-  .playing .bars i,
+  /* The equalizer stays: it is the only sign that music plays. */
   .line .text.enter {
     animation: none;
   }

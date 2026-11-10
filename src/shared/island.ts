@@ -37,7 +37,15 @@ export interface IslandPrefs {
   opacity: number;
   /** While the mini-player is shown: keep the island, or hide it. */
   withMini: 'keep' | 'hide';
+  /** Show the island for a moment on pause, resume and volume changes. */
+  events: boolean;
+  /** Hide the island after this many minutes of pause (0 = never). */
+  idleMinutes: number;
+  /** Keep the island out of screenshots and screen sharing. */
+  hideFromCapture: boolean;
 }
+
+export const IDLE_CHOICES = [0, 1, 2, 5, 10] as const;
 
 export const DEFAULT_ISLAND: IslandPrefs = {
   mode: 'off',
@@ -52,6 +60,9 @@ export const DEFAULT_ISLAND: IslandPrefs = {
   size: 'normal',
   opacity: 94,
   withMini: 'keep',
+  events: true,
+  idleMinutes: 0,
+  hideFromCapture: true,
 };
 
 export const MAX_GAMES = 100;
@@ -109,6 +120,9 @@ export function sanitizeIsland(raw: unknown): IslandPrefs {
     shortcut: typeof v.shortcut === 'string' && v.shortcut.length <= 80 ? v.shortcut : DEFAULT_ISLAND.shortcut,
     size: v.size === 'small' || v.size === 'large' || v.size === 'xlarge' ? v.size : 'normal',
     withMini: v.withMini === 'hide' ? 'hide' : 'keep',
+    events: typeof v.events === 'boolean' ? v.events : DEFAULT_ISLAND.events,
+    idleMinutes: IDLE_CHOICES.includes(v.idleMinutes as 0) ? (v.idleMinutes as number) : DEFAULT_ISLAND.idleMinutes,
+    hideFromCapture: typeof v.hideFromCapture === 'boolean' ? v.hideFromCapture : DEFAULT_ISLAND.hideFromCapture,
     opacity:
       typeof v.opacity === 'number' && Number.isFinite(v.opacity)
         ? Math.round(Math.min(100, Math.max(50, v.opacity)))
@@ -218,6 +232,8 @@ export interface IslandMoments {
   prompt: boolean;
   /** The mini-player is on screen. */
   mini?: boolean;
+  /** Paused for longer than the chosen delay, or Windows presentation mode: stay out of the way. */
+  quiet?: boolean;
 }
 
 /**
@@ -240,6 +256,7 @@ export function decideIsland(
   if (moments.prompt) return { visible: true, position };
   if (!hasTrack) return hidden;
   if (moments.mini && prefs.withMini === 'hide') return hidden;
+  if (moments.quiet && !moments.peek) return hidden;
   if (moments.peek) return { visible: true, position };
   if (prefs.mode === 'always') return { visible: true, position };
   if (prefs.mode === 'track' || !foreground) return hidden;
@@ -250,7 +267,7 @@ export function decideIsland(
 
 // ------------------------------------------------------------------ geometry --
 
-export const ISLAND_WINDOW = { width: 460, height: 150 } as const;
+export const ISLAND_WINDOW = { width: 460, height: 220 } as const;
 const EDGE_MARGIN = 16;
 
 export interface Box {
@@ -291,7 +308,11 @@ export interface LyricsState {
   trackId: string;
   status: 'off' | 'loading' | 'synced' | 'none';
   lines: LyricLine[];
+  /** Correction chosen for this track, in seconds (positive: lines later). */
+  offset?: number;
 }
+
+export const MAX_LYRICS_OFFSET = 10;
 
 export const MAX_LYRIC_LINES = 400;
 
@@ -341,7 +362,11 @@ export function sanitizeLyrics(raw: unknown): LyricsState | null {
     if (typeof l?.time === 'number' && Number.isFinite(l.time) && l.time >= 0 && typeof l.text === 'string')
       lines.push({ time: l.time, text: l.text.slice(0, 200) });
   }
-  return { trackId: v.trackId, status: v.status as LyricsState['status'], lines };
+  const offset =
+    typeof v.offset === 'number' && Number.isFinite(v.offset)
+      ? Math.max(-MAX_LYRICS_OFFSET, Math.min(MAX_LYRICS_OFFSET, Math.round(v.offset * 10) / 10))
+      : 0;
+  return { trackId: v.trackId, status: v.status as LyricsState['status'], lines, offset };
 }
 
 /** Configuration the island page needs (everything else comes from the player events). */
@@ -358,3 +383,33 @@ export interface GamePrompt {
   name: string;
 }
 export type GameAnswer = 'add' | 'decline' | 'later';
+
+/** Something the island shows for a moment: pause, resume, volume change. */
+export interface IslandEvent {
+  kind: 'pause' | 'play' | 'volume' | 'mute';
+  volume: number;
+}
+
+/**
+ * A readable accent from a cover's average color: saturated enough to tint, and
+ * light enough to read on the dark pill. `null` for greys (keep the default accent).
+ */
+export function tintFromRgb(r: number, g: number, b: number): string | null {
+  const max = Math.max(r, g, b) / 255;
+  const min = Math.min(r, g, b) / 255;
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d < 0.08) return null;
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h: number;
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  if (max === rn) h = ((gn - bn) / d) % 6;
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  h = Math.round((h * 60 + 360) % 360);
+  const sat = Math.round(Math.min(0.85, Math.max(0.45, s)) * 100);
+  const light = Math.round(Math.min(0.78, Math.max(0.66, l)) * 100);
+  return `hsl(${h} ${sat}% ${light}%)`;
+}

@@ -28,6 +28,7 @@ import { EMPTY_SNAPSHOT, PLAYLIST_ID, type PlayerSnapshot, VIDEO_ID, sanitizeCom
 import {
   type GameAnswer,
   type GamePrompt,
+  type IslandEvent,
   ISLAND_SCALE,
   type IslandPrefs,
   type IslandView,
@@ -39,7 +40,13 @@ import {
   sanitizeLyrics,
 } from '../shared/island';
 import { isMiniTheme } from '../shared/themes';
-import { ForegroundWatcher, fileForeground, windowsForeground, windowsGameList } from './services/foreground';
+import {
+  ForegroundWatcher,
+  fileForeground,
+  windowsForeground,
+  windowsGameList,
+  windowsPresentationMode,
+} from './services/foreground';
 import { Lyrics, fixtureFetcher as fixtureLyrics } from './services/lyrics';
 import { pendingWrites, readJson, writeJson } from './services/json-file';
 import { Library } from './services/library';
@@ -209,7 +216,9 @@ function main(): void {
         contents.on('did-finish-load', () => sendIslandState(contents));
       },
       () => updateStreams(),
+      hover => island.contents?.send('island:hover', hover),
     );
+    island.setCaptureProtection(prefs.value.island.hideFromCapture);
     const islandView = (): IslandView => {
       const p = prefs.value.island;
       return { position: islandDecision.position, clock: p.clock, scale: ISLAND_SCALE[p.size], opacity: p.opacity };
@@ -355,7 +364,8 @@ function main(): void {
           if (snapshot.track?.id !== previous.track?.id) {
             showLyrics(0);
             if (snapshot.track && prefs.value.island.mode === 'track') peek(6000);
-          }
+          } else if (snapshot.track) islandEvents(previous, snapshot);
+          updateIdle();
           if (!!snapshot.track !== !!previous.track) refreshIsland();
           return;
         }
@@ -386,6 +396,19 @@ function main(): void {
     });
     ipcMain.on('island:hover', (event, hover) => {
       if (fromIsland(event) && typeof hover === 'boolean') island.setHover(hover);
+    });
+    ipcMain.on('island:pill', (event, raw) => {
+      if (!fromIsland(event) || !raw || typeof raw !== 'object') return;
+      const r = raw as Record<string, unknown>;
+      const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : NaN);
+      const rect = { x: n(r.x), y: n(r.y), width: n(r.width), height: n(r.height) };
+      if (Object.values(rect).every(v => v >= 0 && v <= 4000)) island.setPill(rect);
+    });
+    ipcMain.on('island:open-player', event => {
+      if (fromIsland(event)) window.show();
+    });
+    ipcMain.on('island:lyrics-offset', (event, delta) => {
+      if (fromIsland(event) && (delta === 0.5 || delta === -0.5 || delta === 0)) shiftLyrics(delta);
     });
     ipcMain.on('island:answer', (event, answer) => {
       if (fromIsland(event) && ['add', 'decline', 'later'].includes(answer)) answerPrompt(answer as GameAnswer);
@@ -597,6 +620,71 @@ function main(): void {
       refreshIsland();
       island.contents?.send('island:peek', ms);
     }
+    /** Shown for a moment without the details (pause, resume, volume). */
+    function flash(ms: number): void {
+      if (prefs.value.island.mode === 'off' || !snapshot.track) return;
+      peeking = true;
+      if (peekTimer) clearTimeout(peekTimer);
+      peekTimer = setTimeout(() => {
+        peeking = false;
+        peekTimer = null;
+        refreshIsland();
+      }, ms);
+      refreshIsland();
+    }
+    function islandEvents(before: PlayerSnapshot, after: PlayerSnapshot): void {
+      if (!prefs.value.island.events || prefs.value.island.mode === 'off') return;
+      const playing = (s: PlayerSnapshot): boolean => s.status === 'playing';
+      const paused = (s: PlayerSnapshot): boolean => s.status === 'paused';
+      let event: IslandEvent | null = null;
+      if (paused(after) && playing(before)) event = { kind: 'pause', volume: after.volume };
+      else if (playing(after) && paused(before)) event = { kind: 'play', volume: after.volume };
+      else if (after.muted !== before.muted && after.muted) event = { kind: 'mute', volume: after.volume };
+      else if (after.volume !== before.volume || after.muted !== before.muted)
+        event = { kind: 'volume', volume: after.volume };
+      if (!event) return;
+      island.contents?.send('island:event', event);
+      if (!islandDecision.visible) flash(2500);
+    }
+
+    // Out of the way: paused for a while, or Windows presentation mode.
+    const timeScale = !app.isPackaged && Number(process.env.MP_TIME_SCALE) > 0 ? Number(process.env.MP_TIME_SCALE) : 1;
+    let idle = false;
+    let idleTimer: NodeJS.Timeout | null = null;
+    function updateIdle(): void {
+      const minutes = prefs.value.island.idleMinutes;
+      const paused = !!snapshot.track && snapshot.status !== 'playing' && snapshot.status !== 'buffering';
+      if (!paused || !minutes) {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = null;
+        if (idle) {
+          idle = false;
+          refreshIsland();
+        }
+        return;
+      }
+      if (idleTimer || idle) return;
+      idleTimer = setTimeout(
+        () => {
+          idleTimer = null;
+          idle = true;
+          refreshIsland();
+        },
+        (minutes * 60_000) / timeScale,
+      );
+    }
+    const presentationMode = windowsPresentationMode(log);
+    let presenting = false;
+    if (presentationMode)
+      setInterval(() => {
+        if (prefs.value.island.mode === 'off') return;
+        const now = presentationMode();
+        if (now !== presenting) {
+          presenting = now;
+          refreshIsland();
+        }
+      }, 5000);
+
     const islandShortcut = new GlobalShortcut(() => peek(5000));
     let islandShortcutError = islandShortcut.set(prefs.value.island.shortcut);
     if (prefs.value.island.mode === 'off') islandShortcut.suspend(true);
@@ -644,6 +732,7 @@ function main(): void {
         peek: peeking,
         prompt: !!prompt,
         mini: window.state.mini && window.visible,
+        quiet: idle || presenting,
       });
       const moved = decision.position !== islandDecision.position;
       islandDecision = decision;
@@ -657,6 +746,13 @@ function main(): void {
       prefs.update({ island: sanitizeIsland(next) });
       const p = prefs.value.island;
       if (p.lyrics !== before.lyrics) showLyrics(0);
+      island.setCaptureProtection(p.hideFromCapture);
+      if (p.idleMinutes !== before.idleMinutes) {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = null;
+        idle = false;
+        updateIdle();
+      }
       if (p.mode === 'off') islandShortcut.suspend(true);
       else {
         islandShortcut.suspend(false);
@@ -666,6 +762,26 @@ function main(): void {
       refreshIsland();
       island.contents?.send('island:view', islandView());
     }
+    // Per-track lyrics correction chosen in the island (kept on disk).
+    const offsetsFile = join(userData, 'lyrics-offsets.json');
+    const lyricsOffsets = new Map<string, number>();
+    void readJson(offsetsFile).then(raw => {
+      for (const [id, value] of Object.entries((raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>))
+        if (VIDEO_ID.test(id) && typeof value === 'number' && Math.abs(value) <= 10) lyricsOffsets.set(id, value);
+    });
+    function shiftLyrics(delta: number): void {
+      const id = snapshot.track?.id;
+      if (!id || !lyricsState || lyricsState.trackId !== id) return;
+      const next =
+        delta === 0 ? 0 : Math.max(-10, Math.min(10, Math.round(((lyricsOffsets.get(id) ?? 0) + delta) * 10) / 10));
+      if (next) lyricsOffsets.set(id, next);
+      else lyricsOffsets.delete(id);
+      while (lyricsOffsets.size > 2000) lyricsOffsets.delete(lyricsOffsets.keys().next().value as string);
+      void writeJson(offsetsFile, Object.fromEntries(lyricsOffsets));
+      lyricsState = { ...lyricsState, offset: next };
+      island.contents?.send('lyrics:state', lyricsState);
+    }
+
     // Synced lyrics: only while the island is on (nothing is requested otherwise).
     const lyricsFile = join(userData, 'lyrics-cache.json');
     let lyricsSaveTimer: NodeJS.Timeout | null = null;
@@ -677,7 +793,10 @@ function main(): void {
               headers: { 'User-Agent': `cashew-music-player/${app.getVersion()} (${REPOSITORY_URL})` },
             }),
       raw => {
-        const state = sanitizeLyrics(raw);
+        const state = sanitizeLyrics({
+          ...(raw as object),
+          offset: lyricsOffsets.get((raw as LyricsState).trackId) ?? 0,
+        });
         if (!state) return;
         lyricsState = state;
         island.contents?.send('lyrics:state', state);

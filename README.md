@@ -23,7 +23,7 @@ the last session and a global shortcut. The interface is in French.
 - **Live queue**: click a track to play it, remove a track.
 - **Resume** of the last track after a restart, at the same position.
 - **Island** (optional): a pill at the top of the screen with the cover and synced lyrics; on hover, title, artist,
-  progress (click to seek), next track, play/pause and next, volume with the mouse wheel. Always shown, on each track
+  progress (click to seek), three lyric lines, previous/play/pause/next, volume with the mouse wheel, cover color. Always shown, on each track
   change, or only over games (per-game settings, new games offered), with a shortcut to show the details, adjustable
   size and opacity.
 - **Global shortcut** (Ctrl+Alt+M by default), start with Windows, video fullscreen, built-in updates.

@@ -270,3 +270,48 @@ body.settings-view {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* Collapsible lists (Games) */
+details.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+details.group > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+details.group > summary::-webkit-details-marker {
+  display: none;
+}
+details.group > summary::before {
+  content: '▸';
+  color: var(--faint);
+  font-size: 11px;
+  transition: transform 0.15s;
+}
+details.group[open] > summary::before {
+  transform: rotate(90deg);
+}
+details.group > summary h3 {
+  margin: 0;
+}
+details.group .count {
+  font-size: 11px;
+  color: var(--faint);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+details.group[open] > :not(summary) {
+  margin-top: 8px;
+}
+.check select {
+  margin-left: 4px;
+}

@@ -160,6 +160,35 @@ $<HTMLInputElement>('#islandLyrics').addEventListener(
   'change',
   event => void updateIsland({ lyrics: (event.target as HTMLInputElement).checked }),
 );
+$<HTMLInputElement>('#islandEvents').addEventListener(
+  'change',
+  event => void updateIsland({ events: (event.target as HTMLInputElement).checked }),
+);
+$<HTMLSelectElement>('#islandIdle').addEventListener(
+  'change',
+  event => void updateIsland({ idleMinutes: Number((event.target as HTMLSelectElement).value) }),
+);
+$<HTMLInputElement>('#islandCapture').addEventListener(
+  'change',
+  event => void updateIsland({ hideFromCapture: (event.target as HTMLInputElement).checked }),
+);
+// Collapsible lists: their open/closed state is remembered on this computer.
+for (const group of $$<HTMLDetailsElement>('details.group')) {
+  const key = `cashew.settings.${group.dataset.group}`;
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved !== null) group.open = saved === 'open';
+  } catch {
+    /* storage unavailable: defaults */
+  }
+  group.addEventListener('toggle', () => {
+    try {
+      localStorage.setItem(key, group.open ? 'open' : 'closed');
+    } catch {
+      /* ignore */
+    }
+  });
+}
 $<HTMLInputElement>('#autoFullscreen').addEventListener(
   'change',
   event => void updateIsland({ autoFullscreen: (event.target as HTMLInputElement).checked }),
@@ -320,6 +349,12 @@ function render(settings: Settings): void {
   if (island.display >= settings.displays.length)
     displaySelect.append(el('option', { value: String(island.display), selected: true }, 'Écran débranché'));
   $<HTMLInputElement>('#islandLyrics').checked = island.lyrics;
+  $<HTMLInputElement>('#islandEvents').checked = island.events;
+  $<HTMLSelectElement>('#islandIdle').value = String(island.idleMinutes);
+  $<HTMLInputElement>('#islandCapture').checked = island.hideFromCapture;
+  setText($('details[data-group="games"] .count'), String(island.games.length));
+  setText($('details[data-group="recent"] .count'), String(settings.recentApps.length));
+  setText($('details[data-group="declined"] .count'), String(island.declined.length));
   if (document.activeElement !== opacity) opacity.value = String(island.opacity);
   setText($('.range-value'), `${island.opacity} %`);
   islandShortcut.value = island.shortcut;

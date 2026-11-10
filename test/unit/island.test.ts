@@ -102,7 +102,7 @@ describe('when the island shows', () => {
 describe('island geometry', () => {
   const display = { x: 1920, y: 0, width: 2560, height: 1440 };
   it('hangs from the top edge, left, centered or right', () => {
-    expect(islandBounds(display, 'center')).toEqual({ x: 1920 + 1050, y: 0, width: 460, height: 150 });
+    expect(islandBounds(display, 'center')).toEqual({ x: 1920 + 1050, y: 0, width: 460, height: 220 });
     expect(islandBounds(display, 'left').x).toBe(1936);
     expect(islandBounds(display, 'right').x).toBe(1920 + 2560 - 460 - 16);
   });
@@ -140,7 +140,7 @@ describe('synced lyrics', () => {
           { time: -1, text: 'b' },
         ],
       }),
-    ).toEqual({ trackId: 'x', status: 'synced', lines: [{ time: 1, text: 'a' }] });
+    ).toEqual({ trackId: 'x', status: 'synced', lines: [{ time: 1, text: 'a' }], offset: 0 });
     expect(sanitizeLyrics({ trackId: 'x', status: 'stolen', lines: [] })).toBeNull();
   });
 });
@@ -264,7 +264,7 @@ describe('island v2: modes, questions, size', () => {
 
   it('the window grows with the size', () => {
     const display = { x: 0, y: 0, width: 1920, height: 1080 };
-    expect(islandBounds(display, 'center', 1.2)).toEqual({ x: 684, y: 0, width: 552, height: 180 });
+    expect(islandBounds(display, 'center', 1.2)).toEqual({ x: 684, y: 0, width: 552, height: 264 });
   });
 });
 
@@ -298,5 +298,36 @@ describe('island with the mini-player', () => {
     for (let i = 0; i < 5; i++) (watcher as unknown as { tick(): void }).tick();
     expect(watcher.current?.exe).toBe('game.exe');
     watcher.dispose();
+  });
+});
+
+describe('island v3', () => {
+  it('cover color: a readable tint for colorful covers, none for greys', async () => {
+    const { tintFromRgb } = await import('../../src/shared/island');
+    expect(tintFromRgb(200, 40, 40)).toMatch(/^hsl\(0 \d+% (6[6-9]|7\d)%\)$/);
+    expect(tintFromRgb(20, 60, 140)).toMatch(/^hsl\(22\d \d+% \d+%\)$/);
+    expect(tintFromRgb(120, 120, 125)).toBeNull();
+  });
+  it('quiet (long pause, presentation mode) hides the island, except for a peek or a question', () => {
+    expect(
+      decideIsland(prefs({ mode: 'always' }), null, true, { peek: false, prompt: false, quiet: true }).visible,
+    ).toBe(false);
+    expect(
+      decideIsland(prefs({ mode: 'always' }), null, true, { peek: true, prompt: false, quiet: true }).visible,
+    ).toBe(true);
+    expect(
+      decideIsland(prefs({ mode: 'always' }), null, true, { peek: false, prompt: true, quiet: true }).visible,
+    ).toBe(true);
+  });
+  it('new options and lyrics offsets are bounded', () => {
+    expect(sanitizeIsland({})).toMatchObject({ events: true, idleMinutes: 0, hideFromCapture: true });
+    expect(sanitizeIsland({ events: false, idleMinutes: 5, hideFromCapture: false })).toMatchObject({
+      events: false,
+      idleMinutes: 5,
+      hideFromCapture: false,
+    });
+    expect(sanitizeIsland({ idleMinutes: 7 }).idleMinutes).toBe(0);
+    expect(sanitizeLyrics({ trackId: 'x', status: 'synced', lines: [], offset: 42 })?.offset).toBe(10);
+    expect(sanitizeLyrics({ trackId: 'x', status: 'synced', lines: [], offset: -0.54 })?.offset).toBe(-0.5);
   });
 });

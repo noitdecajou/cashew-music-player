@@ -5,10 +5,19 @@ import { guardPage } from './main-window';
 
 export type PageLoader = (contents: Electron.WebContents) => void;
 
+/** The pill's place in the window (DIP, window coordinates), reported by the page. */
+export interface PillRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /**
  * The island: a transparent, always-on-top window hanging from the top edge of
  * a display. It never takes the focus and lets clicks through, except while the
- * pointer is over the pill (the page reports it, then the window takes clicks).
+ * pointer is over the pill. Main watches the cursor itself: on Windows, the
+ * page's mouse events are unreliable while clicks go through the window.
  */
 export class IslandWindow {
   private win: BrowserWindow | null = null;
@@ -16,11 +25,17 @@ export class IslandWindow {
   private position: IslandPosition = 'center';
   private display = 0;
   private scale = 1;
+  private pill: PillRect | null = null;
+  private hovering = false;
+  private cursorInside = false;
+  private cursorTimer: NodeJS.Timeout | null = null;
+  private protectedFromCapture = true;
 
   constructor(
     private readonly load: PageLoader,
     private readonly onCreated: (contents: Electron.WebContents) => void,
     private readonly onVisibility: () => void,
+    private readonly onHover: (hover: boolean) => void = () => {},
   ) {
     const replace = (): void => this.place();
     screen.on('display-added', replace);
@@ -60,8 +75,46 @@ export class IslandWindow {
     }
     if (visible !== this.visible) {
       this.visible = visible;
+      this.watchCursor(visible);
       this.onVisibility();
     }
+  }
+
+  /** The page reports where the pill is (it grows on hover). */
+  setPill(rect: PillRect): void {
+    this.pill = rect;
+  }
+
+  /** Hidden from screenshots and screen sharing (Windows 10 2004 and later). */
+  setCaptureProtection(protect: boolean): void {
+    this.protectedFromCapture = protect;
+    if (this.win && !this.win.isDestroyed()) this.win.setContentProtection(protect);
+  }
+
+  private watchCursor(active: boolean): void {
+    if (active && !this.cursorTimer) this.cursorTimer = setInterval(() => this.checkCursor(), 60);
+    else if (!active && this.cursorTimer) {
+      clearInterval(this.cursorTimer);
+      this.cursorTimer = null;
+      this.cursorInside = false;
+    }
+  }
+
+  /** Enter/leave the pill, from the real cursor position (changes only). */
+  private checkCursor(): void {
+    if (!this.win || this.win.isDestroyed() || !this.pill) return;
+    const cursor = screen.getCursorScreenPoint();
+    const b = this.win.getBounds();
+    const margin = 4;
+    const p = this.pill;
+    const inside =
+      cursor.x >= b.x + p.x - margin &&
+      cursor.x <= b.x + p.x + p.width + margin &&
+      cursor.y >= b.y + p.y - margin &&
+      cursor.y <= b.y + p.y + p.height + margin;
+    if (inside === this.cursorInside) return;
+    this.cursorInside = inside;
+    this.setHover(inside);
   }
 
   /** Creates the (hidden) window ahead of time: the first appearance is then instant. */
@@ -76,10 +129,13 @@ export class IslandWindow {
     this.win.moveTop();
   }
 
-  /** The pointer entered or left the pill. */
+  /** The pointer entered or left the pill (cursor watch, or the page's own mouse events). */
   setHover(hover: boolean): void {
     if (!this.win || this.win.isDestroyed()) return;
+    if (hover === this.hovering) return;
+    this.hovering = hover;
     this.win.setIgnoreMouseEvents(!hover, { forward: true });
+    this.onHover(hover);
   }
 
   private ensure(): BrowserWindow {
@@ -110,6 +166,8 @@ export class IslandWindow {
     });
     win.setAlwaysOnTop(true, 'screen-saver');
     win.setIgnoreMouseEvents(true, { forward: true });
+    win.setContentProtection(this.protectedFromCapture);
+    this.hovering = false;
     guardPage(win.webContents);
     win.on('closed', () => {
       this.win = null;
@@ -128,6 +186,7 @@ export class IslandWindow {
   }
 
   dispose(): void {
+    this.watchCursor(false);
     if (this.win && !this.win.isDestroyed()) this.win.destroy();
     this.win = null;
   }

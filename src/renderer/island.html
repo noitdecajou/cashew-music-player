@@ -14,6 +14,7 @@
       <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" /></symbol>
       <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></symbol>
       <symbol id="i-next" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z" /></symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 6v12z" /></symbol>
     </svg>
     <div id="island" class="island" hidden>
       <div class="compact">
@@ -25,11 +26,16 @@
       </div>
       <div class="expanded">
         <div class="head">
-          <img class="art" alt="" />
+          <button class="cover" title="Ouvrir le lecteur" aria-label="Ouvrir le lecteur">
+            <img class="art" alt="" />
+          </button>
           <div class="meta">
             <div class="title"></div>
             <div class="artist"></div>
           </div>
+          <button class="prev" aria-label="Morceau précédent" title="Morceau précédent">
+            <svg><use href="#i-prev" /></svg>
+          </button>
           <button class="play" aria-label="Lecture/pause" title="Lecture/pause">
             <svg><use href="#i-play" /></svg>
           </button>
@@ -42,7 +48,19 @@
           <div class="rail" title="Aller à ce moment"><div class="fill"></div></div>
           <span class="total">0:00</span>
         </div>
-        <div class="upnext"></div>
+        <div class="karaoke" hidden>
+          <div class="k-line k-prev"></div>
+          <div class="k-line k-now"></div>
+          <div class="k-line k-next"></div>
+        </div>
+        <div class="foot">
+          <div class="upnext"></div>
+          <div class="offset" title="Si les paroles sont décalées pour ce morceau">
+            <button class="shift" data-shift="-0.5" aria-label="Paroles plus tôt">−0,5 s</button
+            ><span class="offset-value"></span
+            ><button class="shift" data-shift="0.5" aria-label="Paroles plus tard">+0,5 s</button>
+          </div>
+        </div>
         <span class="volume-badge" hidden></span>
       </div>
       <div class="prompt" role="dialog" aria-label="Nouveau jeu détecté">

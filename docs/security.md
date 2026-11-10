@@ -11,8 +11,9 @@ windows (`fromUi`) and render page data as text only. Local files are re-validat
 ## Island (2.1)
 
 - The island window is not focusable, never steals input, and its page may only send playback commands (play/pause,
-  next, previous, seek, volume) and its answer about a new game; every other IPC channel rejects it (`fromIsland` in
-  `src/main/index.ts`).
+  next, previous, seek, volume), its answer about a new game, its own position, a lyrics correction (±0.5 s) and
+  "show the player"; every other IPC channel rejects it (`fromIsland` in `src/main/index.ts`). It is excluded from
+  screen capture by default (`setContentProtection`).
 - Game detection uses read-only Windows calls (foreground window, its size, the process's executable path asked
   once per process with the minimal `PROCESS_QUERY_LIMITED_INFORMATION` right, as Task Manager does) and reads the
   list of games Windows knows (`HKCU\System\GameConfigStore\Children`, through `reg.exe query`). It never reads or

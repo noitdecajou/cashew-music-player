@@ -22,6 +22,9 @@ const api: ShellApi = {
   chooseGame: () => ipcRenderer.invoke('settings:choose-game'),
   islandHover: hover => ipcRenderer.send('island:hover', hover),
   islandAnswer: answer => ipcRenderer.send('island:answer', answer),
+  islandPill: rect => ipcRenderer.send('island:pill', rect),
+  islandOpenPlayer: () => ipcRenderer.send('island:open-player'),
+  islandLyricsOffset: delta => ipcRenderer.send('island:lyrics-offset', delta),
   on: (channel, callback) => {
     if (!SHELL_EVENT_CHANNELS.includes(channel)) return () => undefined;
     const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof callback>[0]): void => callback(value);

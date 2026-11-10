@@ -1,9 +1,16 @@
 // The island page: a pill at the top of the screen. Compact: small cover and
-// the current lyric line (or title — artist). On hover: cover, title, artist,
-// progress, up next, play/pause and next.
+// the current lyric line (or title — artist). On hover: cover (opens the player),
+// title, artist, progress, three lyric lines, up next, previous, play/pause, next.
 
 import type { ShellApi } from '../../shared/ipc';
-import { type GamePrompt, type IslandView, type LyricsState, lineAt } from '../../shared/island';
+import {
+  type GamePrompt,
+  type IslandEvent,
+  type IslandView,
+  type LyricsState,
+  lineAt,
+  tintFromRgb,
+} from '../../shared/island';
 import type { PlayerProgress, PlayerSnapshot } from '../../shared/player';
 import { formatTime } from './format';
 import { $, $$, setText } from './dom';
@@ -33,8 +40,60 @@ let hovering = false;
 /** Details shown for a moment without the mouse (track change, shortcut). */
 let peekTimer = 0;
 let prompt: GamePrompt | null = null;
+/** A short message replacing the compact line for a moment (pause, volume…). */
+let eventText = '';
+let eventTimer = 0;
+
+/** The island takes the cover's color (equalizer, progress, glow). */
+let tintedFor = '';
+function tint(url: string): void {
+  if (url === tintedFor) return;
+  tintedFor = url;
+  const root = document.documentElement;
+  if (!url) {
+    root.style.removeProperty('--tint');
+    return;
+  }
+  const image = new Image();
+  image.crossOrigin = 'anonymous'; // without CORS the canvas is unreadable: keep the default accent
+  image.onload = () => {
+    if (tintedFor !== url) return;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 16;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(image, 0, 0, 16, 16);
+      const data = context.getImageData(0, 0, 16, 16).data;
+      // Average of the colorful pixels: greys and near-black/white would wash the tint out.
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let n = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const pr = data[i] ?? 0;
+        const pg = data[i + 1] ?? 0;
+        const pb = data[i + 2] ?? 0;
+        const spread = Math.max(pr, pg, pb) - Math.min(pr, pg, pb);
+        if (spread < 30) continue;
+        r += pr;
+        g += pg;
+        b += pb;
+        n++;
+      }
+      const color = n ? tintFromRgb(r / n, g / n, b / n) : null;
+      if (color) root.style.setProperty('--tint', color);
+      else root.style.removeProperty('--tint');
+    } catch {
+      root.style.removeProperty('--tint');
+    }
+  };
+  image.onerror = () => root.style.removeProperty('--tint');
+  image.src = url;
+}
 
 function setArt(url: string): void {
+  tint(url);
   for (const img of $$<HTMLImageElement>('.art')) {
     if (url) {
       if (img.getAttribute('src') !== url) img.src = url;
@@ -73,9 +132,15 @@ function renderLine(): void {
   const track = snapshot?.track;
   let text = track ? [track.title, track.artist].filter(Boolean).join(' — ') : '';
   let isLyric = false;
-  if (track && lyrics?.trackId === track.id && lyrics.status === 'synced' && progress?.trackId === track.id) {
-    const index = lineAt(lyrics.lines, estimatedPosition() + LEAD_SECONDS);
-    const sung = index >= 0 ? lyrics.lines[index]?.text : undefined;
+  const synced =
+    !!track && lyrics?.trackId === track.id && lyrics.status === 'synced' && progress?.trackId === track.id;
+  island.classList.toggle('with-lyrics', synced);
+  $('.karaoke').hidden = !synced;
+  if (synced && lyrics) {
+    const lines = lyrics.lines;
+    const index = lineAt(lines, estimatedPosition() + LEAD_SECONDS - (lyrics.offset ?? 0));
+    const at = (i: number): string => (i >= 0 ? (lines[i]?.text ?? '') || '♪' : '');
+    const sung = index >= 0 ? lines[index]?.text : undefined;
     if (sung) {
       text = sung;
       isLyric = true;
@@ -83,6 +148,18 @@ function renderLine(): void {
       text = '♪';
       isLyric = true;
     }
+    setText($('.k-prev'), at(index - 1));
+    setText($('.k-now'), index >= 0 ? at(index) : '♪');
+    setText($('.k-next'), index + 1 < lines.length ? at(index + 1) : '');
+    const offset = lyrics.offset ?? 0;
+    setText(
+      $('.offset-value'),
+      offset ? `${offset > 0 ? '+' : '−'}${Math.abs(offset).toFixed(1).replace('.', ',')} s` : 'calées',
+    );
+  }
+  if (eventText) {
+    text = eventText;
+    isLyric = false;
   }
   island.classList.toggle('lyric', isLyric);
   if (text === shownLine) return;
@@ -93,6 +170,24 @@ function renderLine(): void {
   lineText.classList.remove('enter');
   void lineText.offsetWidth;
   lineText.classList.add('enter');
+}
+
+/** Pause, resume, volume: a short message in place of the line. */
+function showEvent(event: IslandEvent): void {
+  eventText =
+    event.kind === 'pause'
+      ? '⏸ En pause'
+      : event.kind === 'play'
+        ? '▶ Lecture'
+        : event.kind === 'mute'
+          ? 'Son coupé'
+          : `Volume ${event.volume} %`;
+  window.clearTimeout(eventTimer);
+  eventTimer = window.setTimeout(() => {
+    eventText = '';
+    renderLine();
+  }, 2000);
+  renderLine();
 }
 
 function renderProgress(): void {
@@ -144,20 +239,43 @@ function renderView(): void {
   island.classList.toggle('expanded-view', details);
   island.classList.toggle('prompt-view', !!prompt);
   island.hidden = !snapshot?.track && !prompt;
+  reportPill();
 }
 
-/** The window lets clicks through except over the pill. */
-function setHovering(value: boolean): void {
+/**
+ * The window lets clicks through except over the pill. Main watches the real
+ * cursor and tells the page ('island:hover'); mouse moves inside the window are
+ * reported too. No 'mouseleave'/'blur' here: on Windows they fire spuriously while
+ * clicks go through, which used to swallow clicks on the buttons.
+ */
+function setHovering(value: boolean, report: boolean): void {
   if (value === hovering) return;
   hovering = value;
-  api.islandHover(value);
+  if (report) api.islandHover(value);
   renderView();
 }
 document.addEventListener('mousemove', event => {
-  setHovering(!island.hidden && island.contains(event.target as Node));
+  setHovering(!island.hidden && island.contains(event.target as Node), true);
 });
-document.addEventListener('mouseleave', () => setHovering(false));
-window.addEventListener('blur', () => setHovering(false));
+
+/** Tells main where the pill is (visual pixels, also under CSS zoom), as it grows and shrinks. */
+let pillFrame = 0;
+let lastPill = '';
+function reportPill(): void {
+  if (pillFrame) return;
+  pillFrame = requestAnimationFrame(() => {
+    pillFrame = 0;
+    const box = island.getBoundingClientRect();
+    // getBoundingClientRect is in zoomed CSS pixels (Chromium's standard CSS zoom), i.e. window pixels.
+    const rect = { x: box.left, y: box.top, width: box.width, height: box.height };
+    const key = JSON.stringify(rect);
+    if (key === lastPill || island.hidden) return;
+    lastPill = key;
+    api.islandPill(rect);
+  });
+}
+new ResizeObserver(reportPill).observe(island);
+island.addEventListener('transitionend', reportPill);
 
 function peek(ms: number): void {
   window.clearTimeout(peekTimer);
@@ -206,6 +324,10 @@ for (const button of $$<HTMLButtonElement>('.answer'))
   button.addEventListener('click', () => api.islandAnswer(button.dataset.answer as 'add'));
 
 $('.play').addEventListener('click', () => api.command({ type: 'toggle-play' }));
+$('.prev').addEventListener('click', () => api.command({ type: 'previous' }));
+$('.cover').addEventListener('click', () => api.islandOpenPlayer());
+for (const button of $$<HTMLButtonElement>('.shift'))
+  button.addEventListener('click', () => api.islandLyricsOffset(Number(button.dataset.shift)));
 $('.next').addEventListener('click', () => api.command({ type: 'next' }));
 
 api.on('player:snapshot', value => {
@@ -225,7 +347,13 @@ api.on('lyrics:state', value => {
   renderLine();
   updateTicker();
 });
-api.on('island:view', applyView);
+api.on('island:view', view => {
+  applyView(view);
+  lastPill = '';
+  reportPill();
+});
+api.on('island:hover', value => setHovering(value, false));
+api.on('island:event', showEvent);
 api.on('island:peek', ms => peek(Math.min(Math.max(ms, 500), 15000)));
 api.on('island:prompt', value => {
   prompt = value;

@@ -28,6 +28,8 @@ export interface OpMap {
   'queue-remove': { payload: { index: number; videoId: string }; result: { ok: true } };
   'queue-insert-next': { payload: { videoId: string }; result: { ok: true } };
   resume: { payload: { videoId: string; playlistId: string; position: number }; result: { ok: true } };
+  /** YouTube Music's own lyrics (plain text, no timing) and their source line. */
+  lyrics: { payload: { videoId: string }; result: { text: string; source: string } };
   session: {
     payload: Record<string, never>;
     result: { accountKey: string; videoId: string; playlistId: string; position: number };
@@ -79,6 +81,10 @@ export const OP_RESULTS: { [K in OpName]: (raw: unknown) => OpMap[K]['result'] }
   'queue-remove': ok,
   'queue-insert-next': ok,
   resume: ok,
+  lyrics: raw => {
+    const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    return { text: str(r.text, 20000), source: str(r.source, 120) };
+  },
   session: raw => {
     const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
     const position =

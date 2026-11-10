@@ -26,6 +26,8 @@ the last session and a global shortcut. The interface is in French.
   progress (click to seek), three lyric lines, previous/play/pause/next, volume with the mouse wheel, cover color. Always shown, on each track
   change, or only over games (per-game settings, new games offered), with a shortcut to show the details, adjustable
   size and opacity.
+- **Lyrics view**: synced lyrics that scroll and fill as they are sung, click a line to go there, immersive mode
+  over the blurred cover; YouTube Music's own lyrics when no synced ones exist.
 - **Global shortcut** (Ctrl+Alt+M by default), start with Windows, video fullscreen, built-in updates.
 
 ## Installation (Windows 10/11, 64-bit)

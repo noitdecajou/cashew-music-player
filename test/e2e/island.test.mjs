@@ -329,6 +329,19 @@ test('island: "track change" mode shows the details for a moment at each new tra
   await h.until(async () => !(await islandWindow()).visible, { timeout: 9000, message: 'hidden again' });
 });
 
+test('island: slides away before hiding, slides in when shown again', async () => {
+  await settings({ mode: 'always' });
+  await h.until(async () => (await islandWindow()).visible, { message: 'shown' });
+  await settings({ mode: 'track' }); // hidden between tracks
+  await h.until(async () => (await island.getAttribute('#island', 'class')).includes('leaving'), {
+    message: 'leave animation',
+  });
+  await h.until(async () => !(await islandWindow()).visible, { message: 'then hidden' });
+  await settings({ mode: 'always' });
+  await h.until(async () => (await islandWindow()).visible, { message: 'shown again' });
+  assert.ok(!(await island.getAttribute('#island', 'class')).includes('leaving'), 'enter animation');
+});
+
 test('island: size and opacity', async () => {
   await settings({ mode: 'always', size: 'large', opacity: 70 });
   await h.until(async () => (await islandWindow())?.bounds.width === Math.round(460 * 1.2), {

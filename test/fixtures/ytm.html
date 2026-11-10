@@ -170,6 +170,13 @@
         if (!body.params) return { contents: { chips: [{ chipCloudChipRenderer: { uniqueId: 'Songs', text: { runs: [{ text: 'Songs' }] }, navigationEndpoint: { searchEndpoint: { params: 'songs-param' } } } }] } };
         return { contents: { musicShelfRenderer: { contents: hits.map(listItem) } } };
       }
+      // Lyrics tab (plain text, no timing), as observed on the real site.
+      if (route === '/next') return { contents: { tabs: [{ tabRenderer: { endpoint: { browseEndpoint: { browseId: `MPLYt_${body.videoId}` } } } }] } };
+      if (route === '/browse' && body.browseId?.startsWith('MPLYt_')) {
+        return { contents: { sectionListRenderer: { contents: [{ musicDescriptionShelfRenderer: {
+          description: { runs: [{ text: 'Paroles sans minutage\nDeuxième ligne du texte' }] },
+          footer: { runs: [{ text: 'Source: Musixmatch' }] } } }] } } };
+      }
       if (route === '/music/get_queue') return { queueDatas: body.videoIds.map(id => ({ content: row(byId(id)) })) };
       throw new Error('unknown route ' + route);
     },

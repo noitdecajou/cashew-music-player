@@ -140,7 +140,7 @@ describe('synced lyrics', () => {
           { time: -1, text: 'b' },
         ],
       }),
-    ).toEqual({ trackId: 'x', status: 'synced', lines: [{ time: 1, text: 'a' }], offset: 0 });
+    ).toEqual({ trackId: 'x', status: 'synced', lines: [{ time: 1, text: 'a' }], offset: 0, plain: '', source: '' });
     expect(sanitizeLyrics({ trackId: 'x', status: 'stolen', lines: [] })).toBeNull();
   });
 });

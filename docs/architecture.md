@@ -45,6 +45,14 @@
 - Moving the mini-player without a title bar: grip, cover or title (pointer capture, screen positions from the main
   process), arrow keys on the grip.
 
+## Lyrics view
+
+- Drawer section `lyrics` (`src/renderer/src/lyrics-view.ts`): side panel (`lyrics`) or immersive over the whole
+  YouTube Music area (`lyrics-full`, large player only). Lines are positioned with a CSS transform (smooth scroll),
+  the sung line is filled with a gradient driven every frame (`--fill`), instrumental breaks (≥ 5 s) are dots.
+- Lyrics are requested while the island is on or the view is open. When LRCLIB has nothing (or is turned off), main
+  asks the page agent for YouTube Music's own lyrics (`lyrics` operation: `/next` → `MPLY…` → `/browse`), plain text.
+
 ## Island and settings windows
 
 - **Island** (`src/main/window/island-window.ts`, page `island.html`): a transparent, frameless, always-on-top

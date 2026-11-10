@@ -8,8 +8,15 @@ import {
 } from '../../shared/ipc';
 import type { QueueState } from '../../shared/player';
 import { $, $$, coverImage, el, setText } from './dom';
+import { setupLyricsView } from './lyrics-view';
 
-const TITLES: Record<Panel, string> = { none: '', search: 'Rechercher', queue: 'File d’attente' };
+const TITLES: Record<Panel, string> = {
+  none: '',
+  search: 'Rechercher',
+  queue: 'File d’attente',
+  lyrics: 'Paroles',
+  'lyrics-full': 'Paroles',
+};
 
 /** The drawer page: a separate native view stacked over YouTube Music. */
 export function startDrawer(): void {
@@ -17,11 +24,8 @@ export function startDrawer(): void {
   const panel = $('#panel');
   document.body.classList.add('drawer-view');
   panel.hidden = false;
-  $('[data-window="close-panel"]', panel).addEventListener('click', () => api.window('close-panel'));
-  for (const button of $$('[data-window]', panel)) {
-    if (button.dataset.window !== 'close-panel')
-      button.addEventListener('click', () => api.window(button.dataset.window as 'reload-music'));
-  }
+  for (const button of $$('[data-window]', panel))
+    button.addEventListener('click', () => api.window(button.dataset.window as 'reload-music'));
 
   const noticeBox = $('.panel-notice', panel);
   let noticeTimer = 0;
@@ -38,6 +42,7 @@ export function startDrawer(): void {
   let current: Panel = 'none';
   const search = setupSearch(notice);
   const queue = setupQueue(notice);
+  const lyrics = setupLyricsView();
 
   api.on('ui:state', state => {
     document.body.classList.remove('booting');
@@ -46,10 +51,14 @@ export function startDrawer(): void {
     if (state.panel === current) return;
     current = state.panel;
     setText($('.panel-title', panel), TITLES[state.panel]);
-    for (const section of $$('section[data-panel]', panel)) section.hidden = section.dataset.panel !== state.panel;
+    const shown = state.panel === 'lyrics-full' ? 'lyrics' : state.panel;
+    for (const section of $$('section[data-panel]', panel)) section.hidden = section.dataset.panel !== shown;
+    // The lyrics have their own header (cover, title, full screen, close).
+    document.body.classList.toggle('lyrics-panel', shown === 'lyrics');
     notice('');
     if (state.panel === 'search') search.open();
     queue.setOpen(state.panel === 'queue');
+    lyrics.setOpen(shown === 'lyrics', state.panel === 'lyrics-full');
   });
   api.on('ui:notice', notice);
 
@@ -57,6 +66,15 @@ export function startDrawer(): void {
     if (event.key === 'Escape') {
       event.preventDefault();
       api.window('close-panel');
+    } else if (
+      (current === 'lyrics' || current === 'lyrics-full') &&
+      event.key.toLowerCase() === 'f' &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey
+    ) {
+      event.preventDefault();
+      api.window('toggle-lyrics-full');
     } else if (event.ctrlKey && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       api.window('toggle-search');

@@ -390,6 +390,30 @@ export function pageAgent(): void {
     return { items: items.slice(0, 50), continuation: '' };
   }
 
+  /** Music's lyrics tab: plain text (no timing) and its source ("Source: …"). */
+  async function lyrics(payload: any): Promise<any> {
+    const videoId = String(payload.videoId ?? '');
+    if (!/^[\w-]{11}$/.test(videoId)) throw new Error('Morceau invalide.');
+    const next = await request('/next', { videoId });
+    let browseId = '';
+    walk(next, node => {
+      const id = node.browseEndpoint?.browseId;
+      if (!browseId && typeof id === 'string' && id.startsWith('MPLY')) browseId = id;
+    });
+    if (!browseId) return { text: '', source: '' };
+    const page = await request('/browse', { browseId });
+    let found = '';
+    let source = '';
+    walk(page, node => {
+      const shelf = node.musicDescriptionShelfRenderer;
+      if (shelf && !found) {
+        found = text(shelf.description);
+        source = text(shelf.footer);
+      }
+    });
+    return { text: found, source };
+  }
+
   function navigate(endpoint: any): void {
     const target = musicApp() ?? document;
     target.dispatchEvent(new CustomEvent('yt-navigate', { bubbles: true, composed: true, detail: { endpoint } }));
@@ -422,6 +446,7 @@ export function pageAgent(): void {
     'library-playlists': libraryPlaylists,
     'playlist-songs': playlistSongs,
     search,
+    lyrics,
     play: async payload => {
       const endpoint: any = {};
       if (payload.videoId) endpoint.videoId = payload.videoId;

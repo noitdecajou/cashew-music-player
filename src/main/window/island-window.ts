@@ -30,6 +30,8 @@ export class IslandWindow {
   private cursorInside = false;
   private cursorTimer: NodeJS.Timeout | null = null;
   private protectedFromCapture = true;
+  /** Pending hide, after the page's leave animation. */
+  private leaveTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly load: PageLoader,
@@ -66,12 +68,24 @@ export class IslandWindow {
     if (visible) {
       const win = this.ensure();
       this.place();
-      if (!win.isVisible()) win.showInactive();
+      const leaving = !!this.leaveTimer;
+      if (this.leaveTimer) clearTimeout(this.leaveTimer);
+      this.leaveTimer = null;
+      if (!win.isVisible() || leaving) {
+        win.showInactive();
+        win.webContents.send('island:enter'); // slides down from the edge
+      }
       // Fullscreen games may raise themselves above "always on top": claim it again.
       win.setAlwaysOnTop(true, 'screen-saver');
-    } else if (this.win && !this.win.isDestroyed() && this.win.isVisible()) {
+    } else if (this.win && !this.win.isDestroyed() && this.win.isVisible() && !this.leaveTimer) {
       this.setHover(false);
-      this.win.hide();
+      // Slides back up, then the window hides.
+      this.win.webContents.send('island:leave');
+      const win = this.win;
+      this.leaveTimer = setTimeout(() => {
+        this.leaveTimer = null;
+        if (!this.visible && !win.isDestroyed()) win.hide();
+      }, 260);
     }
     if (visible !== this.visible) {
       this.visible = visible;

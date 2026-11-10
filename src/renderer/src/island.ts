@@ -198,8 +198,19 @@ function renderProgress(): void {
   $('.fill').style.width = `${(ratio * 100).toFixed(2)}%`;
 }
 
+/** Restarts a one-shot CSS animation class. */
+function replay(element: Element, className: string): void {
+  element.classList.remove(className);
+  void (element as HTMLElement).offsetWidth;
+  element.classList.add(className);
+}
+let shownTrack = '';
+
 function renderSnapshot(): void {
   const track = snapshot?.track ?? null;
+  // A new track: a small pulse of the pill, the cover arrives.
+  if (track && shownTrack && track.id !== shownTrack) replay(island, 'track-change');
+  shownTrack = track?.id ?? '';
   island.hidden = !track && !prompt;
   if (!track) return;
   const playing = snapshot?.status === 'playing' || snapshot?.status === 'buffering';
@@ -227,7 +238,8 @@ function applyView(view: IslandView): void {
   document.body.className = `pos-${view.position}`;
   // CSS zoom, not the page zoom: Chromium shares page zoom between pages of the same origin.
   document.documentElement.style.setProperty('zoom', String(view.scale));
-  document.documentElement.style.setProperty('--pill', `rgba(10, 10, 14, ${(view.opacity / 100).toFixed(2)})`);
+  // Near black: the pill melts into the screen's edge.
+  document.documentElement.style.setProperty('--pill', `rgba(2, 2, 4, ${(view.opacity / 100).toFixed(2)})`);
   $('.clock-left').hidden = view.clock !== 'left';
   $('.clock-right').hidden = view.clock !== 'right';
 }
@@ -354,6 +366,20 @@ api.on('island:view', view => {
 });
 api.on('island:hover', value => setHovering(value, false));
 api.on('island:event', showEvent);
+// One-shot animation classes go away when done (they would block the next ones).
+island.addEventListener('animationend', event => {
+  if (event.target !== island) return;
+  if (event.animationName === 'island-enter') island.classList.remove('entering');
+  if (event.animationName === 'island-breath') island.classList.remove('track-change');
+});
+api.on('island:enter', () => {
+  island.classList.remove('leaving');
+  replay(island, 'entering');
+});
+api.on('island:leave', () => {
+  island.classList.remove('entering');
+  island.classList.add('leaving');
+});
 api.on('island:peek', ms => peek(Math.min(Math.max(ms, 500), 15000)));
 api.on('island:prompt', value => {
   prompt = value;

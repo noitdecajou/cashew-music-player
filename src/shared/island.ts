@@ -306,8 +306,12 @@ export interface LyricLine {
 
 export interface LyricsState {
   trackId: string;
-  status: 'off' | 'loading' | 'synced' | 'none';
+  /** 'plain': YouTube Music's own lyrics, without timing (in `plain`). */
+  status: 'off' | 'loading' | 'synced' | 'none' | 'plain';
   lines: LyricLine[];
+  plain?: string;
+  /** Where the lyrics come from, shown under them ("LRCLIB", "YouTube Music · Source: …"). */
+  source?: string;
   /** Correction chosen for this track, in seconds (positive: lines later). */
   offset?: number;
 }
@@ -355,7 +359,7 @@ export function lineAt(lines: readonly LyricLine[], position: number): number {
 export function sanitizeLyrics(raw: unknown): LyricsState | null {
   const v = (raw && typeof raw === 'object' ? raw : null) as Record<string, unknown> | null;
   if (!v || typeof v.trackId !== 'string' || v.trackId.length > 64) return null;
-  if (!['off', 'loading', 'synced', 'none'].includes(v.status as string)) return null;
+  if (!['off', 'loading', 'synced', 'none', 'plain'].includes(v.status as string)) return null;
   const lines: LyricLine[] = [];
   for (const line of Array.isArray(v.lines) ? v.lines.slice(0, MAX_LYRIC_LINES) : []) {
     const l = line as Record<string, unknown>;
@@ -366,7 +370,9 @@ export function sanitizeLyrics(raw: unknown): LyricsState | null {
     typeof v.offset === 'number' && Number.isFinite(v.offset)
       ? Math.max(-MAX_LYRICS_OFFSET, Math.min(MAX_LYRICS_OFFSET, Math.round(v.offset * 10) / 10))
       : 0;
-  return { trackId: v.trackId, status: v.status as LyricsState['status'], lines, offset };
+  const plain = typeof v.plain === 'string' ? v.plain.slice(0, 20000) : '';
+  const source = typeof v.source === 'string' ? v.source.slice(0, 120) : '';
+  return { trackId: v.trackId, status: v.status as LyricsState['status'], lines, offset, plain, source };
 }
 
 /** Configuration the island page needs (everything else comes from the player events). */

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.0-beta.1
+
+- **Lyrics view** in the player ("Paroles" in the toolbar): synced lyrics scroll smoothly to keep the sung line in view, the sung line fills as it is sung, other lines fade, instrumental breaks show breathing dots, a click on a line goes there, the mouse wheel scrolls freely (the view follows the song again after a moment), per-track correction (±0.5 s). **Immersive mode** (button or F key): big lines over the blurred, slowly drifting cover, across the whole YouTube Music area. When LRCLIB has no synced lyrics, YouTube Music's own lyrics (without timing) are shown instead.
+- **Island animations**: slides down when it appears and back up when it leaves, springier growth on hover, a short pulse and the cover popping in at each new track, smoother question about a new game.
+- Island background closer to black, to melt into the screen's edge.
+
 ## 2.2.0
 
 - **Fixes**: island buttons and the new-game question respond reliably; the playing equalizer moves even with Windows animations turned off; the island stays next to the mini-player (or hides, as chosen); Settings → Games: "Recently detected" first, collapsible lists.

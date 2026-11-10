@@ -79,6 +79,8 @@ const WINDOW_ACTIONS: readonly WindowAction[] = [
   'toggle-search',
   'toggle-queue',
   'toggle-settings',
+  'toggle-lyrics',
+  'toggle-lyrics-full',
   'close-panel',
   'reload-music',
   'repair-display',
@@ -372,8 +374,16 @@ function main(): void {
       }
     });
 
+    let lastPanel = window.state.panel;
     window.onState((state: UiState) => {
       send('ui:state', state);
+      if (state.panel !== lastPanel) {
+        lastPanel = state.panel;
+        if (lyricsViewOpen()) {
+          showLyrics(0);
+          if (lyricsState) window.drawerContents?.send('lyrics:state', lyricsState);
+        }
+      }
       updateStreams();
       // Mini/large switches and pinning put the player back on top: the island goes back above it.
       refreshIsland();
@@ -408,7 +418,8 @@ function main(): void {
       if (fromIsland(event)) window.show();
     });
     ipcMain.on('island:lyrics-offset', (event, delta) => {
-      if (fromIsland(event) && (delta === 0.5 || delta === -0.5 || delta === 0)) shiftLyrics(delta);
+      // From the island or from the lyrics panel.
+      if ((fromIsland(event) || fromUi(event)) && (delta === 0.5 || delta === -0.5 || delta === 0)) shiftLyrics(delta);
     });
     ipcMain.on('island:answer', (event, answer) => {
       if (fromIsland(event) && ['add', 'decline', 'later'].includes(answer)) answerPrompt(answer as GameAnswer);
@@ -778,8 +789,7 @@ function main(): void {
       else lyricsOffsets.delete(id);
       while (lyricsOffsets.size > 2000) lyricsOffsets.delete(lyricsOffsets.keys().next().value as string);
       void writeJson(offsetsFile, Object.fromEntries(lyricsOffsets));
-      lyricsState = { ...lyricsState, offset: next };
-      island.contents?.send('lyrics:state', lyricsState);
+      publishLyrics({ ...lyricsState, offset: next });
     }
 
     // Synced lyrics: only while the island is on (nothing is requested otherwise).
@@ -796,10 +806,12 @@ function main(): void {
         const state = sanitizeLyrics({
           ...(raw as object),
           offset: lyricsOffsets.get((raw as LyricsState).trackId) ?? 0,
+          source: (raw as LyricsState).status === 'synced' ? 'LRCLIB' : '',
         });
         if (!state) return;
-        lyricsState = state;
-        island.contents?.send('lyrics:state', state);
+        publishLyrics(state);
+        // Nothing synced: the lyrics view shows YouTube Music's own lyrics (no timing).
+        if ((state.status === 'none' || state.status === 'off') && lyricsViewOpen()) void plainLyrics(state.trackId);
       },
       undefined,
       undefined,
@@ -813,9 +825,50 @@ function main(): void {
       const states = (Array.isArray(raw) ? raw : []).map(sanitizeLyrics).filter(s => s?.status === 'synced');
       lyrics.seed(states as LyricsState[]);
     });
+    /** Lyrics go to the island and to our pages (lyrics panel). */
+    function publishLyrics(state: LyricsState): void {
+      lyricsState = state;
+      island.contents?.send('lyrics:state', state);
+      for (const contents of uiContents()) contents.send('lyrics:state', state);
+    }
+    const lyricsViewOpen = (): boolean => window.state.panel === 'lyrics' || window.state.panel === 'lyrics-full';
+    // YouTube Music's own lyrics (plain text), asked once per track.
+    const plainCache = new Map<string, { text: string; source: string }>();
+    async function plainLyrics(trackId: string): Promise<void> {
+      let found = plainCache.get(trackId);
+      if (!found) {
+        try {
+          const result = await ytm.request('lyrics', { videoId: trackId }, 15000);
+          found = { text: result.text, source: result.source };
+        } catch {
+          found = { text: '', source: '' };
+        }
+        plainCache.set(trackId, found);
+        if (plainCache.size > 200) plainCache.delete(plainCache.keys().next().value as string);
+      }
+      if (snapshot.track?.id !== trackId || !lyricsState || lyricsState.trackId !== trackId) return;
+      if (lyricsState.status === 'synced' || !found.text) return;
+      const source = found.source.replace(/^Source\s*:\s*/i, '');
+      const state = sanitizeLyrics({
+        trackId,
+        status: 'plain',
+        lines: [],
+        plain: found.text,
+        source: `YouTube Music${source ? ` · ${source}` : ''} · non synchronisées`,
+      });
+      if (state) publishLyrics(state);
+    }
+    /** Lyrics are fetched while the island is on or the lyrics view is open. */
     function showLyrics(duration: number): void {
-      if (prefs.value.island.mode === 'off') return;
+      if (prefs.value.island.mode === 'off' && !lyricsViewOpen()) return;
       lyrics.show(snapshot.track, duration, prefs.value.island.lyrics);
+      if (
+        lyricsViewOpen() &&
+        snapshot.track &&
+        lyricsState?.trackId === snapshot.track.id &&
+        (lyricsState.status === 'none' || lyricsState.status === 'off')
+      )
+        void plainLyrics(snapshot.track.id);
     }
 
     // --- Updates (GitHub Releases) -------------------------------------------

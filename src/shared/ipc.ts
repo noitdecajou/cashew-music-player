@@ -2,7 +2,8 @@ import type { GameAnswer, GamePrompt, IslandEvent, IslandPrefs, IslandView, Lyri
 import type { MiniTheme } from './themes';
 import type { PlayerCommand, PlayerProgress, PlayerSnapshot, QueueState } from './player';
 
-export type Panel = 'none' | 'search' | 'queue';
+/** 'lyrics': side panel; 'lyrics-full': immersive lyrics over the whole YouTube Music area (large player). */
+export type Panel = 'none' | 'search' | 'queue' | 'lyrics' | 'lyrics-full';
 
 export interface UiState {
   mini: boolean;
@@ -27,6 +28,8 @@ export type WindowAction =
   | 'toggle-search'
   | 'toggle-queue'
   | 'toggle-settings'
+  | 'toggle-lyrics'
+  | 'toggle-lyrics-full'
   | 'close-panel'
   | 'reload-music'
   | 'repair-display';
@@ -142,6 +145,9 @@ export interface ShellEvents {
   /** Island page: the cursor entered or left the pill (watched by main). */
   'island:hover': boolean;
   'island:event': IslandEvent;
+  /** Island page: play the enter / leave animation. */
+  'island:enter': undefined;
+  'island:leave': undefined;
 }
 
 /** The API exposed to our renderer pages as window.player. */
@@ -194,6 +200,8 @@ export const SHELL_EVENT_CHANNELS: readonly (keyof ShellEvents)[] = [
   'island:prompt',
   'island:hover',
   'island:event',
+  'island:enter',
+  'island:leave',
 ];
 
 /** Errors thrown in main arrive prefixed by Electron: keep only our message. */

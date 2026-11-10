@@ -24,10 +24,11 @@ the last session and a global shortcut. The interface is in French.
 - **Resume** of the last track after a restart, at the same position.
 - **Island** (optional): a pill at the top of the screen with the cover and synced lyrics; on hover, title, artist,
   progress (click to seek), three lyric lines, previous/play/pause/next, volume with the mouse wheel, cover color. Always shown, on each track
-  change, or only over games (per-game settings, new games offered), with a shortcut to show the details, adjustable
-  size and opacity.
+  change (compact or detailed), or only over games (per-game settings, new games offered), with a shortcut to show
+  the details, adjustable size and opacity, subtle animations (can be turned off).
 - **Lyrics view**: synced lyrics that scroll and fill as they are sung, click a line to go there, immersive mode
-  over the blurred cover; YouTube Music's own lyrics when no synced ones exist.
+  over the blurred cover; it also opens from YouTube Music's own Lyrics tab, and shows YouTube Music's lyrics
+  (without timing) when no synced ones exist.
 - **Global shortcut** (Ctrl+Alt+M by default), start with Windows, video fullscreen, built-in updates.
 
 ## Installation (Windows 10/11, 64-bit)
@@ -52,8 +53,8 @@ Protection history.
   nor transmits credentials.
 - cashew contains no tracking and no usage statistics.
 - Network connections: **music.youtube.com** and the Google services YouTube Music needs (playback, sign-in),
-  **github.com** to check for updates, and, only when the island and its synced lyrics are on, **lrclib.net** (the
-  title, artist, album and duration of the track being played). Nothing else.
+  **github.com** to check for updates, and, while the island or the lyrics view is on and synced lyrics are
+  allowed, **lrclib.net** (the title, artist, album and duration of the track being played). Nothing else.
 - Game detection reads, locally, which application is in front, its install folder and the list of games Windows
   knows; nothing is sent. Nothing is injected into games.
 - Local data (in `%APPDATA%\Music Player`): preferences (including the game list), an index of the user's

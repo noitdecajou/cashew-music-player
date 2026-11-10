@@ -3,12 +3,10 @@
 // line fills as it goes, other lines fade, a click on a line goes there.
 // Synced lyrics come from LRCLIB; otherwise YouTube Music's own (plain) lyrics.
 
-import { type LyricLine, type LyricsState, lineAt } from '../../shared/island';
+import { type LyricLine, type LyricsState, LYRICS_LEAD_SECONDS, estimatePosition, lineAt } from '../../shared/island';
 import type { PlayerProgress, PlayerSnapshot } from '../../shared/player';
 import { $, el, setText } from './dom';
 
-/** Lines read as they are sung: shown a little before their time stamp. */
-const LEAD_SECONDS = 0.3;
 /** A gap this long between two lines is an instrumental break: shown as dots. */
 const INTERLUDE_SECONDS = 5;
 /** After a manual scroll, the view follows the song again after this delay. */
@@ -45,17 +43,21 @@ export function setupLyricsView(): LyricsView {
   let active = -2;
   let open = false;
   let frame = 0;
+  let timer = 0;
   let manualUntil = 0;
   let manualShift = 0;
 
   const playing = (): boolean => snapshot?.status === 'playing';
   const offset = (): number => lyrics?.offset ?? 0;
 
-  /** Position now: last report, plus the time elapsed while playing (at most 1 s). */
+  /** Synced lines of the track on display are shown. */
+  const syncing = (): boolean =>
+    open && lyrics?.status === 'synced' && lyrics.trackId === snapshot?.track?.id && rows.length > 0;
+
+  /** Position now (estimated between the player's reports). */
   function position(): number {
-    if (!progress) return 0;
-    const elapsed = playing() ? Math.min((performance.now() - progressAt) / 1000, 1) : 0;
-    return progress.position + elapsed;
+    if (!progress || progress.trackId !== snapshot?.track?.id) return 0;
+    return estimatePosition(progress, performance.now() - progressAt, playing());
   }
 
   function seekTo(time: number): void {
@@ -93,7 +95,7 @@ export function setupLyricsView(): LyricsView {
     manualShift = 0;
   }
 
-  /** Scrolls so the sung line sits a third of the way down (smooth, CSS transition). */
+  /** Scrolls so the sung line sits a third of the way down (smooth, CSS transition), plus the manual shift. */
   function place(index: number): void {
     const row = rows[Math.max(0, index)];
     if (!row) return;
@@ -101,22 +103,26 @@ export function setupLyricsView(): LyricsView {
     list.style.transform = `translateY(${Math.round(target + manualShift)}px)`;
   }
 
+  /** Marks the sung line, scrolls to it and fills it. Cheap: safe to call often. */
   function render(): void {
-    frame = 0;
-    if (!open || lyrics?.status !== 'synced' || !rows.length) return;
-    const now = position() + LEAD_SECONDS - offset();
-    const times = rows.map(r => ({ time: r.time, text: '' }));
-    const index = lineAt(times, now);
+    if (!syncing()) return;
+    const now = position() + LYRICS_LEAD_SECONDS - offset();
+    const index = lineAt(rows, now);
+    const manual = Date.now() < manualUntil;
     if (index !== active) {
       rows.forEach((row, i) => {
         row.element.classList.toggle('active', i === index);
         row.element.classList.toggle('past', i < index);
       });
       active = index;
-      if (Date.now() > manualUntil) {
+      if (!manual) {
         manualShift = 0;
         place(index);
       }
+    } else if (!manual && manualShift) {
+      // Back to the song after a manual scroll.
+      manualShift = 0;
+      place(index);
     }
     // The sung line fills from left to right over its duration.
     const row = rows[index];
@@ -124,15 +130,25 @@ export function setupLyricsView(): LyricsView {
       const fill = Math.min(1, Math.max(0, (now - row.time) / Math.max(0.5, Math.min(row.end - row.time, 12))));
       row.element.style.setProperty('--fill', fill.toFixed(3));
     }
-    if (Date.now() > manualUntil && manualShift) {
-      manualShift = 0;
-      place(active);
-    }
-    if (playing()) frame = requestAnimationFrame(render);
   }
 
+  // Two clocks: a timer that always runs while synced lines are shown (the sung
+  // line and the scroll never depend on animation frames, which Chromium may hold
+  // back for a native view), and animation frames while playing, for a smooth fill.
+  function frameLoop(): void {
+    frame = 0;
+    render();
+    if (syncing() && playing()) frame = requestAnimationFrame(frameLoop);
+  }
   function schedule(): void {
-    if (!frame && open) frame = requestAnimationFrame(render);
+    render();
+    const run = syncing();
+    if (run && playing() && !frame) frame = requestAnimationFrame(frameLoop);
+    if (run && !timer) timer = window.setInterval(render, 200);
+    else if (!run && timer) {
+      window.clearInterval(timer);
+      timer = 0;
+    }
   }
 
   /** What to show: synced lines, plain text, or a status message. */
@@ -153,7 +169,6 @@ export function setupLyricsView(): LyricsView {
     if (synced && current && builtFor !== `${current.trackId}:${current.lines.length}`) {
       builtFor = `${current.trackId}:${current.lines.length}`;
       build(current.lines);
-      requestAnimationFrame(() => place(Math.max(0, active)));
     }
     if (!synced) builtFor = '';
     if (current?.status === 'plain') setText(plain, current.plain ?? '');
@@ -167,7 +182,9 @@ export function setupLyricsView(): LyricsView {
             ? 'Pas de paroles pour ce morceau.'
             : current.status === 'off'
               ? 'Paroles synchronisées désactivées (Réglages → Island → Paroles).'
-              : '',
+              : current.status === 'plain'
+                ? 'Pas de paroles synchronisées pour ce morceau : voici le texte de YouTube Music, sans défilement.'
+                : '',
     );
     setText($('.lyrics-source', section), current?.source ? `Paroles : ${current.source}` : '');
     const o = current?.offset ?? 0;
@@ -188,12 +205,7 @@ export function setupLyricsView(): LyricsView {
       event.preventDefault();
       manualShift -= event.deltaY;
       manualUntil = Date.now() + MANUAL_SCROLL_MS;
-      const row = rows[Math.max(0, active)];
-      if (row) {
-        const target = scroll.clientHeight * 0.36 - (row.element.offsetTop + row.element.offsetHeight / 2);
-        list.style.transform = `translateY(${Math.round(target + manualShift)}px)`;
-      }
-      window.setTimeout(schedule, MANUAL_SCROLL_MS + 50);
+      place(active);
     },
     { passive: false },
   );
@@ -223,9 +235,8 @@ export function setupLyricsView(): LyricsView {
       document.body.classList.toggle('lyrics-immersive', value && immersive);
       if (value) {
         show();
-        requestAnimationFrame(() => place(Math.max(0, active)));
         scroll.focus({ preventScroll: true });
-      }
+      } else schedule(); // stops the clocks
     },
   };
 }

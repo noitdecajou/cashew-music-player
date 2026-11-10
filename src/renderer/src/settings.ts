@@ -172,6 +172,10 @@ $<HTMLInputElement>('#islandCapture').addEventListener(
   'change',
   event => void updateIsland({ hideFromCapture: (event.target as HTMLInputElement).checked }),
 );
+$<HTMLInputElement>('#islandAnimations').addEventListener(
+  'change',
+  event => void updateIsland({ animations: (event.target as HTMLInputElement).checked }),
+);
 // Collapsible lists: their open/closed state is remembered on this computer.
 for (const group of $$<HTMLDetailsElement>('details.group')) {
   const key = `cashew.settings.${group.dataset.group}`;
@@ -302,7 +306,7 @@ $('#diagnostics').addEventListener('click', async () => {
 const MODE_HINTS: Record<IslandPrefs['mode'], string> = {
   off: 'L’island est désactivée.',
   always: 'L’island reste affichée tant qu’un morceau est chargé.',
-  track: 'L’island apparaît quelques secondes, en grand, à chaque nouveau morceau.',
+  track: 'L’island apparaît quelques secondes à chaque nouveau morceau.',
   games: 'L’island s’affiche quand un jeu de la liste (section Jeux) est au premier plan.',
 };
 
@@ -336,7 +340,9 @@ function render(settings: Settings): void {
   // Island
   const island = settings.island;
   for (const group of $$('.segmented[data-setting]')) {
-    const value = String(island[group.dataset.setting as 'mode' | 'position' | 'clock' | 'size' | 'withMini']);
+    const value = String(
+      island[group.dataset.setting as 'mode' | 'position' | 'clock' | 'size' | 'withMini' | 'trackView'],
+    );
     for (const button of $$('button', group))
       button.setAttribute('aria-checked', String(button.dataset.value === value));
   }
@@ -352,6 +358,8 @@ function render(settings: Settings): void {
   $<HTMLInputElement>('#islandEvents').checked = island.events;
   $<HTMLSelectElement>('#islandIdle').value = String(island.idleMinutes);
   $<HTMLInputElement>('#islandCapture').checked = island.hideFromCapture;
+  $<HTMLInputElement>('#islandAnimations').checked = island.animations;
+  $('.track-view').hidden = island.mode !== 'track';
   setText($('details[data-group="games"] .count'), String(island.games.length));
   setText($('details[data-group="recent"] .count'), String(settings.recentApps.length));
   setText($('details[data-group="declined"] .count'), String(island.declined.length));

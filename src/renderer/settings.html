@@ -76,6 +76,18 @@
           ><button data-value="games">Seulement en jeu</button>
         </div>
         <p class="hint mode-hint"></p>
+        <div class="track-view">
+          <h3>Au changement de morceau</h3>
+          <div
+            class="segmented"
+            data-setting="trackView"
+            role="radiogroup"
+            aria-label="Affichage au changement de morceau"
+          >
+            <button data-value="compact">Réduite</button><button data-value="expanded">Détaillée</button>
+          </div>
+          <p class="hint">Réduite : pochette et paroles. Détaillée : comme au survol (titre, progression, boutons).</p>
+        </div>
         <h3>Avec le mini-player</h3>
         <div class="segmented" data-setting="withMini" role="radiogroup" aria-label="Island avec le mini-player">
           <button data-value="keep">Garder l’island</button><button data-value="hide">Masquer l’island</button>
@@ -102,6 +114,11 @@
           L’island se retire aussi quand Windows est en mode présentation. Invisible dans les partages : Windows 10
           (version 2004) ou plus récent.
         </p>
+        <h3>Animations</h3>
+        <label class="check"
+          ><input type="checkbox" id="islandAnimations" /> Animer l’island (apparition, survol, nouveau morceau), même
+          si les animations sont désactivées dans Windows</label
+        >
         <h3>Position</h3>
         <div class="segmented" data-setting="position" role="radiogroup" aria-label="Position">
           <button data-value="left">Gauche</button><button data-value="center">Centre</button

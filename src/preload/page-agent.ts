@@ -671,6 +671,29 @@ export function pageAgent(): void {
     document.addEventListener(type, onMedia, true);
   }
 
+  // The lyrics tab of the player page: cashew's lyrics view (synced) opens over
+  // it. The tab is recognized by its page type, not its (translated) title.
+  document.addEventListener(
+    'click',
+    event => {
+      const tab = event
+        .composedPath()
+        .find((node): node is HTMLElement => node instanceof HTMLElement && node.tagName === 'TP-YT-PAPER-TAB');
+      const page = tab?.closest('ytmusic-player-page') as any;
+      if (!tab || !page) return;
+      const index = [...page.querySelectorAll('tp-yt-paper-tab')].indexOf(tab);
+      const tabs = call(() => page.tabs ?? page.data?.tabs, null);
+      const pageType = call(
+        () =>
+          tabs?.[index]?.tabRenderer?.endpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
+            ?.browseEndpointContextMusicConfig?.pageType,
+        '',
+      );
+      if (pageType === 'MUSIC_PAGE_TYPE_TRACK_LYRICS') emit({ kind: 'lyrics-tab' });
+    },
+    true,
+  );
+
   function click(selector: string): boolean {
     const button = document.querySelector(`ytmusic-player-bar ${selector}`) as HTMLElement | null;
     button?.click();

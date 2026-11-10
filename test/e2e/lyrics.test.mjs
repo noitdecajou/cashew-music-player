@@ -45,6 +45,23 @@ test('lyrics panel: synced lines from the toolbar, the sung line is active, an i
   assert.equal((await drawerBounds()).width, 380, 'side panel');
 });
 
+test('lyrics panel: follows the song without animation frames (Windows may hold them back)', async () => {
+  await drawer.evaluate(() => {
+    window.__raf = window.requestAnimationFrame;
+    window.requestAnimationFrame = () => 0;
+  });
+  await h.shell.evaluate(() => window.player.command({ type: 'seek', trackId: 'AAAAAAAAAAA', position: 12.5 }));
+  await h.until(async () => (await drawer.textContent('.lyric.active')) === 'Après la pause', { message: 'active' });
+  const moved = await drawer.evaluate(() => document.querySelector('.lyrics-lines').style.transform);
+  assert.match(moved, /translateY\(-?\d+px\)/);
+  await h.shell.evaluate(() => window.player.command({ type: 'seek', trackId: 'AAAAAAAAAAA', position: 0.5 }));
+  await h.until(async () => /ligne/.test((await drawer.textContent('.lyric.active')) ?? ''), { message: 'back' });
+  assert.notEqual(await drawer.evaluate(() => document.querySelector('.lyrics-lines').style.transform), moved);
+  await drawer.evaluate(() => {
+    window.requestAnimationFrame = window.__raf;
+  });
+});
+
 test('lyrics panel: a click on a line goes there; the correction applies', async () => {
   const before = (await calls('seekTo')).length;
   await drawer.click('.lyric:has-text("Après la pause")');
@@ -64,6 +81,19 @@ test('immersive lyrics: the whole area under the toolbar, F and Escape', async (
   await h.until(async () => (await drawerBounds()).width === 380, { message: 'back to the panel' });
   await drawer.keyboard.press('Escape');
   await h.until(async () => !(await h.viewBounds()).some(v => v.url.includes('view=drawer')), { message: 'closed' });
+});
+
+test("YouTube Music's own Lyrics tab opens cashew's synced view instead; other tabs do not", async () => {
+  const shown = async () => (await h.viewBounds()).some(v => v.url.includes('view=drawer'));
+  assert.equal(await shown(), false);
+  await h.ytm(`document.querySelectorAll('ytmusic-player-page tp-yt-paper-tab')[3].click()`);
+  await new Promise(resolve => setTimeout(resolve, 400));
+  assert.equal(await shown(), false, 'Related: nothing');
+  await h.ytm(`document.querySelectorAll('ytmusic-player-page tp-yt-paper-tab')[1].querySelector('span').click()`);
+  await h.until(shown, { message: 'lyrics view' });
+  await drawer.waitForSelector('.lyrics-view:not([hidden]) .lyric');
+  await drawer.keyboard.press('Escape');
+  await h.until(async () => !(await shown()), { message: 'closed' });
 });
 
 test('lyrics panel: YouTube Music lyrics (no timing) when nothing synced is found', async () => {

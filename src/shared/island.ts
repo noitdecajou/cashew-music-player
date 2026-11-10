@@ -43,6 +43,10 @@ export interface IslandPrefs {
   idleMinutes: number;
   /** Keep the island out of screenshots and screen sharing. */
   hideFromCapture: boolean;
+  /** "On track change" mode: show the pill compact, or with its details. */
+  trackView: 'compact' | 'expanded';
+  /** Island animations, even when Windows animations are turned off. */
+  animations: boolean;
 }
 
 export const IDLE_CHOICES = [0, 1, 2, 5, 10] as const;
@@ -63,6 +67,8 @@ export const DEFAULT_ISLAND: IslandPrefs = {
   events: true,
   idleMinutes: 0,
   hideFromCapture: true,
+  trackView: 'compact',
+  animations: true,
 };
 
 export const MAX_GAMES = 100;
@@ -123,6 +129,8 @@ export function sanitizeIsland(raw: unknown): IslandPrefs {
     events: typeof v.events === 'boolean' ? v.events : DEFAULT_ISLAND.events,
     idleMinutes: IDLE_CHOICES.includes(v.idleMinutes as 0) ? (v.idleMinutes as number) : DEFAULT_ISLAND.idleMinutes,
     hideFromCapture: typeof v.hideFromCapture === 'boolean' ? v.hideFromCapture : DEFAULT_ISLAND.hideFromCapture,
+    trackView: v.trackView === 'expanded' ? 'expanded' : 'compact',
+    animations: typeof v.animations === 'boolean' ? v.animations : DEFAULT_ISLAND.animations,
     opacity:
       typeof v.opacity === 'number' && Number.isFinite(v.opacity)
         ? Math.round(Math.min(100, Math.max(50, v.opacity)))
@@ -340,6 +348,23 @@ export function parseLrc(text: unknown): LyricLine[] {
   return lines.sort((a, b) => a.time - b.time).slice(0, MAX_LYRIC_LINES);
 }
 
+/** Lines read as they are sung: shown a little before their time stamp (seconds). */
+export const LYRICS_LEAD_SECONDS = 0.3;
+
+/**
+ * Position now, between two reports of the player: the last reported position,
+ * plus the time elapsed since while playing (at most 1 s, in case reports stop),
+ * never past the end.
+ */
+export function estimatePosition(
+  report: { position: number; duration: number },
+  elapsedMs: number,
+  playing: boolean,
+): number {
+  const position = report.position + (playing ? Math.min(Math.max(elapsedMs, 0) / 1000, 1) : 0);
+  return report.duration > 0 ? Math.min(position, report.duration) : position;
+}
+
 /** Index of the line sung at `position` (-1 before the first line). */
 export function lineAt(lines: readonly LyricLine[], position: number): number {
   let low = 0;
@@ -381,6 +406,8 @@ export interface IslandView {
   clock: ClockSide;
   scale: number;
   opacity: number;
+  /** Play the animations (the user's choice, not the system's). */
+  animations: boolean;
 }
 
 /** A new game in front: the island asks whether to add it to the list. */

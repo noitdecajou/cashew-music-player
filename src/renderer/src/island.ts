@@ -8,6 +8,8 @@ import {
   type IslandEvent,
   type IslandView,
   type LyricsState,
+  LYRICS_LEAD_SECONDS,
+  estimatePosition,
   lineAt,
   tintFromRgb,
 } from '../../shared/island';
@@ -32,7 +34,6 @@ let progress: PlayerProgress | null = null;
 /** When the last position arrived: the player reports it ~4 times a second, the clock in between is estimated. */
 let progressAt = 0;
 /** Lines appear this much before their time stamp, so they read as they are sung. */
-const LEAD_SECONDS = 0.3;
 let ticker = 0;
 let shownLine = '';
 /** The pointer is over the pill (the window then takes clicks). */
@@ -112,10 +113,7 @@ function isPlaying(): boolean {
 
 /** The position now: the last one reported, plus the time elapsed while playing (at most 1 s). */
 function estimatedPosition(): number {
-  if (!progress) return 0;
-  const elapsed = isPlaying() ? Math.min((performance.now() - progressAt) / 1000, 1) : 0;
-  const position = progress.position + elapsed;
-  return progress.duration > 0 ? Math.min(position, progress.duration) : position;
+  return progress ? estimatePosition(progress, performance.now() - progressAt, isPlaying()) : 0;
 }
 
 /** While synced lyrics play, the line follows the estimated clock (10 times a second). */
@@ -138,7 +136,7 @@ function renderLine(): void {
   $('.karaoke').hidden = !synced;
   if (synced && lyrics) {
     const lines = lyrics.lines;
-    const index = lineAt(lines, estimatedPosition() + LEAD_SECONDS - (lyrics.offset ?? 0));
+    const index = lineAt(lines, estimatedPosition() + LYRICS_LEAD_SECONDS - (lyrics.offset ?? 0));
     const at = (i: number): string => (i >= 0 ? (lines[i]?.text ?? '') || '♪' : '');
     const sung = index >= 0 ? lines[index]?.text : undefined;
     if (sung) {
@@ -236,6 +234,7 @@ renderClock();
 
 function applyView(view: IslandView): void {
   document.body.className = `pos-${view.position}`;
+  document.body.classList.toggle('still', !view.animations);
   // CSS zoom, not the page zoom: Chromium shares page zoom between pages of the same origin.
   document.documentElement.style.setProperty('zoom', String(view.scale));
   // Near black: the pill melts into the screen's edge.

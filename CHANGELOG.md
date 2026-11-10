@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.0-beta.2
+
+- **Lyrics view fixes**: the sung line is highlighted and the view scrolls with the song again (the view no longer depends on animation frames, which Windows could hold back); the lines glide even with Windows animations turned off; when only YouTube Music's lyrics (without timing) exist, the view says so.
+- **YouTube Music's Lyrics tab** opens cashew's synced lyrics view instead.
+- **Island**: in "On track change" mode, the island shows compact by default; a new setting chooses compact or detailed. The animations play even when Windows animations are turned off, and can be turned off in Settings → Island.
+- Code: one shared position estimate for the island and the lyrics view.
+
 ## 2.3.0-beta.1
 
 - **Lyrics view** in the player ("Paroles" in the toolbar): synced lyrics scroll smoothly to keep the sung line in view, the sung line fills as it is sung, other lines fade, instrumental breaks show breathing dots, a click on a line goes there, the mouse wheel scrolls freely (the view follows the song again after a moment), per-track correction (±0.5 s). **Immersive mode** (button or F key): big lines over the blurred, slowly drifting cover, across the whole YouTube Music area. When LRCLIB has no synced lyrics, YouTube Music's own lyrics (without timing) are shown instead.

@@ -3,6 +3,7 @@ import {
   DEFAULT_ISLAND,
   type IslandPrefs,
   decideIsland,
+  estimatePosition,
   gameToPropose,
   isGame,
   exeName,
@@ -319,6 +320,14 @@ describe('island v3', () => {
       decideIsland(prefs({ mode: 'always' }), null, true, { peek: false, prompt: true, quiet: true }).visible,
     ).toBe(true);
   });
+  it('estimates the position between two reports of the player', () => {
+    const report = { position: 10, duration: 10.5 };
+    expect(estimatePosition({ position: 10, duration: 200 }, 400, true)).toBeCloseTo(10.4);
+    expect(estimatePosition({ position: 10, duration: 200 }, 400, false)).toBe(10);
+    expect(estimatePosition({ position: 10, duration: 200 }, 5000, true)).toBe(11);
+    expect(estimatePosition(report, 900, true)).toBe(10.5);
+    expect(estimatePosition({ position: 3, duration: 0 }, -50, true)).toBe(3);
+  });
   it('new options and lyrics offsets are bounded', () => {
     expect(sanitizeIsland({})).toMatchObject({ events: true, idleMinutes: 0, hideFromCapture: true });
     expect(sanitizeIsland({ events: false, idleMinutes: 5, hideFromCapture: false })).toMatchObject({
@@ -327,6 +336,15 @@ describe('island v3', () => {
       hideFromCapture: false,
     });
     expect(sanitizeIsland({ idleMinutes: 7 }).idleMinutes).toBe(0);
+    expect(sanitizeIsland({})).toMatchObject({ trackView: 'compact', animations: true });
+    expect(sanitizeIsland({ trackView: 'expanded', animations: false })).toMatchObject({
+      trackView: 'expanded',
+      animations: false,
+    });
+    expect(sanitizeIsland({ trackView: 'huge', animations: 'yes' })).toMatchObject({
+      trackView: 'compact',
+      animations: true,
+    });
     expect(sanitizeLyrics({ trackId: 'x', status: 'synced', lines: [], offset: 42 })?.offset).toBe(10);
     expect(sanitizeLyrics({ trackId: 'x', status: 'synced', lines: [], offset: -0.54 })?.offset).toBe(-0.5);
   });

@@ -294,11 +294,9 @@ body.lyrics-immersive .lyrics-foot {
   padding: 8px 36px 14px;
 }
 
+/* With Windows animations off, the lines still glide (it is the view's purpose);
+   only the decorative drift of the backdrop stops. */
 @media (prefers-reduced-motion: reduce) {
-  .lyrics-lines,
-  .lyric {
-    transition: none;
-  }
   body.lyrics-immersive .lyrics-backdrop-art {
     animation: none;
   }

@@ -500,21 +500,21 @@ button.cover:hover {
   background: #ddd2ff;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .island.entering,
-  .island.leaving,
-  .island.track-change,
-  .island.track-change .art {
-    animation-duration: 0.01s;
-  }
-  .island,
-  .compact,
-  .expanded,
-  .prompt {
-    transition: none;
-  }
-  /* The equalizer stays: it is the only sign that music plays. */
-  .line .text.enter {
-    animation: none;
-  }
+/* Animations turned off in the settings (Windows' own setting does not apply:
+   these are subtle and the user chose them). */
+body.still .island.entering,
+body.still .island.leaving,
+body.still .island.track-change,
+body.still .island.track-change .art {
+  animation-duration: 0.01s;
+}
+body.still .island,
+body.still .compact,
+body.still .expanded,
+body.still .prompt {
+  transition: none;
+}
+/* The equalizer stays: it is the only sign that music plays. */
+body.still .line .text.enter {
+  animation: none;
 }

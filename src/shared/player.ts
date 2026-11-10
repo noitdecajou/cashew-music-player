@@ -89,7 +89,9 @@ export type AgentMessage =
   | { kind: 'progress'; progress: PlayerProgress }
   | { kind: 'queue'; queue: QueueState }
   | { kind: 'op-result'; id: number; ok: boolean; value: unknown; error: string }
-  | { kind: 'ready' };
+  | { kind: 'ready' }
+  /** The user clicked the Lyrics tab of YouTube Music's player page. */
+  | { kind: 'lyrics-tab' };
 
 export const VIDEO_ID = /^[\w-]{11}$/;
 export const PLAYLIST_ID = /^[\w-]{2,200}$/;
@@ -116,6 +118,7 @@ export function sanitizeAgentMessage(raw: unknown): AgentMessage | null {
   if (!raw || typeof raw !== 'object') return null;
   const message = raw as Record<string, unknown>;
   if (message.kind === 'ready') return { kind: 'ready' };
+  if (message.kind === 'lyrics-tab') return { kind: 'lyrics-tab' };
   if (message.kind === 'op-result') {
     if (!Number.isSafeInteger(message.id)) return null;
     // The value is validated by the caller, per operation (see shared/ops.ts).

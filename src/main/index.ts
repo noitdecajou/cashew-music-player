@@ -223,7 +223,13 @@ function main(): void {
     island.setCaptureProtection(prefs.value.island.hideFromCapture);
     const islandView = (): IslandView => {
       const p = prefs.value.island;
-      return { position: islandDecision.position, clock: p.clock, scale: ISLAND_SCALE[p.size], opacity: p.opacity };
+      return {
+        position: islandDecision.position,
+        clock: p.clock,
+        scale: ISLAND_SCALE[p.size],
+        opacity: p.opacity,
+        animations: p.animations,
+      };
     };
     function sendIslandState(contents: Electron.WebContents): void {
       contents.send('island:view', islandView());
@@ -330,6 +336,10 @@ function main(): void {
 
     ytm.subscribe(message => {
       switch (message.kind) {
+        case 'lyrics-tab':
+          // cashew's synced view replaces YouTube Music's own lyrics tab.
+          if (!window.state.mini) window.setPanel('lyrics');
+          return;
         case 'ready':
           streaming = null;
           queueWatching = null;
@@ -365,7 +375,8 @@ function main(): void {
           if (snapshot.track && snapshot.track.id !== previous.track?.id) rememberTrack();
           if (snapshot.track?.id !== previous.track?.id) {
             showLyrics(0);
-            if (snapshot.track && prefs.value.island.mode === 'track') peek(6000);
+            if (snapshot.track && prefs.value.island.mode === 'track')
+              peek(6000, prefs.value.island.trackView === 'expanded');
           } else if (snapshot.track) islandEvents(previous, snapshot);
           updateIdle();
           if (!!snapshot.track !== !!previous.track) refreshIsland();
@@ -619,7 +630,8 @@ function main(): void {
     // A moment of visibility outside the mode: track change ("track" mode) or the shortcut.
     let peeking = false;
     let peekTimer: NodeJS.Timeout | null = null;
-    function peek(ms: number): void {
+    /** Shows the island for `ms`, with its details or compact (pause, resume, volume…). */
+    function peek(ms: number, details: boolean): void {
       if (prefs.value.island.mode === 'off' || !snapshot.track) return;
       peeking = true;
       if (peekTimer) clearTimeout(peekTimer);
@@ -629,19 +641,7 @@ function main(): void {
         refreshIsland();
       }, ms);
       refreshIsland();
-      island.contents?.send('island:peek', ms);
-    }
-    /** Shown for a moment without the details (pause, resume, volume). */
-    function flash(ms: number): void {
-      if (prefs.value.island.mode === 'off' || !snapshot.track) return;
-      peeking = true;
-      if (peekTimer) clearTimeout(peekTimer);
-      peekTimer = setTimeout(() => {
-        peeking = false;
-        peekTimer = null;
-        refreshIsland();
-      }, ms);
-      refreshIsland();
+      if (details) island.contents?.send('island:peek', ms);
     }
     function islandEvents(before: PlayerSnapshot, after: PlayerSnapshot): void {
       if (!prefs.value.island.events || prefs.value.island.mode === 'off') return;
@@ -655,7 +655,7 @@ function main(): void {
         event = { kind: 'volume', volume: after.volume };
       if (!event) return;
       island.contents?.send('island:event', event);
-      if (!islandDecision.visible) flash(2500);
+      if (!islandDecision.visible) peek(2500, false);
     }
 
     // Out of the way: paused for a while, or Windows presentation mode.
@@ -696,7 +696,7 @@ function main(): void {
         }
       }, 5000);
 
-    const islandShortcut = new GlobalShortcut(() => peek(5000));
+    const islandShortcut = new GlobalShortcut(() => peek(5000, true));
     let islandShortcutError = islandShortcut.set(prefs.value.island.shortcut);
     if (prefs.value.island.mode === 'off') islandShortcut.suspend(true);
 

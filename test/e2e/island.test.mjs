@@ -319,19 +319,36 @@ test('island: clicking the mini-player during a game keeps the island; mini-play
   await settings({ withMini: 'keep' });
 });
 
-test('island: "track change" mode shows the details for a moment at each new track', async () => {
+test('island: "track change" mode shows the island for a moment at each new track, compact or detailed', async () => {
   setForeground(null);
   await settings({ mode: 'track' });
+  assert.equal((await h.shell.evaluate(() => window.player.settings())).island.trackView, 'compact', 'default');
   await h.until(async () => !(await islandWindow()).visible, { timeout: 6000, message: 'hidden between tracks' });
   await h.shell.evaluate(() => window.player.command({ type: 'next' }));
   await h.until(async () => (await islandWindow()).visible, { message: 'shown at the track change' });
+  await new Promise(resolve => setTimeout(resolve, 400));
+  assert.ok(!(await island.getAttribute('#island', 'class')).includes('expanded-view'), 'compact by default');
+  await h.until(async () => !(await islandWindow()).visible, { timeout: 9000, message: 'hidden again' });
+
+  await settings({ trackView: 'expanded' });
+  await h.shell.evaluate(() => window.player.command({ type: 'next' }));
+  await h.until(async () => (await islandWindow()).visible, { message: 'shown at the next track' });
   await island.waitForSelector('#island.expanded-view');
   await h.until(async () => !(await islandWindow()).visible, { timeout: 9000, message: 'hidden again' });
+  await settings({ trackView: 'compact' });
 });
 
-test('island: slides away before hiding, slides in when shown again', async () => {
+test('island: slides away before hiding, slides in when shown again; animations can be turned off', async () => {
   await settings({ mode: 'always' });
   await h.until(async () => (await islandWindow()).visible, { message: 'shown' });
+  // Records the classes the pill takes (one-shot animation classes go away when done).
+  await island.evaluate(() => {
+    window.__classes = new Set();
+    const pill = document.querySelector('#island');
+    new MutationObserver(() => pill.classList.forEach(c => window.__classes.add(c))).observe(pill, {
+      attributes: true,
+    });
+  });
   await settings({ mode: 'track' }); // hidden between tracks
   await h.until(async () => (await island.getAttribute('#island', 'class')).includes('leaving'), {
     message: 'leave animation',
@@ -339,7 +356,27 @@ test('island: slides away before hiding, slides in when shown again', async () =
   await h.until(async () => !(await islandWindow()).visible, { message: 'then hidden' });
   await settings({ mode: 'always' });
   await h.until(async () => (await islandWindow()).visible, { message: 'shown again' });
-  assert.ok(!(await island.getAttribute('#island', 'class')).includes('leaving'), 'enter animation');
+  await h.until(async () => await island.evaluate(() => window.__classes.has('entering')), {
+    message: 'enter animation',
+  });
+  assert.ok(!(await island.getAttribute('#island', 'class')).includes('leaving'), 'no longer leaving');
+  // Played whatever Windows' animation setting; can be turned off in the settings.
+  await island.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await island.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), true);
+  assert.equal(await island.evaluate(() => document.body.classList.contains('still')), false);
+  assert.equal(
+    await island.evaluate(() =>
+      getComputedStyle(document.querySelector('#island')).transitionDuration.startsWith('0s'),
+    ),
+    false,
+    'growth on hover animated',
+  );
+  await settings({ animations: false });
+  await h.until(async () => await island.evaluate(() => document.body.classList.contains('still')), {
+    message: 'animations off',
+  });
+  await settings({ animations: true });
+  await island.emulateMedia({ reducedMotion: 'no-preference' });
 });
 
 test('island: size and opacity', async () => {

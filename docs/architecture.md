@@ -49,7 +49,11 @@
 
 - Drawer section `lyrics` (`src/renderer/src/lyrics-view.ts`): side panel (`lyrics`) or immersive over the whole
   YouTube Music area (`lyrics-full`, large player only). Lines are positioned with a CSS transform (smooth scroll),
-  the sung line is filled with a gradient driven every frame (`--fill`), instrumental breaks (≥ 5 s) are dots.
+  the sung line is filled with a gradient (`--fill`), instrumental breaks (≥ 5 s) are dots. The sung line and the
+  scroll are updated on each player report and by a 200 ms timer; animation frames only smooth the fill while
+  playing (they are not relied upon: Chromium may hold them back for a native view).
+- A click on YouTube Music's own Lyrics tab (recognized by its page type `MUSIC_PAGE_TYPE_TRACK_LYRICS`, not its
+  translated title) makes the page agent send `lyrics-tab`; main opens the lyrics panel over it.
 - Lyrics are requested while the island is on or the view is open. When LRCLIB has nothing (or is turned off), main
   asks the page agent for YouTube Music's own lyrics (`lyrics` operation: `/next` → `MPLY…` → `/browse`), plain text.
 
@@ -66,7 +70,9 @@
   from the install folder (game stores) and the games Windows knows (`GameConfigStore`, read with `reg.exe`); browsers,
   Explorer, launchers and shell overlays never count.
 - **Lyrics** (`src/main/services/lyrics.ts`): LRCLIB `/api/get` (title, artist, album, duration), then `/api/search`;
-  LRC parsed in `src/shared/island.ts`, cached per track, requested only while the island is on.
+  LRC parsed in `src/shared/island.ts`, cached per track, requested only while the island or the lyrics view is on.
+- **Display choices**: "on track change" mode shows the pill compact or detailed (`trackView`); the animations
+  follow the `animations` setting, not Windows' "show animations" (`prefers-reduced-motion`).
 - **Settings** (`src/main/window/settings-window.ts`, page `settings.html`): a regular window with a sidebar
   (General, Player, Island, Games, Updates, About); same IPC rights as the shell.
 

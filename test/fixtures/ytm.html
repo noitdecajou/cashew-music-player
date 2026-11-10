@@ -20,9 +20,32 @@
     <ytmusic-like-button-renderer like-status="INDIFFERENT"></ytmusic-like-button-renderer>
   </ytmusic-player-bar>
   <ytmusic-player-queue><div id="contents"></div></ytmusic-player-queue>
+  <!-- Player page tabs (Up next, Lyrics, Comments, Related), as on the real site. -->
+  <ytmusic-player-page>
+    <tp-yt-paper-tabs>
+      <div><tp-yt-paper-tab class="tab-header">Up next</tp-yt-paper-tab></div>
+      <div><tp-yt-paper-tab class="tab-header"><span>Lyrics</span></tp-yt-paper-tab></div>
+      <div><tp-yt-paper-tab class="tab-header">Comments</tp-yt-paper-tab></div>
+      <div><tp-yt-paper-tab class="tab-header">Related</tp-yt-paper-tab></div>
+    </tp-yt-paper-tabs>
+  </ytmusic-player-page>
 </ytmusic-app>
 <script>
 (() => {
+  const pageTab = (title, pageType) => ({
+    tabRenderer: {
+      title,
+      endpoint: pageType
+        ? { browseEndpoint: { browseEndpointContextSupportedConfigs: { browseEndpointContextMusicConfig: { pageType } } } }
+        : undefined,
+    },
+  });
+  document.querySelector('ytmusic-player-page').tabs = [
+    pageTab('Up next'),
+    pageTab('Lyrics', 'MUSIC_PAGE_TYPE_TRACK_LYRICS'),
+    pageTab('Comments'),
+    pageTab('Related', 'MUSIC_PAGE_TYPE_TRACK_RELATED'),
+  ];
   const song = (id, title, artist, duration) => ({ id, title, artist, duration });
   const catalog = [
     song('AAAAAAAAAAA', 'Premier titre', 'Artiste Un', 200),

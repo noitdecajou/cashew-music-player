@@ -49,7 +49,7 @@
 
 - **Engine** (`src/shared/lyrics-renderer.ts`, styles `src/shared/lyrics.css`, classes `cl-…`): builds the lines
   (instrumental breaks ≥ 5 s are dots), marks the sung line, fills it word by word (characters as a proxy for
-  time; a registered, animated `--cl-fill` paints each word through a gradient, so nothing switches abruptly), eases the scroll so the line sits a third of the way down, seeks on click, pauses the follow 3.5 s after a
+  time; registered, animated `--cl-fill` and `--cl-lit` paint each word through a gradient; a finished line keeps its fill and its lit color fades to dim), eases the scroll so the line sits a third of the way down, seeks on click, pauses the follow 3.5 s after a
   wheel, touch, key or scrollbar move. Driven by a 100 ms timer plus animation frames while playing (never frames
   alone).
 - **In YouTube Music** (`src/preload/ytm-lyrics.ts`, isolated world of the preload, so the page's scripts cannot
@@ -58,7 +58,7 @@
   `#tab-renderer` and hides YouTube Music's content (`cashew-lyrics` attribute); otherwise YouTube Music's own lyrics
   stay; while lyrics are looked for, a short wait replaces YouTube Music's text (8 s at most). The full-screen view is
   a fixed overlay over the whole page: cover, title, artist, progress, previous / play-pause / next, up next; with
-  the clip on, YouTube Music's own player (`ytmusic-player#player`) is moved over a 16:9 place of the view (fixed
+  the clip on (YouTube Music in Video mode, or the camera button, which drives its Song/Video switch), YouTube Music's own player (`ytmusic-player#player`) is moved over a 16:9 place of the view (fixed
   position, its page `cashew-clip`: invisible except the player, above the overlay, no transform) and put back on
   leaving. Styles go in with `webFrame.insertCSS` (outside the
   page's content security policy). The position comes from the `<video>` element while it plays, else from the

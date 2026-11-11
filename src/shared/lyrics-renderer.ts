@@ -61,7 +61,6 @@ export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
   let key = '';
   let offset = 0;
   let active = -2;
-  let filled: Row | null = null;
   let running = false;
   let timer = 0;
   let frame = 0;
@@ -114,7 +113,6 @@ export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
     rows.forEach((row, i) => (row.end = rows[i + 1]?.time ?? row.time + 6));
     element.replaceChildren(...rows.map(row => row.element));
     active = -2;
-    filled = null;
   }
 
   /** Room above and below: the first and last lines can reach the anchor. */
@@ -166,6 +164,10 @@ export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
     const now = host.now() + LYRICS_LEAD_SECONDS - offset;
     const index = lineAt(rows, now);
     if (index !== active) {
+      // The new line starts empty (reset before it becomes the sung one, so at once);
+      // the line that ends keeps its fill and only dims (see lyrics.css).
+      const next = rows[index];
+      if (next) unfill(next);
       rows.forEach((row, i) => {
         row.element.classList.toggle('cl-active', i === index);
         row.element.classList.toggle('cl-past', i < index);
@@ -173,8 +175,6 @@ export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
       active = index;
     }
     const row = rows[index] ?? null;
-    if (filled && filled !== row) unfill(filled);
-    filled = row;
     if (row) fill(row, now);
     if (Date.now() < manualUntil) return false;
     const scroller = host.scroller;

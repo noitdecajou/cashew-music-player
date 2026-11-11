@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.0-beta.2
+
+- **Lyrics**: when a line ends, it now dims as a whole instead of its white sliding back to the left.
+- **Full screen and the music video**: when YouTube Music is in Video mode, the full screen plays the clip next to the lyrics (instead of a still image of it as the cover). The camera button is YouTube Music's Song/Video switch: off goes back to the song and its cover, on to the video; the last choice is used when entering the full screen from Song mode.
+
 ## 2.4.0-beta.1
 
 - **Lyrics fill smoothly**: each word goes from grey to white with a soft edge and stays white, without the flash at the end of a word; a finished line fades back gently.

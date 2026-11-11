@@ -75,6 +75,13 @@ test('Lyrics tab: scrolls with the song, a click on a line goes there, per-track
   await seek(30.5);
   // The fake player keeps playing: the line may already be the next one.
   await h.until(async () => /^Ligne (18|19|20)$/.test((await active()) ?? ''), { message: 'later line' });
+  // A finished line keeps its fill and dims as a whole (nothing slides back).
+  assert.equal(
+    await page(
+      `[...document.querySelectorAll('#tab-renderer .cl-past .cl-word')].some(w => w.style.getPropertyValue('--cl-fill') === '1')`,
+    ),
+    true,
+  );
   await h.until(async () => (await page(`document.querySelector('#tab-renderer').scrollTop`)) > top + 100, {
     message: 'scrolled down',
   });
@@ -167,40 +174,40 @@ test('full screen: progress, play/pause, previous/next, up next under the cover'
   });
 });
 
-test("full screen: the music video next to the lyrics, in YouTube Music's own player", async () => {
+test("full screen: in YouTube Music's Video mode the clip plays next to the lyrics; the camera switches Song/Video", async () => {
   const player = `document.querySelector('ytmusic-player-page ytmusic-player')`;
-  await page(`document.querySelector('.cl-clip-toggle').click()`);
-  await h.until(() => page(`document.querySelector('ytmusic-player-page').hasAttribute('cashew-clip')`), {
-    message: 'clip shown',
-  });
-  assert.equal(await page(`document.querySelector('.cl-immersive').classList.contains('cl-with-clip')`), true);
+  const pageClip = () => page(`document.querySelector('ytmusic-player-page').hasAttribute('cashew-clip')`);
   const measure = () =>
     page(`(() => {
       const p = ${player}.getBoundingClientRect();
       const s = document.querySelector('.cl-video-slot').getBoundingClientRect();
       return [Math.abs(p.left - s.left), Math.abs(p.top - s.top), Math.abs(p.width - s.width), s.width / s.height];
     })()`);
+  // The fake page is in Video mode: the full screen shows the clip, not a still cover.
+  await h.until(pageClip, { message: 'clip shown in Video mode' });
+  assert.equal(await page(`document.querySelector('.cl-immersive').classList.contains('cl-with-clip')`), true);
+  assert.equal(await page(`document.querySelector('.cl-clip-toggle').getAttribute('aria-pressed')`), 'true');
   // The view's layout settles (the lyrics column narrows); the player follows its place.
   await h.until(async () => (await measure()).slice(0, 3).every(gap => gap <= 1), { message: 'player over its place' });
-  const placed = await measure();
-  assert.ok(Math.abs(placed[3] - 16 / 9) < 0.02, `16:9: ${placed[3]}`);
+  assert.ok(Math.abs((await measure())[3] - 16 / 9) < 0.02, '16:9');
   // The rest of YouTube Music's page stays hidden, the player above the view.
   assert.equal(await page(`getComputedStyle(${player}).visibility`), 'visible');
   assert.equal(
     await page(`getComputedStyle(document.querySelector('ytmusic-player-page tp-yt-paper-tabs')).visibility`),
     'hidden',
   );
-  // Off again: the player goes back to its own place.
+  // The camera: back to Song mode, with the cover; the player goes back to its own place.
   await page(`document.querySelector('.cl-clip-toggle').click()`);
-  await h.until(() => page(`!document.querySelector('ytmusic-player-page').hasAttribute('cashew-clip')`), {
-    message: 'clip hidden',
-  });
+  await h.until(async () => !(await pageClip()), { message: 'clip hidden' });
+  assert.equal((await calls('av-toggle')).at(-1)[1], 'song');
   assert.equal(await page(`${player}.style.position`), '');
-  await page(`document.querySelector('.cl-clip-toggle').click()`); // remembered for next time
+  assert.equal(await page(`localStorage.getItem('cashew.lyrics.clip')`), 'off');
+  // And to Video mode again.
+  await page(`document.querySelector('.cl-clip-toggle').click()`);
+  await h.until(pageClip, { message: 'clip again' });
+  assert.equal((await calls('av-toggle')).at(-1)[1], 'video');
   await h.shell.evaluate(() => window.player.window('toggle-lyrics-full'));
-  await h.until(() => page(`!document.querySelector('ytmusic-player-page').hasAttribute('cashew-clip')`), {
-    message: 'restored when leaving',
-  });
+  await h.until(async () => !(await pageClip()), { message: 'restored when leaving' });
   assert.equal(await page(`${player}.style.position`), '');
   assert.equal(await page(`localStorage.getItem('cashew.lyrics.clip')`), 'on');
   await page(`localStorage.removeItem('cashew.lyrics.clip')`);

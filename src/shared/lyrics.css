@@ -32,28 +32,51 @@
 .cl-line.cl-active {
   transform: scale(1.015);
 }
-/* Each word is painted by a gradient through its letters: white up to --cl-fill
-   (0..1), dim after, with a soft edge. Sung words are at 1, the word being sung
-   in between, the others at 0. The value is animated (registered property), so
-   nothing ever switches abruptly: a finished word stays white, a finished line
-   fades back to dim. */
+/* Each word is painted by a gradient through its letters: lit up to --cl-fill
+   (0..1), dim after, with a soft edge. In the sung line the lit color is white
+   and the words fill one after the other. When the line ends, its words keep
+   their fill and the lit color itself fades back to dim (--cl-lit, animated):
+   the whole line dims at once, nothing slides back. */
 @property --cl-fill {
   syntax: '<number>';
   inherits: false;
   initial-value: 0;
 }
+@property --cl-lit {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: white;
+}
+.cl-line {
+  --cl-lit: var(--cl-dim);
+}
+.cl-line.cl-active {
+  --cl-lit: #fff;
+}
+.cl-line:not(.cl-interlude) {
+  transition:
+    --cl-lit 0.7s ease-out,
+    opacity 0.35s,
+    transform 0.4s cubic-bezier(0.22, 0.8, 0.25, 1);
+}
+.cl-line.cl-active:not(.cl-interlude) {
+  transition:
+    --cl-lit 0.15s ease-out,
+    opacity 0.35s,
+    transform 0.4s cubic-bezier(0.22, 0.8, 0.25, 1);
+}
 .cl-word {
   --cl-fill: 0;
   background: linear-gradient(
     90deg,
-    #fff calc(var(--cl-fill) * (100% + 0.4em) - 0.4em),
+    var(--cl-lit) calc(var(--cl-fill) * (100% + 0.4em) - 0.4em),
     var(--cl-dim) calc(var(--cl-fill) * (100% + 0.4em))
   );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  transition: --cl-fill 0.6s ease-out;
 }
+/* Only the sung line moves its fill (smoothly); elsewhere it changes at once, unseen. */
 .cl-active .cl-word {
   transition: --cl-fill 0.12s linear;
 }

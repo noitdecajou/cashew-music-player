@@ -197,7 +197,13 @@ export function setupYtmLyrics(deps: YtmLyricsDeps): YtmLyrics {
   // YouTube Music's own player is moved over a place kept in our view (fixed
   // position, its page made invisible except the player): the video keeps
   // playing in YouTube Music's player, only its place and size change.
-  let clip = readClip();
+  // The full screen follows YouTube Music's Song/Video switch: in Video mode the
+  // clip plays there (never a still frame as the cover); the camera button is
+  // that switch, and the last choice made with it is remembered.
+  let clipPreferred = readClip();
+  /** The clip is shown in this full-screen session. */
+  let clip = false;
+  let shownVideo = false;
   let playerStyle: string | null = null;
   let placed = '';
 
@@ -210,7 +216,7 @@ export function setupYtmLyrics(deps: YtmLyricsDeps): YtmLyrics {
   }
   function saveClip(): void {
     try {
-      localStorage.setItem(CLIP_KEY, clip ? 'on' : 'off');
+      localStorage.setItem(CLIP_KEY, clipPreferred ? 'on' : 'off');
     } catch {
       /* private storage refused: the choice lasts for this session */
     }
@@ -219,11 +225,26 @@ export function setupYtmLyrics(deps: YtmLyricsDeps): YtmLyrics {
   function videoMode(): boolean {
     return document.querySelector(PLAYER_PAGE)?.hasAttribute('video-mode') ?? false;
   }
-  function trySwitchToVideo(): void {
+  /** YouTube Music's Song/Video switch, when it can be used for this track. */
+  function avToggle(): Element | null {
     const toggle = document.querySelector('ytmusic-av-toggle');
-    if (!toggle || toggle.hasAttribute('toggle-disabled') || !toggle.hasAttribute('selected-item-has-video')) return;
-    if (toggle.getAttribute('is-video-playback-mode-selected') !== 'true')
+    return toggle && !toggle.hasAttribute('toggle-disabled') ? toggle : null;
+  }
+  function trySwitchToVideo(): void {
+    const toggle = avToggle();
+    if (
+      toggle?.hasAttribute('selected-item-has-video') &&
+      toggle.getAttribute('is-video-playback-mode-selected') !== 'true'
+    )
       toggle.querySelector<HTMLElement>('.video-button')?.click();
+  }
+  function trySwitchToSong(): void {
+    const toggle = avToggle();
+    if (
+      toggle?.hasAttribute('audio-only-playback-available') &&
+      toggle.getAttribute('is-audio-playback-mode-selected') !== 'true'
+    )
+      toggle.querySelector<HTMLElement>('.song-button')?.click();
   }
 
   function placePlayer(slot: HTMLElement | null): void {
@@ -340,8 +361,10 @@ export function setupYtmLyrics(deps: YtmLyricsDeps): YtmLyrics {
     const next = iconButton('cl-button', 'Suivant', ICONS.next, () => deps.command({ type: 'next' }));
     const clipButton = iconButton('cl-button cl-clip-toggle', 'Afficher le clip', ICONS.clip, () => {
       clip = !clip;
+      clipPreferred = clip;
       saveClip();
       if (clip) trySwitchToVideo();
+      else trySwitchToSong();
       update();
     });
     buttons.append(previous, play, next, clipButton);
@@ -392,7 +415,8 @@ export function setupYtmLyrics(deps: YtmLyricsDeps): YtmLyrics {
       play.setAttribute('aria-label', play.title);
       const n = snapshot?.next;
       upNext.textContent = n ? `À suivre : ${[n.title, n.artist].filter(Boolean).join(' — ')}` : '';
-      const withVideo = clip && videoMode();
+      shownVideo = videoMode();
+      const withVideo = clip && shownVideo;
       root.classList.toggle('cl-with-clip', withVideo);
       clipButton.classList.toggle('cl-on', clip);
       clipButton.title = clip ? 'Masquer le clip' : 'Afficher le clip';
@@ -426,6 +450,8 @@ export function setupYtmLyrics(deps: YtmLyricsDeps): YtmLyrics {
     immersive = on;
     if (on) {
       view ??= buildImmersive();
+      // Video mode in YouTube Music: the clip plays here; Song mode: as last chosen.
+      clip = videoMode() || clipPreferred;
       if (clip) trySwitchToVideo();
     }
     if (view) {
@@ -465,7 +491,11 @@ export function setupYtmLyrics(deps: YtmLyricsDeps): YtmLyrics {
   // YouTube Music re-renders the tab freely: check often, it is cheap (a few queries).
   window.setInterval(() => {
     syncTab();
-    if (immersive && view) placePlayer(view.slot);
+    if (immersive && view) {
+      // YouTube Music switched between Song and Video (our button, or by itself).
+      if (videoMode() !== shownVideo) view.update();
+      else placePlayer(view.slot);
+    }
   }, 400);
   window.setInterval(refresh, 1500);
   document.addEventListener('click', () => window.setTimeout(refresh, 60), true);

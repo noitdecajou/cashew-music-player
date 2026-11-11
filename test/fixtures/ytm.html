@@ -23,7 +23,11 @@
   <ytmusic-app-layout></ytmusic-app-layout>
   <ytmusic-player-queue><div id="contents"></div></ytmusic-player-queue>
   <!-- Player page tabs (Up next, Lyrics, Comments, Related), as on the real site. -->
-  <ytmusic-player-page>
+  <ytmusic-player-page video-mode>
+    <ytmusic-player id="player" style="display: block; width: 320px; height: 180px; background: #123"></ytmusic-player>
+    <ytmusic-av-toggle selected-item-has-video is-video-playback-mode-selected="true"
+      ><button class="song-button">Song</button><button class="video-button">Video</button></ytmusic-av-toggle
+    >
     <tp-yt-paper-tabs>
       <div><tp-yt-paper-tab class="tab-header iron-selected" aria-selected="true">Up next</tp-yt-paper-tab></div>
       <div><tp-yt-paper-tab class="tab-header" aria-selected="false"><span>Lyrics</span></tp-yt-paper-tab></div>

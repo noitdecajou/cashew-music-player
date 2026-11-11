@@ -230,6 +230,34 @@ describe('lyrics kept on disk', () => {
   });
 });
 
+describe('lyrics lookups: robust to early and refused requests', () => {
+  it('waits for the title and uses the latest details of the track', async () => {
+    const { fetcher, urls } = fake(() => reply(200, { syncedLyrics: '[00:01.00] Hello' }));
+    const states: LyricsState[] = [];
+    const lyrics = new Lyrics(fetcher, s => states.push(s), 0, 0);
+    lyrics.show({ ...track, title: '', artist: '' }, 200, true, true);
+    await new Promise(r => setTimeout(r, 20));
+    expect(urls).toHaveLength(0);
+    lyrics.show(track, 200, true, true);
+    await vi.waitFor(() => expect(states.at(-1)?.status).toBe('synced'));
+    expect(urls[0]?.searchParams.get('track_name')).toBe(track.title);
+    lyrics.dispose();
+  });
+
+  it('a refused exact request (4xx) still searches; no exact request without a duration', async () => {
+    const { fetcher, urls } = fake(url =>
+      url.pathname.endsWith('/get') ? reply(400, {}) : reply(200, [{ duration: 200, syncedLyrics: '[00:01.00] Hi' }]),
+    );
+    const errors: string[] = [];
+    const lyrics = new Lyrics(fetcher, () => {}, 0, 0, undefined, { onError: source => errors.push(source) });
+    expect((await lyrics.fetchLyrics(track, 200)).lines[0]?.text).toBe('Hi');
+    expect(errors).toEqual(['lrclib get']);
+    urls.length = 0;
+    await lyrics.fetchLyrics(track, 0.4);
+    expect(urls.map(u => u.pathname)).toEqual(['/api/search']);
+  });
+});
+
 describe("YouTube Music's synced lyrics", () => {
   const next = {
     contents: {

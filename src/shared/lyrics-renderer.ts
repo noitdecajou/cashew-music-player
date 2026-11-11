@@ -48,7 +48,7 @@ interface Row {
   text: string;
   element: HTMLElement;
   /** Word spans and the character count at the end of each (for the fill). */
-  words: { element: HTMLElement; end: number }[];
+  words: { element: HTMLElement; end: number; fill: number }[];
 }
 
 export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
@@ -94,7 +94,7 @@ export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
         for (const part of (text || '♪').match(/\S+\s*/g) ?? []) {
           const span = word(part);
           count += part.trim().length;
-          words.push({ element: span, end: count });
+          words.push({ element: span, end: count, fill: 0 });
           line.append(span);
         }
       }
@@ -133,7 +133,7 @@ export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
     return Math.max(0, top + row.element.offsetHeight / 2 - scroller.clientHeight * ANCHOR);
   }
 
-  /** Sung words in white, the word being sung filling from the left. */
+  /** Sung words at 1 (white), the word being sung in between, the rest at 0. */
   function fill(row: Row, now: number): void {
     const span = Math.max(0.5, Math.min(row.end - row.time, 12));
     const progress = Math.min(1, Math.max(0, (now - row.time) / span));
@@ -142,17 +142,19 @@ export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
     let start = 0;
     for (const w of row.words) {
       const part = w.end - start;
-      const ratio = part > 0 ? Math.min(1, Math.max(0, (sung - start) / part)) : 1;
-      w.element.classList.toggle('cl-sung', ratio >= 1);
-      w.element.style.setProperty('--fill', ratio > 0 && ratio < 1 ? ratio.toFixed(3) : '');
+      setFill(w, part > 0 ? Math.min(1, Math.max(0, (sung - start) / part)) : 1);
       start = w.end;
     }
   }
   function unfill(row: Row): void {
-    for (const w of row.words) {
-      w.element.classList.remove('cl-sung');
-      w.element.style.removeProperty('--fill');
-    }
+    for (const w of row.words) setFill(w, 0);
+  }
+  function setFill(w: Row['words'][number], value: number): void {
+    const rounded = Math.round(value * 200) / 200;
+    if (rounded === w.fill) return;
+    w.fill = rounded;
+    if (rounded) w.element.style.setProperty('--cl-fill', String(rounded));
+    else w.element.style.removeProperty('--cl-fill');
   }
 
   /** Returns true while the scroll still moves toward the sung line. */

@@ -49,14 +49,18 @@
 
 - **Engine** (`src/shared/lyrics-renderer.ts`, styles `src/shared/lyrics.css`, classes `cl-…`): builds the lines
   (instrumental breaks ≥ 5 s are dots), marks the sung line, fills it word by word (characters as a proxy for
-  time), eases the scroll so the line sits a third of the way down, seeks on click, pauses the follow 3.5 s after a
+  time; a registered, animated `--cl-fill` paints each word through a gradient, so nothing switches abruptly), eases the scroll so the line sits a third of the way down, seeks on click, pauses the follow 3.5 s after a
   wheel, touch, key or scrollbar move. Driven by a 100 ms timer plus animation frames while playing (never frames
   alone).
 - **In YouTube Music** (`src/preload/ytm-lyrics.ts`, isolated world of the preload, so the page's scripts cannot
   reach it): the page agent marks the Lyrics tab (`data-cashew-lyrics`, found by its page type
   `MUSIC_PAGE_TYPE_TRACK_LYRICS`). When that tab is selected and synced lyrics are known, the host puts its lines in
   `#tab-renderer` and hides YouTube Music's content (`cashew-lyrics` attribute); otherwise YouTube Music's own lyrics
-  stay. The immersive view is a fixed overlay over the whole page. Styles go in with `webFrame.insertCSS` (outside the
+  stay; while lyrics are looked for, a short wait replaces YouTube Music's text (8 s at most). The full-screen view is
+  a fixed overlay over the whole page: cover, title, artist, progress, previous / play-pause / next, up next; with
+  the clip on, YouTube Music's own player (`ytmusic-player#player`) is moved over a 16:9 place of the view (fixed
+  position, its page `cashew-clip`: invisible except the player, above the overlay, no transform) and put back on
+  leaving. Styles go in with `webFrame.insertCSS` (outside the
   page's content security policy). The position comes from the `<video>` element while it plays, else from the
   player reports relayed to main; a click seeks through the page agent. The host reports `lyrics-view` (shown or not)
   and `lyrics-offset` to main; main sends `ytm:lyrics` (the lyrics) and `ytm:lyrics-view` (immersive toggle).
@@ -64,7 +68,8 @@
   status otherwise.
 - **Sources** (`src/main/services/lyrics.ts`): YouTube Music's own timed lyrics first (`ytm-synced.ts`: `/next` →
   `MPLY…` → `/browse` asked as the mobile app, anonymous; often plain only), then LRCLIB. Requested while the island
-  shows lyrics or a lyrics view is open. Failures are logged; a network failure is tried again once. Without synced
+  shows lyrics, a lyrics view is open or the player page is shown (fetched ahead). The lookup waits for the track's
+  title and uses its latest details; a track already playing (duration known) is looked up at once. Failures are logged; a network failure is tried again once. Without synced
   lyrics, main asks the page agent for YouTube Music's plain lyrics (`lyrics` operation).
 
 ## Island and settings windows

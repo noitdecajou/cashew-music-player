@@ -323,6 +323,11 @@ function main(): void {
     let streaming: boolean | null = null;
     /** cashew's lyrics are shown in the YouTube Music page (Lyrics tab or immersive view). */
     let pageLyricsOpen = false;
+    /** YouTube Music's player page is shown (its Lyrics tab is one click away): lyrics are fetched ahead. */
+    let playerPageOpen = false;
+    /** The current track: since when, and its duration once known (lyrics lookups match on it). */
+    let trackSince = 0;
+    let trackDuration = 0;
     let queueWatching: boolean | null = null;
     function updateStreams(): void {
       const visible = window.visible || island.isVisible;
@@ -345,8 +350,9 @@ function main(): void {
           if (lyricsState) ytm.sendLyrics(lyricsState);
           return;
         case 'lyrics-view': {
-          const opened = message.open && !pageLyricsOpen;
+          const opened = (message.open && !pageLyricsOpen) || (message.page && !playerPageOpen);
           pageLyricsOpen = message.open;
+          playerPageOpen = message.page;
           if (opened) {
             showLyrics(0);
             if (lyricsState) ytm.sendLyrics(lyricsState);
@@ -376,8 +382,10 @@ function main(): void {
           }
           if (window.visible) for (const c of uiContents()) c.send('player:progress', message.progress);
           if (island.isVisible) island.contents?.send('player:progress', message.progress);
-          if (message.progress.trackId === snapshot.track?.id && message.progress.duration > 0)
+          if (message.progress.trackId === snapshot.track?.id && message.progress.duration >= 1) {
+            trackDuration = message.progress.duration;
             showLyrics(message.progress.duration);
+          }
           return;
         case 'snapshot': {
           const previous = snapshot;
@@ -390,6 +398,8 @@ function main(): void {
           }
           if (snapshot.track && snapshot.track.id !== previous.track?.id) rememberTrack();
           if (snapshot.track?.id !== previous.track?.id) {
+            trackSince = Date.now();
+            trackDuration = 0;
             showLyrics(0);
             if (snapshot.track && prefs.value.island.mode === 'track')
               peek(6000, prefs.value.island.trackView === 'expanded');
@@ -895,9 +905,13 @@ function main(): void {
     }
     /** Lyrics are fetched while the island is on or the lyrics view is open. */
     function showLyrics(duration: number): void {
-      if (prefs.value.island.mode === 'off' && !lyricsViewOpen()) return;
+      // Fetched ahead while the player page is shown: the Lyrics tab then opens on them.
+      const wanted = lyricsViewOpen() || (playerPageOpen && !window.state.mini && window.visible);
+      if (prefs.value.island.mode === 'off' && !wanted) return;
+      // A track playing for a while: its duration is final, no need to wait for it.
+      const settled = trackDuration > 0 && Date.now() - trackSince > 2000;
       // The island's lyrics option, or a lyrics view the user opened.
-      lyrics.show(snapshot.track, duration, prefs.value.island.lyrics || lyricsViewOpen());
+      lyrics.show(snapshot.track, duration || trackDuration, prefs.value.island.lyrics || wanted, settled);
       if (
         lyricsViewOpen() &&
         snapshot.track &&

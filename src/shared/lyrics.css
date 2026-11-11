@@ -30,22 +30,32 @@
   background: rgba(255, 255, 255, 0.07);
 }
 .cl-line.cl-active {
-  color: var(--cl-dim);
   transform: scale(1.015);
 }
-/* Words already sung are white; the word being sung fills from the left (--fill). */
-.cl-active .cl-word.cl-sung {
-  color: #fff;
-  text-shadow: 0 0 18px rgba(255, 255, 255, 0.22);
+/* Each word is painted by a gradient through its letters: white up to --cl-fill
+   (0..1), dim after, with a soft edge. Sung words are at 1, the word being sung
+   in between, the others at 0. The value is animated (registered property), so
+   nothing ever switches abruptly: a finished word stays white, a finished line
+   fades back to dim. */
+@property --cl-fill {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
 }
-.cl-active .cl-word[style*='--fill'] {
-  background: linear-gradient(90deg, #fff calc(var(--fill) * 100%), var(--cl-dim) calc(var(--fill) * 100% + 0.35em));
+.cl-word {
+  --cl-fill: 0;
+  background: linear-gradient(
+    90deg,
+    #fff calc(var(--cl-fill) * (100% + 0.4em) - 0.4em),
+    var(--cl-dim) calc(var(--cl-fill) * (100% + 0.4em))
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  transition: --cl-fill 0.6s ease-out;
 }
-.cl-word {
-  transition: color 0.18s;
+.cl-active .cl-word {
+  transition: --cl-fill 0.12s linear;
 }
 
 /* Instrumental break: three breathing dots */
@@ -161,13 +171,30 @@
   background: linear-gradient(transparent, var(--ytmusic-general-background-c, #030303) 26px);
 }
 
-/* --- Immersive view: over the whole YouTube Music page ---------------------- */
+/* While cashew's lyrics wait for their source, the tab shows this. */
+.cl-wait {
+  margin: 28px 2px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.55);
+  animation: cl-pulse 1.6s ease-in-out infinite;
+}
+.cl-wait[hidden],
+.cl-lines[hidden] {
+  display: none;
+}
+@keyframes cl-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* --- Full-screen view: over the whole YouTube Music page --------------------- */
 .cl-immersive {
   position: fixed;
   inset: 0;
   z-index: 10000;
   display: grid;
-  grid-template-columns: minmax(240px, 42%) 1fr;
+  grid-template-columns: minmax(300px, 40%) 1fr;
   overflow: hidden;
   background: #050505;
   color: #fff;
@@ -176,6 +203,9 @@
 }
 .cl-immersive[hidden] {
   display: none;
+}
+.cl-immersive.cl-with-clip {
+  grid-template-columns: minmax(0, 60%) 1fr;
 }
 @keyframes cl-fade-in {
   from {
@@ -202,43 +232,177 @@
     radial-gradient(120% 90% at 85% 50%, transparent 40%, rgba(0, 0, 0, 0.35) 100%);
   pointer-events: none;
 }
+
+/* Left: cover or video, title, artist, progress, controls, up next */
 .cl-side {
   position: relative;
   z-index: 2;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  padding: 32px;
+  padding: 28px 32px;
   min-width: 0;
-  text-align: center;
+  min-height: 0;
+}
+.cl-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: min(100%, 46vh, 360px);
+  min-width: 0;
+}
+.cl-with-clip .cl-panel {
+  width: min(100%, calc((100vh - 230px) * 16 / 9));
+}
+.cl-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  margin-bottom: 16px;
+}
+.cl-with-clip .cl-media {
+  aspect-ratio: 16 / 9;
 }
 .cl-cover {
-  width: min(62%, 46vh, 360px);
-  aspect-ratio: 1;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   border-radius: 6px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
   background: rgba(255, 255, 255, 0.06);
 }
+.cl-with-clip .cl-cover {
+  visibility: hidden;
+}
+/* The place of YouTube Music's player (moved over it, see ytm-lyrics.ts). */
+.cl-video-slot {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  pointer-events: none;
+}
 .cl-title {
-  max-width: 100%;
-  font-size: clamp(15px, 1.6vw, 22px);
+  font-size: clamp(15px, 1.5vw, 21px);
   font-weight: 700;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .cl-artist {
-  max-width: 100%;
-  margin-top: -8px;
-  font-size: clamp(12px, 1.1vw, 15px);
+  margin-top: 2px;
+  font-size: clamp(12px, 1.05vw, 15px);
   color: rgba(255, 255, 255, 0.6);
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.cl-progress {
+  position: relative;
+  height: 4px;
+  margin-top: 16px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  outline: none;
+  touch-action: none;
+}
+.cl-progress::before {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+}
+.cl-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+}
+.cl-progress:hover,
+.cl-progress:focus-visible {
+  height: 6px;
+  margin-block: 15px -1px;
+}
+.cl-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.6);
+}
+.cl-buttons {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+.cl-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+.cl-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.cl-button svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+.cl-button.cl-play {
+  width: 52px;
+  height: 52px;
+  background: #fff;
+  color: #000;
+}
+.cl-button.cl-play:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+.cl-button.cl-play svg {
+  width: 28px;
+  height: 28px;
+}
+.cl-clip-toggle {
+  position: absolute;
+  right: 0;
+  color: rgba(255, 255, 255, 0.55);
+}
+.cl-clip-toggle svg {
+  width: 21px;
+  height: 21px;
+}
+.cl-clip-toggle.cl-on {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+}
+.cl-upnext,
+.cl-clip-note {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cl-upnext:empty,
+.cl-clip-note:empty {
+  display: none;
+}
+
+/* Right: the lyrics */
 .cl-main {
   position: relative;
   z-index: 2;
@@ -247,6 +411,9 @@
   min-width: 0;
   min-height: 0;
   padding-right: 6%;
+}
+.cl-with-clip .cl-main {
+  padding-right: 4%;
 }
 .cl-scroll {
   flex: 1;
@@ -269,6 +436,9 @@
   --cl-size: clamp(20px, 2.5vw, 38px);
   --cl-dim: rgba(255, 255, 255, 0.4);
   max-width: 900px;
+}
+.cl-with-clip .cl-lines {
+  --cl-size: clamp(17px, 1.7vw, 28px);
 }
 .cl-plain {
   max-width: 820px;
@@ -305,4 +475,19 @@
 }
 .cl-close:hover {
   background: rgba(255, 255, 255, 0.18);
+}
+
+/* YouTube Music's player over the video place: its page stays invisible (and lets
+   the clicks through), except the player itself, above the full-screen view. */
+ytmusic-player-page[cashew-clip] {
+  visibility: hidden !important;
+  z-index: 10001 !important;
+  transform: none !important;
+  will-change: auto !important;
+}
+ytmusic-player-page[cashew-clip] ytmusic-player#player {
+  visibility: visible !important;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }

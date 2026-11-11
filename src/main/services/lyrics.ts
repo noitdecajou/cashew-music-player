@@ -51,6 +51,15 @@ export function simplifyTitle(title: string, artist = ''): string {
   return t.trim() || title;
 }
 
+class LrclibError extends Error {
+  constructor(
+    readonly status: number,
+    request: string,
+  ) {
+    super(`lrclib ${status} (${request})`);
+  }
+}
+
 export class Lyrics {
   private readonly cache = new Map<string, LyricsState>();
   private current = '';
@@ -59,6 +68,8 @@ export class Lyrics {
   private duration = 0;
   private generation = 0;
   private timer: NodeJS.Timeout | null = null;
+  /** The latest details of the current track (YouTube Music may name it a moment after its id). */
+  private latest: LyricsTrack | null = null;
 
   constructor(
     private readonly fetcher: Fetcher,
@@ -90,7 +101,7 @@ export class Lyrics {
    * duration (±2 s): the request waits for the duration to settle, then uses the
    * latest one reported for this track.
    */
-  show(track: LyricsTrack | null, duration: number, enabled: boolean): void {
+  show(track: LyricsTrack | null, duration: number, enabled: boolean, settled = false): void {
     if (!track) {
       this.reset('');
       return;
@@ -116,10 +127,16 @@ export class Lyrics {
     }
     if (this.current !== track.id) {
       this.reset(track.id);
+      this.latest = track;
       this.publish({ trackId: track.id, status: 'loading', lines: [] });
-      this.timer = setTimeout(() => this.settled(track), this.settleMs);
+      // A track playing for a while already has its own duration: no need to wait.
+      if (settled && duration > 0) {
+        this.duration = duration;
+        this.start(track);
+      } else this.timer = setTimeout(() => this.settled(track), this.settleMs);
     }
     if (duration > 0) this.duration = duration;
+    this.latest = track;
   }
 
   dispose(): void {
@@ -143,10 +160,16 @@ export class Lyrics {
     this.generation++;
   }
 
-  private start(track: LyricsTrack, retry = true): void {
+  private start(first: LyricsTrack, retry = true): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    const track = this.latest?.id === first.id ? this.latest : first;
     if (this.current !== track.id || (retry && this.started === track.id)) return;
+    // No title yet: nothing to look for; wait for the track's details.
+    if (!track.title.trim()) {
+      this.timer = setTimeout(() => this.start(track, retry), 500);
+      return;
+    }
     this.started = track.id;
     const generation = ++this.generation;
     void this.fetchLyrics(track, this.duration).then(
@@ -179,7 +202,7 @@ export class Lyrics {
     const query = new URLSearchParams(params).toString();
     const response = await this.fetcher(`${API}/${path}?${query}`);
     if (response.status === 404) return null;
-    if (response.status !== 200) throw new Error(`lrclib ${response.status}`);
+    if (response.status !== 200) throw new LrclibError(response.status, `${path}?${query}`);
     const body = await response.text();
     if (body.length > MAX_BODY) throw new Error('lrclib: response too large');
     return JSON.parse(body);
@@ -206,13 +229,21 @@ export class Lyrics {
       const lines = parseLrc(record.syncedLyrics);
       return lines.length ? { trackId: track.id, status: 'synced', lines, source: 'LRCLIB' } : null;
     };
-    if (duration > 0) {
-      const exact = await this.get('get', {
-        track_name: track.title,
-        artist_name: track.artist,
-        ...(track.album ? { album_name: track.album } : {}),
-        duration: String(Math.round(duration)),
-      });
+    // LRCLIB refuses a zero duration: the exact match needs at least a second.
+    if (Math.round(duration) >= 1) {
+      let exact: unknown = null;
+      try {
+        exact = await this.get('get', {
+          track_name: track.title,
+          artist_name: track.artist,
+          ...(track.album ? { album_name: track.album } : {}),
+          duration: String(Math.round(duration)),
+        });
+      } catch (error) {
+        // A refused request (4xx) still leaves the search; a network failure does not.
+        if (!(error instanceof LrclibError) || error.status >= 500) throw error;
+        this.options.onError?.('lrclib get', error);
+      }
       const found = fromRecord(exact as LrclibRecord | null);
       if (found) return found;
     }
@@ -224,7 +255,7 @@ export class Lyrics {
     const synced = candidates.filter(r => typeof r.syncedLyrics === 'string' && r.syncedLyrics);
     // The closest duration wins (a different cut of the song is likely off by more than 10 s).
     const gap = (r: LrclibRecord): number => Math.abs(Number(r.duration) - duration) || 0;
-    const close = duration > 0 ? synced.filter(r => gap(r) <= 10).sort((a, b) => gap(a) - gap(b)) : synced;
+    const close = duration >= 1 ? synced.filter(r => gap(r) <= 10).sort((a, b) => gap(a) - gap(b)) : synced;
     return fromRecord(close[0] ?? null) ?? none;
   }
 }

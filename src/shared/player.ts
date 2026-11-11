@@ -95,7 +95,7 @@ export type AgentMessage =
   /** The lyrics host of the YouTube Music page is (re)loaded: send it the lyrics. */
   | { kind: 'lyrics-host' }
   /** cashew's lyrics are shown in the page (Lyrics tab or immersive view), or no longer. */
-  | { kind: 'lyrics-view'; open: boolean; immersive: boolean }
+  | { kind: 'lyrics-view'; open: boolean; immersive: boolean; page: boolean }
   /** Per-track lyrics correction from the page's lyrics footer. */
   | { kind: 'lyrics-offset'; delta: number };
 
@@ -126,7 +126,12 @@ export function sanitizeAgentMessage(raw: unknown): AgentMessage | null {
   if (message.kind === 'ready') return { kind: 'ready' };
   if (message.kind === 'lyrics-host') return { kind: 'lyrics-host' };
   if (message.kind === 'lyrics-view')
-    return { kind: 'lyrics-view', open: message.open === true, immersive: message.immersive === true };
+    return {
+      kind: 'lyrics-view',
+      open: message.open === true,
+      immersive: message.immersive === true,
+      page: message.page === true,
+    };
   if (message.kind === 'lyrics-offset')
     return message.delta === 0.5 || message.delta === -0.5 ? { kind: 'lyrics-offset', delta: message.delta } : null;
   if (message.kind === 'op-result') {

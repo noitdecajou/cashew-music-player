@@ -17,6 +17,7 @@ writeFileSync(
       '[00:00.20] Première ligne chantée\n[00:01.20] Deuxième ligne\n[00:02.20] \n[00:12.00] Après la pause\n' +
       Array.from({ length: 30 }, (_, i) => `[00:${String(13 + i).padStart(2, '0')}.00] Ligne ${i + 1}`).join('\n') +
       '\n[09:00.00] Fin',
+    'Troisième titre': '[00:00.50] Troisième, première ligne\n[00:03.00] Troisième, deuxième ligne',
   }),
 );
 const profile = newProfile();
@@ -49,15 +50,22 @@ test("large player: no toolbar button; YouTube Music's Lyrics tab is taken over 
     message: 'Lyrics tab selected',
   });
   await h.until(tabTakenOver, { message: 'tab taken over' });
+  await h.until(() => page(`document.querySelectorAll('#tab-renderer .cl-line').length > 0`), { message: 'lines' });
   assert.equal(await page(`getComputedStyle(document.querySelector('.native-content')).display`), 'none');
   assert.equal(await page(`document.querySelectorAll('#tab-renderer .cl-line.cl-interlude').length`), 1);
   assert.match(await page(`document.querySelector('#tab-renderer .cl-source').textContent`), /LRCLIB/);
   await seek(0.5);
   await h.until(async () => /Première ligne/.test((await active()) ?? ''), { message: 'sung line' });
   // Word by word: the first words are sung (white) first.
-  await h.until(() => page(`document.querySelectorAll('#tab-renderer .cl-active .cl-word.cl-sung').length > 0`), {
-    message: 'words fill',
-  });
+  await h.until(
+    () =>
+      page(
+        `[...document.querySelectorAll('#tab-renderer .cl-active .cl-word')].some(w => w.style.getPropertyValue('--cl-fill') === '1')`,
+      ),
+    {
+      message: 'words fill',
+    },
+  );
   // No side panel of ours in the large player.
   assert.ok(!(await h.viewBounds()).some(v => v.url.includes('view=drawer')));
 });
@@ -65,7 +73,8 @@ test("large player: no toolbar button; YouTube Music's Lyrics tab is taken over 
 test('Lyrics tab: scrolls with the song, a click on a line goes there, per-track correction', async () => {
   const top = await page(`document.querySelector('#tab-renderer').scrollTop`);
   await seek(30.5);
-  await h.until(async () => (await active()) === 'Ligne 18', { message: 'later line' });
+  // The fake player keeps playing: the line may already be the next one.
+  await h.until(async () => /^Ligne (18|19|20)$/.test((await active()) ?? ''), { message: 'later line' });
   await h.until(async () => (await page(`document.querySelector('#tab-renderer').scrollTop`)) > top + 100, {
     message: 'scrolled down',
   });
@@ -106,7 +115,10 @@ test('immersive view: cover and title, the lines over the blurred cover; Escape 
   assert.match(await page(`document.querySelector('.cl-immersive .cl-artist').textContent`), /Artiste Un/);
   await seek(12.5);
   await h.until(
-    async () => (await page(`document.querySelector('.cl-immersive .cl-active')?.textContent`)) === 'Après la pause',
+    async () =>
+      /^(Après la pause|Ligne [12])$/.test(
+        (await page(`document.querySelector('.cl-immersive .cl-active')?.textContent`)) ?? '',
+      ),
     { message: 'sung line' },
   );
   // The toolbar's shortcut toggles it too.
@@ -122,6 +134,76 @@ test('immersive view: cover and title, the lines over the blurred cover; Escape 
     music.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
   });
   await h.until(() => page(`document.querySelector('.cl-immersive').hidden`), { message: 'Escape' });
+});
+
+test('full screen: progress, play/pause, previous/next, up next under the cover', async () => {
+  await h.shell.evaluate(() => window.player.window('toggle-lyrics-full'));
+  await h.until(() => page(`!document.querySelector('.cl-immersive').hidden`), { message: 'open' });
+  assert.match(await page(`document.querySelector('.cl-upnext').textContent`), /À suivre : Deuxième titre/);
+  await seek(30);
+  await h.until(async () => (await page(`document.querySelector('.cl-times .cl-time').textContent`)) === '0:30', {
+    message: 'elapsed time',
+  });
+  assert.equal(await page(`document.querySelectorAll('.cl-times .cl-time')[1].textContent`), '3:20');
+  // A click at the middle of the bar goes to the middle of the track.
+  const before = (await calls('seekTo')).length;
+  await page(`(() => {
+    const bar = document.querySelector('.cl-progress');
+    const r = bar.getBoundingClientRect();
+    const at = { clientX: r.left + r.width / 2, clientY: r.top + 2, pointerId: 1, bubbles: true };
+    bar.dispatchEvent(new PointerEvent('pointerdown', at));
+    bar.dispatchEvent(new PointerEvent('pointerup', at));
+  })()`);
+  await h.until(async () => (await calls('seekTo')).length > before, { message: 'seek from the bar' });
+  assert.ok(Math.abs((await calls('seekTo')).at(-1)[1] - 100) < 1);
+  const clicks = async selector => (await calls('click')).filter(c => c[1] === selector).length;
+  const plays = await clicks('#play-pause-button');
+  await page(`document.querySelector('.cl-play').click()`);
+  await h.until(async () => (await clicks('#play-pause-button')) > plays, { message: 'play/pause' });
+  assert.equal(await page(`document.querySelector('.cl-play').title`), 'Lecture', 'paused: play icon');
+  await page(`document.querySelector('.cl-play').click()`);
+  await h.until(async () => (await page(`document.querySelector('.cl-play').title`)) === 'Pause', {
+    message: 'playing',
+  });
+});
+
+test("full screen: the music video next to the lyrics, in YouTube Music's own player", async () => {
+  const player = `document.querySelector('ytmusic-player-page ytmusic-player')`;
+  await page(`document.querySelector('.cl-clip-toggle').click()`);
+  await h.until(() => page(`document.querySelector('ytmusic-player-page').hasAttribute('cashew-clip')`), {
+    message: 'clip shown',
+  });
+  assert.equal(await page(`document.querySelector('.cl-immersive').classList.contains('cl-with-clip')`), true);
+  const measure = () =>
+    page(`(() => {
+      const p = ${player}.getBoundingClientRect();
+      const s = document.querySelector('.cl-video-slot').getBoundingClientRect();
+      return [Math.abs(p.left - s.left), Math.abs(p.top - s.top), Math.abs(p.width - s.width), s.width / s.height];
+    })()`);
+  // The view's layout settles (the lyrics column narrows); the player follows its place.
+  await h.until(async () => (await measure()).slice(0, 3).every(gap => gap <= 1), { message: 'player over its place' });
+  const placed = await measure();
+  assert.ok(Math.abs(placed[3] - 16 / 9) < 0.02, `16:9: ${placed[3]}`);
+  // The rest of YouTube Music's page stays hidden, the player above the view.
+  assert.equal(await page(`getComputedStyle(${player}).visibility`), 'visible');
+  assert.equal(
+    await page(`getComputedStyle(document.querySelector('ytmusic-player-page tp-yt-paper-tabs')).visibility`),
+    'hidden',
+  );
+  // Off again: the player goes back to its own place.
+  await page(`document.querySelector('.cl-clip-toggle').click()`);
+  await h.until(() => page(`!document.querySelector('ytmusic-player-page').hasAttribute('cashew-clip')`), {
+    message: 'clip hidden',
+  });
+  assert.equal(await page(`${player}.style.position`), '');
+  await page(`document.querySelector('.cl-clip-toggle').click()`); // remembered for next time
+  await h.shell.evaluate(() => window.player.window('toggle-lyrics-full'));
+  await h.until(() => page(`!document.querySelector('ytmusic-player-page').hasAttribute('cashew-clip')`), {
+    message: 'restored when leaving',
+  });
+  assert.equal(await page(`${player}.style.position`), '');
+  assert.equal(await page(`localStorage.getItem('cashew.lyrics.clip')`), 'on');
+  await page(`localStorage.removeItem('cashew.lyrics.clip')`);
 });
 
 test("no synced lyrics: YouTube Music's own Lyrics tab stays; the mini-player panel shows its text", async () => {
@@ -146,7 +228,10 @@ test('mini-player panel: synced lines follow the song', async () => {
   await drawer.waitForSelector('.lyrics-scroll .cl-line');
   await seek(12.5);
   await h.until(
-    async () => (await drawer.textContent('.lyrics-scroll .cl-active').catch(() => '')) === 'Après la pause',
+    async () =>
+      /^(Après la pause|Ligne [12])$/.test(
+        (await drawer.textContent('.lyrics-scroll .cl-active').catch(() => '')) ?? '',
+      ),
     {
       message: 'active',
     },
@@ -154,4 +239,24 @@ test('mini-player panel: synced lines follow the song', async () => {
   await drawer.keyboard.press('Escape');
   await h.shell.evaluate(() => window.player.window('toggle-mini'));
   await h.shell.waitForSelector('body.large');
+});
+
+test('lyrics are fetched ahead while the player page is shown: the Lyrics tab opens straight on them', async () => {
+  await page(`document.querySelectorAll('ytmusic-player-page tp-yt-paper-tab')[0].click()`);
+  await page(`document.querySelector('ytmusic-app-layout').setAttribute('player-page-open', '')`);
+  await h.shell.evaluate(() => {
+    window.__lyrics = [];
+    window.player.on('lyrics:state', state => window.__lyrics.push(state));
+  });
+  await h.ytm('__fake.start(2)');
+  await h.until(async () => (await h.shell.textContent('#toolbar .title')) === 'Troisième titre', { message: 'third' });
+  await h.until(
+    () => h.shell.evaluate(() => window.__lyrics.some(s => s.trackId === 'CCCCCCCCCCC' && s.status === 'synced')),
+    { message: 'fetched without opening the tab' },
+  );
+  await page(`document.querySelector('[data-cashew-lyrics]').click()`);
+  await new Promise(resolve => setTimeout(resolve, 150));
+  assert.equal(await tabTakenOver(), true);
+  assert.equal(await page(`document.querySelector('#tab-renderer .cl-wait').hidden`), true, 'no wait');
+  assert.ok((await page(`document.querySelectorAll('#tab-renderer .cl-line').length`)) >= 2);
 });

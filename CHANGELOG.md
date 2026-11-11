@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.0-beta.1
+
+- **Lyrics fill smoothly**: each word goes from grey to white with a soft edge and stays white, without the flash at the end of a word; a finished line fades back gently.
+- **No more YouTube Music text before cashew's lyrics**: lyrics are looked for as soon as the player page is shown, a track already playing is looked up at once, and the Lyrics tab shows a short "Recherche des paroles…" instead of YouTube Music's text while they arrive.
+- **Lyrics found more reliably**: the lookup no longer starts before YouTube Music has named the track (it could search with an empty title and find nothing), and a refused exact match falls back to the search.
+- **Full screen**: under the cover, a progress bar (click or drag to seek), previous / play-pause / next and the next track.
+- **Music video next to the lyrics** (camera button in full screen): YouTube Music's own player takes the place of the cover, large (16:9, about 60% of the width), the lyrics beside it a little smaller. The choice is remembered; for a track without a video, the cover stays.
+
 ## 2.3.0
 
 - **Synced lyrics in YouTube Music's Lyrics tab**, like Better Lyrics: the sung line lights up word by word and stays in view, a click on a line goes there, the mouse wheel scrolls freely, per-track correction (±0.5 s). **Full screen**: cover, title and artist on the left, lyrics on the right, over the blurred colors of the cover (Escape leaves it). Without synced lyrics, YouTube Music's own lyrics stay. A lyrics panel in the mini-player.

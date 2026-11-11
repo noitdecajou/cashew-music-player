@@ -177,7 +177,9 @@ test('the page cannot spoof the shell, and invalid commands are dropped', async 
     [],
   );
   // The YouTube Music page has no access to the shell API.
-  assert.equal(await h.ytm('typeof window.player'), 'undefined');
+  // (window.player there is YouTube Music's own <ytmusic-player id="player"> element, as on the real site.)
+  assert.equal(await h.ytm('typeof window.player?.command'), 'undefined');
+  assert.equal(await h.ytm('typeof window.player?.updateSettings'), 'undefined');
   assert.equal(await h.ytm('typeof require'), 'undefined');
 });
 

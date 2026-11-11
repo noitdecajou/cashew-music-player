@@ -91,14 +91,34 @@ export function pageAgent(): void {
     return typeof url === 'string' ? upscale(url) : '';
   }
 
+  /**
+   * A queue row's versions: the queued one, and its counterpart (the music video
+   * of a song, or the song of a music video) that YouTube Music's Song/Video
+   * switch plays instead, with another video id.
+   */
+  function versions(item: any): any[] {
+    const primary = unwrap(item);
+    if (!primary) return [];
+    const counterparts = (item?.playlistPanelVideoWrapperRenderer?.counterpart ?? [])
+      .map((c: any) => c?.counterpartRenderer?.playlistPanelVideoRenderer)
+      .filter((r: any) => r?.videoId);
+    return [primary, ...counterparts];
+  }
+  /** What to show for a row: the song's details and square cover, whichever version plays. */
+  function shownVersion(item: any, id: string): any {
+    const all = versions(item);
+    const isSong = (r: any): boolean =>
+      !!bestThumbnail(r.thumbnail) && !/\bi\.ytimg\.com\//.test(bestThumbnail(r.thumbnail));
+    return all.find(isSong) ?? all.find(r => r.videoId === id) ?? all[0] ?? null;
+  }
   function currentRow(state: any, id: string): { row: any; index: number } | null {
     const items: any[] = state?.items ?? [];
+    const has = (item: any): boolean => versions(item).some(r => r.videoId === id);
     const selected = Number.isInteger(state?.selectedItemIndex) ? state.selectedItemIndex : -1;
-    const selectedRow = unwrap(items[selected]);
-    if (selectedRow?.videoId === id) return { row: selectedRow, index: selected };
+    if (has(items[selected])) return { row: shownVersion(items[selected], id), index: selected };
     // Fallback: the only row with this id (duplicates are ambiguous).
-    const matches = items.map((item, index) => ({ row: unwrap(item), index })).filter(m => m.row?.videoId === id);
-    return matches.length === 1 ? matches[0]! : null;
+    const matches = items.map((item, index) => ({ item, index })).filter(m => has(m.item));
+    return matches.length === 1 ? { row: shownVersion(matches[0]!.item, id), index: matches[0]!.index } : null;
   }
 
   function statusOf(code: number, id: string): string {
@@ -144,7 +164,8 @@ export function pageAgent(): void {
 
     let next = null;
     if (match && queue) {
-      const following = unwrap(queue.state.items[match.index + 1]) ?? unwrap(queue.state.automixItems?.[0]);
+      const following =
+        shownVersion(queue.state.items[match.index + 1], '') ?? shownVersion(queue.state.automixItems?.[0], '');
       if (following && following.videoId !== id)
         next = { title: text(following.title), artist: text(following.shortBylineText) };
     }

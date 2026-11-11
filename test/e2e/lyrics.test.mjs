@@ -113,6 +113,18 @@ test("Lyrics tab: another tab gives the place back to YouTube Music's content", 
   assert.notEqual(await page(`getComputedStyle(document.querySelector('.native-content')).display`), 'none');
   await page(`document.querySelector('[data-cashew-lyrics]').click()`);
   await h.until(tabTakenOver, { message: 'taken over again' });
+  // YouTube Music put its panel back at the top: the view goes straight to the sung
+  // line instead of scrolling through the whole song.
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.equal(
+    await page(`(() => {
+      const panel = document.querySelector('#tab-renderer').getBoundingClientRect();
+      const line = document.querySelector('#tab-renderer .cl-active')?.getBoundingClientRect();
+      return !!line && line.top >= panel.top && line.bottom <= panel.bottom;
+    })()`),
+    true,
+    'sung line in view at once',
+  );
 });
 
 test('immersive view: cover and title, the lines over the blurred cover; Escape leaves it', async () => {
@@ -266,4 +278,19 @@ test('lyrics are fetched ahead while the player page is shown: the Lyrics tab op
   assert.equal(await tabTakenOver(), true);
   assert.equal(await page(`document.querySelector('#tab-renderer .cl-wait').hidden`), true, 'no wait');
   assert.ok((await page(`document.querySelectorAll('#tab-renderer .cl-line').length`)) >= 2);
+});
+
+test("Video mode: the card keeps the song's title, cover and up next (the clip has another id)", async () => {
+  await h.ytm('__fake.start(1)');
+  await h.until(async () => (await h.shell.textContent('#toolbar .title')) === 'Deuxième titre', { message: 'second' });
+  await h.shell.evaluate(() => {
+    window.__snap = null;
+    window.player.on('player:snapshot', s => (window.__snap = s));
+  });
+  await h.ytm('__fake.videoVersion()');
+  await h.until(() => h.shell.evaluate(() => window.__snap?.track?.id === 'VVVVVVVVVVV'), { message: 'clip playing' });
+  const snap = await h.shell.evaluate(() => window.__snap);
+  assert.equal(snap.track.title, 'Deuxième titre');
+  assert.match(snap.track.artwork, /lh3\.googleusercontent\.com/, 'the song cover, not a frame of the clip');
+  assert.deepEqual(snap.next, { title: 'Troisième titre', artist: 'Artiste Trois' });
 });

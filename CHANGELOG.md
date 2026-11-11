@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.0-beta.3
+
+- **Video mode** (YouTube Music's Song/Video switch on Video): the mini-player, the island and the full screen keep the song's title and cover (not a frame of the clip), and "Up next" is known again. The music video has another id than the song in the queue; cashew now recognizes it as the same queue row.
+- **Lyrics tab**: coming back to it no longer scrolls through the whole song for a second (YouTube Music puts its panel back at the top); the view goes straight to the sung line. Same after a jump in the song.
+
 ## 2.4.0-beta.2
 
 - **Lyrics**: when a line ends, it now dims as a whole instead of its white sliding back to the left.

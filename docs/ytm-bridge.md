@@ -16,6 +16,10 @@ Events: `onStateChange`, `onVideoDataChange`, `onVolumeChange` (`{volume, muted}
 `getState().queue`: `items`, `selectedItemIndex`, `shuffleEnabled`, `repeatMode`, `automixItems`,
 `queueContextParams`, `nextQueueItemId`…; `subscribe(fn)`. Rows: `playlistPanelVideoRenderer` (or
 `playlistPanelVideoWrapperRenderer.primaryRenderer…`) with `videoId`, `title`, `shortBylineText`, `thumbnail`.
+A wrapper row also holds its other version in `counterpart[0].counterpartRenderer.playlistPanelVideoRenderer`
+(the music video of a song, or the song of a video, with its own `videoId`; plus a `segmentMap` pairing their
+timelines). The Song/Video switch plays that version: the playing id is then the counterpart's. The agent matches
+the current row on both ids and shows the song's details (square cover, not an `i.ytimg.com` frame).
 
 ## Player bar `ytmusic-player-bar`
 

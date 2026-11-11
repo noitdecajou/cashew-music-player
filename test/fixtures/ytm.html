@@ -65,6 +65,8 @@
         other.setAttribute('aria-selected', String(other === header));
       }
       document.querySelector('#tab-renderer .native-content').textContent = header.textContent.trim() + ' content';
+      // Like the real site, the panel starts back at the top.
+      document.querySelector('#tab-renderer').scrollTop = 0;
     });
   document.querySelector('.toggle-player-page-button').addEventListener('click', () =>
     document.querySelector('ytmusic-app-layout').toggleAttribute('player-page-open'),
@@ -131,12 +133,14 @@
     subscribe: fn => { subscribers.add(fn); return () => subscribers.delete(fn); },
   };
   queueElement.queue = { store: { store } };
-  const current = () => byId(queueState.items[queueState.selectedItemIndex]?.playlistPanelVideoRenderer?.videoId ?? '') ?? null;
+  // A queue item: a plain row, or a song with its music video ("counterpart"), as on the real site.
+  const primary = item => item?.playlistPanelVideoRenderer ?? item?.playlistPanelVideoWrapperRenderer?.primaryRenderer?.playlistPanelVideoRenderer;
+  const current = () => byId(primary(queueState.items[queueState.selectedItemIndex])?.videoId ?? '') ?? null;
   let playing = null; // the track the player has loaded (may lead the queue)
 
   function renderQueue() {
     contents.replaceChildren(...queueState.items.map((item, i) => {
-      const r = item.playlistPanelVideoRenderer;
+      const r = primary(item);
       const element = document.createElement('ytmusic-player-queue-item');
       const title = document.createElement('span'); title.className = 'song-title'; title.textContent = r.title.runs[0].text;
       const play = document.createElement('ytmusic-play-button-renderer');
@@ -165,7 +169,7 @@
   function setState(next) { state = next; fire('onStateChange', next); media(next === 1 ? 'play' : next === 2 ? 'pause' : 'durationchange'); }
 
   function load(i, autoplay = true) {
-    const t = byId(queueState.items[i]?.playlistPanelVideoRenderer?.videoId);
+    const t = byId(primary(queueState.items[i])?.videoId);
     if (!t) return;
     playing = t; time = 0;
     media('emptied');
@@ -285,7 +289,22 @@
     like: status => bar.querySelector('ytmusic-like-button-renderer').setAttribute('like-status', status),
     get index() { return queueState.selectedItemIndex; },
     get playingId() { return playing?.id ?? ''; },
-    get queueIds() { return queueState.items.map(i => i.playlistPanelVideoRenderer.videoId); },
+    get queueIds() { return queueState.items.map(i => primary(i).videoId); },
+    /** Song/Video switch to the music video: another id, the queue row gets its counterpart. */
+    videoVersion: () => {
+      const i = queueState.selectedItemIndex;
+      const song = primary(queueState.items[i]);
+      const clipId = 'VVVVVVVVVVV';
+      queueState.items[i] = { playlistPanelVideoWrapperRenderer: {
+        primaryRenderer: { playlistPanelVideoRenderer: song },
+        counterpart: [{ counterpartRenderer: { playlistPanelVideoRenderer: { ...song, videoId: clipId,
+          title: { runs: [{ text: song.title.runs[0].text + ' (Clip officiel)' }] },
+          thumbnail: { thumbnails: [{ url: `https://i.ytimg.com/vi/${clipId}/hqdefault.jpg` }] } } } }],
+      } };
+      playing = { ...playing, id: clipId };
+      notifyStore();
+      fire('onVideoDataChange', { type: 'dataupdated' });
+    },
     get time() { return time; },
   };
 })();

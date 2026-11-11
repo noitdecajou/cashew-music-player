@@ -181,6 +181,12 @@ export function createLyricsLines(host: LyricsLinesHost): LyricsLines {
     const goal = Math.min(target(active), scroller.scrollHeight - scroller.clientHeight);
     const gap = goal - scroller.scrollTop;
     if (Math.abs(gap) < 1) return false;
+    // Far away (YouTube Music reset its scroll when the tab came back, a jump in the
+    // song): go there at once, rather than scrolling through the whole song.
+    if (Math.abs(gap) > scroller.clientHeight * 0.75) {
+      scroller.scrollTop = goal;
+      return false;
+    }
     const step = Math.abs(gap) < 2 ? gap : gap * (1 - Math.exp(-elapsed / EASE_MS));
     scroller.scrollTop += step;
     return true;

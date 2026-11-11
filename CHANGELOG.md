@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.0
+
+- **Smoother lyrics**: each word goes from grey to white and stays white, a finished line dims as a whole; no more YouTube Music text before cashew's lyrics (they are looked for as soon as the player page is shown); coming back to the Lyrics tab goes straight to the sung line.
+- **Lyrics found more reliably**: the lookup waits for YouTube Music to name the track (it could search with an empty title), and a refused exact match falls back to the search.
+- **Full screen**: progress bar, previous / play-pause / next and the next track under the cover; the **music video** next to the lyrics, in YouTube Music's own player, following its Song/Video switch (camera button).
+- **Video mode**: the mini-player, the island and the full screen keep the song's title, cover and "Up next".
+
 ## 2.4.0-beta.3
 
 - **Video mode** (YouTube Music's Song/Video switch on Video): the mini-player, the island and the full screen keep the song's title and cover (not a frame of the clip), and "Up next" is known again. The music video has another id than the song in the queue; cashew now recognizes it as the same queue row.

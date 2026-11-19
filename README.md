@@ -3,7 +3,7 @@
 A **YouTube Music** desktop player for **Windows**, with an always-at-hand mini-player.
 
 cashew shows the official YouTube Music website in a dedicated window and adds what a browser tab lacks:
-a compact mini-player with 5 skins, fast search across the user's playlists, an interactive queue, resume of
+a compact mini-player with 7 skins, fast search across the user's playlists, an interactive queue, resume of
 the last session and a global shortcut. The interface is in French.
 
 | Actuel | Autoradio | Hi-fi |
@@ -14,9 +14,14 @@ the last session and a global shortcut. The interface is in French.
 
 ![Hi-Fi de salon (HF) mini-player](docs/screenshots/mini-hifi-hf.png)
 
+| Argent | Argent sombre |
+|---|---|
+| ![Argent mini-player](docs/screenshots/mini-argent.png) | ![Argent sombre mini-player](docs/screenshots/mini-argent-sombre.png) |
+
 ## Features
 
-- **Mini-player** in 5 skins: Actuel, Autoradio, Hi-fi, Autoradio 2000 (HF), Hi-Fi de salon (HF). Draggable
+- **Mini-player** in 7 skins: Actuel, Autoradio, Hi-fi, Autoradio 2000 (HF), Hi-Fi de salon (HF), Argent and Argent
+  sombre (Winamp 5 style, light and dark, with the queue, lyrics and search as tabs underneath). Draggable
   progress bar, built-in volume, pin on top, optional title bar, move by the grip.
 - **Search** across the tracks of the user's playlists (also offline), across the playlists themselves (with
   favorites) or the whole of YouTube Music; play now or play next.

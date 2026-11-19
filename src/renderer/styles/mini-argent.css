@@ -1,0 +1,1045 @@
+/* "Argent" and "Argent sombre": a Winamp 5 "Modern"-style silver skin, light and
+   dark. 500 × 224 mini-player: blue LCD (state, clock, flags, spectrum, scrolling
+   title), seek bar with the time left, round transport buttons in a capsule,
+   shuffle with its LED, inline volume, and the panels (queue, lyrics, search)
+   as tabs under the window. Same DOM as the other skins: every element is
+   positioned here. */
+
+/* VT323 and Silkscreen (SIL Open Font License, see fonts/OFL-*.txt). */
+@font-face {
+  font-family: 'Argent LCD';
+  font-display: block;
+  src: url('./fonts/vt323-latin-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Argent LCD';
+  font-display: block;
+  src: url('./fonts/vt323-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Argent Pixel';
+  font-display: block;
+  src: url('./fonts/silkscreen-latin-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Argent Pixel';
+  font-display: block;
+  src: url('./fonts/silkscreen-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Elements of these skins only. */
+#mini :is(.lcd, .island-toggle, .lower-toggle, .time.remaining),
+.skin-tabs {
+  display: none;
+}
+
+/* --- Palettes ---------------------------------------------------------------- */
+body[data-theme='argent'] {
+  --ar-card: linear-gradient(#f6f8fb, #d3d9e2 70%, #cbd1db);
+  --ar-lower: linear-gradient(#cbd1db, #c2c9d4);
+  --ar-edge: #56627a;
+  --ar-tbar: linear-gradient(#6a7a99, #33405f 55%, #28334f);
+  --ar-tbar-line: #1b2440;
+  --ar-grip: #8e9cb8;
+  --ar-tbtn: linear-gradient(#e9edf3, #aeb7c6);
+  --ar-tbtn-edge: #1b2440;
+  --ar-tbtn-fg: #28334f;
+  --ar-bezel: linear-gradient(#9aa5b8, #e4e8ee);
+  --ar-bezel-edge: #6f7b90;
+  --ar-lcd: linear-gradient(#21407c, #3961ab 55%, #2a4c90);
+  --ar-lcd-edge: #142245;
+  --ar-lcd-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.5);
+  --ar-lcd-fg: #eaf1ff;
+  --ar-lcd-soft: #bfd0f2;
+  --ar-lcd-dim: #7f94c2;
+  --ar-lcd-divider: #6f8ccb;
+  --ar-round: radial-gradient(circle at 35% 28%, #ffffff, #d2d8e2 45%, #97a2b5);
+  --ar-round-edge: #4e5a70;
+  --ar-round-shadow: inset 0 -2px 3px rgba(40, 50, 70, 0.25), 0 1px 0 #fff;
+  --ar-round-fg: #22325a;
+  --ar-round-press: radial-gradient(circle at 50% 60%, #c9d0db, #9ba6b8);
+  --ar-round-on: radial-gradient(circle at 35% 28%, #dce7ff, #7fa0e0 50%, #3d5fa6);
+  --ar-round-on-edge: #1e3266;
+  --ar-pill: linear-gradient(#ffffff, #c6cdd8);
+  --ar-pill-edge: #4e5a70;
+  --ar-pill-fg: #22325a;
+  --ar-pill-on: linear-gradient(#5d80c6, #2f4d8e);
+  --ar-pill-on-edge: #1b2d5c;
+  --ar-led: #7c8799;
+  --ar-capsule: linear-gradient(#a7b1c2, #e2e6ec);
+  --ar-capsule-edge: #7c879b;
+  --ar-rail: linear-gradient(#7f8ba0, #c7ced9);
+  --ar-rail-edge: #56627a;
+  --ar-thumb: linear-gradient(#ffffff, #b4bdcb);
+  --ar-thumb-edge: #4e5a70;
+  --ar-label: #3a4660;
+  --ar-text: #1e2840;
+  --ar-sub: #4a5670;
+  --ar-panel: linear-gradient(#e9edf2, #cbd2dc);
+  --ar-panel-edge: #6f7b90;
+  --ar-panel-shine: inset 0 1px 0 #fff;
+  --ar-list: #ffffff;
+  --ar-list-edge: #8c97aa;
+  --ar-dotted: #a7b0bf;
+  --ar-current: #2f4d8e;
+  --ar-highlight: #e3eaf8;
+  --ar-tab: linear-gradient(#c4cbd6, #e3e7ed);
+  --ar-tab-on: linear-gradient(#f7f9fb, #dce1e8);
+  --ar-tab-fg: #3a4660;
+  --ar-tab-on-fg: #16264a;
+  --ar-tab-line: #2f4d8e;
+}
+body[data-theme='argent-sombre'] {
+  --ar-card: linear-gradient(#3a3f49, #262a31 70%, #22262c);
+  --ar-lower: linear-gradient(#22262c, #1c1f25);
+  --ar-edge: #05070a;
+  --ar-tbar: linear-gradient(#2a3550, #151b2b 55%, #0e1320);
+  --ar-tbar-line: #05070a;
+  --ar-grip: #4a5878;
+  --ar-tbtn: linear-gradient(#5a6170, #30353f);
+  --ar-tbtn-edge: #05070a;
+  --ar-tbtn-fg: #d6dce8;
+  --ar-bezel: linear-gradient(#0a0c10, #3a3f49);
+  --ar-bezel-edge: #05070a;
+  --ar-lcd: linear-gradient(#0b1630, #16305e 55%, #0e1e40);
+  --ar-lcd-edge: #03060e;
+  --ar-lcd-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.7);
+  --ar-lcd-fg: #dde8ff;
+  --ar-lcd-soft: #9db4e4;
+  --ar-lcd-dim: #6a82b8;
+  --ar-lcd-divider: #3e5a94;
+  --ar-round: radial-gradient(circle at 35% 28%, #6a7180, #3a3f49 45%, #1e2127);
+  --ar-round-edge: #05070a;
+  --ar-round-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.08);
+  --ar-round-fg: #dde3ee;
+  --ar-round-press: radial-gradient(circle at 50% 60%, #2a2e36, #16181d);
+  --ar-round-on: radial-gradient(circle at 35% 28%, #9db8f0, #3d5fa6 50%, #1e3266);
+  --ar-round-on-edge: #0a1430;
+  --ar-pill: linear-gradient(#4a505c, #2a2e36);
+  --ar-pill-edge: #05070a;
+  --ar-pill-fg: #dde3ee;
+  --ar-pill-on: linear-gradient(#4a6cb4, #24407a);
+  --ar-pill-on-edge: #0a1430;
+  --ar-led: #14171c;
+  --ar-capsule: linear-gradient(#121418, #2e333c);
+  --ar-capsule-edge: #05070a;
+  --ar-rail: linear-gradient(#0a0c10, #2a2e36);
+  --ar-rail-edge: #05070a;
+  --ar-thumb: linear-gradient(#7a8292, #40464f);
+  --ar-thumb-edge: #05070a;
+  --ar-label: #aeb8cc;
+  --ar-text: #d6dce8;
+  --ar-sub: #a3aec2;
+  --ar-panel: linear-gradient(#22262d, #17191e);
+  --ar-panel-edge: #05070a;
+  --ar-panel-shine: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --ar-list: #101216;
+  --ar-list-edge: #05070a;
+  --ar-dotted: #3a404c;
+  --ar-current: #2f4d8e;
+  --ar-highlight: #24345a;
+  --ar-tab: linear-gradient(#15171b, #2a2e36);
+  --ar-tab-on: linear-gradient(#2e333c, #22262d);
+  --ar-tab-fg: #aeb8cc;
+  --ar-tab-on-fg: #ffffff;
+  --ar-tab-line: #5d80c6;
+}
+
+/* Shared looks */
+body.mini[data-theme^='argent'] {
+  --ar-pixel: 'Argent Pixel', 'Segoe UI', sans-serif;
+  --ar-lcd-font: 'Argent LCD', Consolas, monospace;
+  --ar-ui: Tahoma, Verdana, 'Segoe UI', sans-serif;
+  background: var(--ar-card);
+}
+body.mini[data-theme^='argent']::after {
+  /* the window's edge */
+  content: '';
+  position: fixed;
+  inset: 0;
+  border: 1px solid var(--ar-edge);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* --- Title bar: CASHEW between two grips -------------------------------------- */
+body.mini[data-theme^='argent'] #titlebar {
+  background: var(--ar-tbar);
+  border-bottom: 1px solid var(--ar-tbar-line);
+  color: #fff;
+  gap: 4px;
+  padding: 0 7px;
+}
+body.mini[data-theme^='argent'] #titlebar .brand {
+  padding-left: 0;
+  gap: 8px;
+}
+body.mini[data-theme^='argent'] #titlebar .brand .glyph {
+  width: 15px;
+  height: 15px;
+}
+body.mini[data-theme^='argent'] #titlebar .brand .wordmark {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--ar-pixel);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #fff;
+}
+body.mini[data-theme^='argent'] #titlebar .brand .wordmark::before,
+body.mini[data-theme^='argent'] #titlebar .brand .wordmark::after {
+  content: '';
+  flex: 1;
+  height: 6px;
+  border-top: 1px solid var(--ar-grip);
+  border-bottom: 1px solid var(--ar-grip);
+  opacity: 0.8;
+}
+body.mini[data-theme^='argent'] #titlebar button {
+  width: 22px;
+  height: 18px;
+  margin-left: 2px;
+  border-radius: 3px;
+  border: 1px solid var(--ar-tbtn-edge);
+  background: var(--ar-tbtn);
+  color: var(--ar-tbtn-fg);
+}
+body.mini[data-theme^='argent'] #titlebar button svg {
+  width: 9px;
+  height: 9px;
+  stroke-width: 1.8;
+}
+body.mini[data-theme^='argent'] #titlebar button:hover {
+  filter: brightness(1.08);
+}
+body.mini[data-theme^='argent'] #titlebar .close:hover {
+  background: linear-gradient(#e36a5c, #b02a1c);
+  color: #fff;
+}
+
+/* --- The window ---------------------------------------------------------------- */
+body.mini.skin[data-theme^='argent'] #mini .card {
+  width: 500px;
+  height: 224px;
+  background: var(--ar-card);
+  font-family: var(--ar-ui);
+}
+body.mini.skin[data-theme^='argent'] #mini :is(.brand-label, .cover, .grip, .upnext, .volume-mute, .time.total) {
+  display: none;
+}
+/* Title and artist stay for screen readers (the LCD shows them). */
+body.mini.skin[data-theme^='argent'] #mini .meta {
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+body.mini.skin[data-theme^='argent'] #mini :is(.lcd, .island-toggle, .lower-toggle, .time.remaining) {
+  display: block;
+}
+
+/* LCD inside its bezel */
+body.mini.skin[data-theme^='argent'] #mini .lcd {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  width: 432px;
+  height: 104px;
+  box-sizing: border-box;
+  border: 1px solid var(--ar-lcd-edge);
+  border-radius: 7px;
+  background: var(--ar-lcd);
+  box-shadow: var(--ar-lcd-shadow);
+  color: var(--ar-lcd-fg);
+  overflow: visible;
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  z-index: -1;
+  border: 1px solid var(--ar-bezel-edge);
+  border-radius: 10px;
+  background: var(--ar-bezel);
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-state {
+  position: absolute;
+  left: 12px;
+  top: 21px;
+  width: 9px;
+  height: 11px;
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-state[hidden] {
+  display: none;
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-state svg {
+  display: block;
+  width: 12px;
+  height: 14px;
+  margin: -2px 0 0 -2px;
+  fill: var(--ar-lcd-fg);
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-time {
+  position: absolute;
+  left: 28px;
+  top: 7px;
+  font-family: var(--ar-lcd-font);
+  font-size: 44px;
+  line-height: 36px;
+  letter-spacing: 1px;
+  color: var(--ar-lcd-fg);
+  font-variant-numeric: tabular-nums;
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-flags {
+  position: absolute;
+  left: 138px;
+  top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-flag {
+  padding: 0 4px;
+  border: 1px solid #7fd3ff;
+  border-radius: 3px;
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  line-height: 13px;
+  color: #7fd3ff;
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-flag[hidden] {
+  display: none;
+}
+/* Spectrum: decoration that dances while music plays, still otherwise. */
+body.mini.skin[data-theme^='argent'] #mini .lcd-bars {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  height: 40px;
+  padding-left: 8px;
+  border-left: 1px dotted var(--ar-lcd-divider);
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-bars i {
+  width: 5px;
+  height: 36px;
+  background: linear-gradient(#ffffff, #9db8f0);
+  transform-origin: bottom;
+  transform: scaleY(0.06);
+}
+body.mini.skin[data-theme^='argent'] #mini.playing .lcd-bars i {
+  animation: ar-bar 0.62s ease-in-out infinite alternate;
+}
+@keyframes ar-bar {
+  from {
+    transform: scaleY(var(--low, 0.25));
+  }
+  to {
+    transform: scaleY(var(--high, 0.9));
+  }
+}
+/* A peak around the low mids, like the design's resting spectrum. */
+#mini .lcd-bars i:nth-child(1) {
+  --low: 0.12;
+  --high: 0.3;
+  animation-delay: -0.1s !important;
+}
+#mini .lcd-bars i:nth-child(2) {
+  --low: 0.2;
+  --high: 0.5;
+  animation-duration: 0.5s !important;
+}
+#mini .lcd-bars i:nth-child(3) {
+  --low: 0.3;
+  --high: 0.7;
+  animation-delay: -0.3s !important;
+}
+#mini .lcd-bars i:nth-child(4) {
+  --low: 0.4;
+  --high: 0.88;
+  animation-duration: 0.7s !important;
+}
+#mini .lcd-bars i:nth-child(5) {
+  --low: 0.35;
+  --high: 0.8;
+  animation-delay: -0.45s !important;
+}
+#mini .lcd-bars i:nth-child(6) {
+  --low: 0.5;
+  --high: 1;
+  animation-duration: 0.55s !important;
+}
+#mini .lcd-bars i:nth-child(7) {
+  --low: 0.42;
+  --high: 0.84;
+  animation-delay: -0.2s !important;
+}
+#mini .lcd-bars i:nth-child(8) {
+  --low: 0.3;
+  --high: 0.62;
+  animation-duration: 0.66s !important;
+}
+#mini .lcd-bars i:nth-child(9) {
+  --low: 0.36;
+  --high: 0.72;
+  animation-delay: -0.5s !important;
+}
+#mini .lcd-bars i:nth-child(10) {
+  --low: 0.44;
+  --high: 0.9;
+  animation-duration: 0.48s !important;
+}
+#mini .lcd-bars i:nth-child(11) {
+  --low: 0.25;
+  --high: 0.55;
+  animation-delay: -0.15s !important;
+}
+#mini .lcd-bars i:nth-child(12) {
+  --low: 0.18;
+  --high: 0.4;
+  animation-duration: 0.74s !important;
+}
+#mini .lcd-bars i:nth-child(13) {
+  --low: 0.22;
+  --high: 0.5;
+  animation-delay: -0.35s !important;
+}
+#mini .lcd-bars i:nth-child(14) {
+  --low: 0.28;
+  --high: 0.62;
+  animation-duration: 0.58s !important;
+}
+#mini .lcd-bars i:nth-child(15) {
+  --low: 0.14;
+  --high: 0.3;
+  animation-delay: -0.25s !important;
+}
+#mini .lcd-bars i:nth-child(16) {
+  --low: 0.1;
+  --high: 0.26;
+  animation-duration: 0.68s !important;
+}
+#mini .lcd-bars i:nth-child(17) {
+  --low: 0.08;
+  --high: 0.2;
+  animation-delay: -0.4s !important;
+}
+#mini .lcd-bars i:nth-child(18) {
+  --low: 0.06;
+  --high: 0.14;
+  animation-duration: 0.52s !important;
+}
+/* Scrolling title line */
+body.mini.skin[data-theme^='argent'] #mini .lcd-marquee {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 58px;
+  height: 31px;
+  box-sizing: border-box;
+  padding-top: 4px;
+  border-top: 1px solid rgba(157, 180, 228, 0.35);
+  overflow: hidden;
+  white-space: nowrap;
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-marquee-text {
+  display: inline-block;
+  font-family: var(--ar-lcd-font);
+  font-size: 24px;
+  line-height: 24px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ar-lcd-fg);
+}
+body.mini.skin[data-theme^='argent'] #mini .lcd-marquee-text.scrolling {
+  animation: ar-marquee var(--marquee-duration, 14s) linear infinite;
+}
+@keyframes ar-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Side buttons: pin, island, large player */
+body.mini.skin[data-theme^='argent'] #mini .tools {
+  left: 458px;
+  top: 12px;
+  flex-direction: column;
+  gap: 6px;
+}
+body.mini.skin[data-theme^='argent'] #mini .tools :is(.titlebar-toggle, [data-window='toggle-search']) {
+  display: none;
+}
+body.mini.skin[data-theme^='argent'] #mini :is(.tools button, .shuffle, .lower-toggle) {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  border: 1px solid var(--ar-pill-edge);
+  background: var(--ar-pill);
+  color: var(--ar-pill-fg);
+}
+body.mini.skin[data-theme^='argent'] #mini :is(.tools button, .shuffle, .lower-toggle) svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+body.mini.skin[data-theme^='argent']
+  #mini
+  :is(.tools button[aria-pressed='true'], .lower-toggle[aria-expanded='false']) {
+  border-color: var(--ar-pill-on-edge);
+  background: var(--ar-pill-on);
+  color: #fff;
+}
+body.mini.skin[data-theme^='argent'] #mini :is(.tools button, .shuffle, .lower-toggle):hover {
+  filter: brightness(1.06);
+}
+
+/* Seek: elapsed, bar, time left */
+body.mini.skin[data-theme^='argent'] #mini .time {
+  top: 135px;
+  width: 34px;
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  line-height: 12px;
+  color: var(--ar-label);
+}
+body.mini.skin[data-theme^='argent'] #mini .time.elapsed {
+  left: 14px;
+}
+body.mini.skin[data-theme^='argent'] #mini .time.remaining {
+  position: absolute;
+  left: 452px;
+  text-align: right;
+}
+body.mini.skin[data-theme^='argent'] #mini .slider.progress {
+  left: 54px;
+  top: 133px;
+  width: 388px;
+  height: 16px;
+}
+body.mini.skin[data-theme^='argent'] #mini :is(.slider.progress, .slider.volume) .rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  height: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--ar-rail-edge);
+  border-radius: 4px;
+  background: var(--ar-rail);
+  overflow: hidden;
+}
+body.mini.skin[data-theme^='argent'] #mini :is(.slider.progress, .slider.volume) .fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(#7fa0e0, #2f4d8e);
+}
+body.mini.skin[data-theme^='argent'] #mini :is(.slider.progress, .slider.volume) .thumb {
+  position: absolute;
+  top: 0;
+  width: 30px;
+  height: 16px;
+  margin-left: -15px;
+  box-sizing: border-box;
+  border: 1px solid var(--ar-thumb-edge);
+  border-radius: 8px;
+  background: var(--ar-thumb);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  opacity: 1;
+  transform: none;
+}
+
+/* Transport capsule (the "screen" element draws it) */
+body.mini.skin[data-theme^='argent'] #mini .screen {
+  left: 14px;
+  top: 158px;
+  width: 158px;
+  height: 54px;
+  box-sizing: border-box;
+  border: 1px solid var(--ar-capsule-edge);
+  border-radius: 28px;
+  background: var(--ar-capsule);
+}
+body.mini.skin[data-theme^='argent'] #mini .controls button:not(.shuffle) {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--ar-round-edge);
+  background: var(--ar-round);
+  box-shadow: var(--ar-round-shadow);
+  color: var(--ar-round-fg);
+}
+body.mini.skin[data-theme^='argent'] #mini .controls button:not(.shuffle):active {
+  background: var(--ar-round-press);
+}
+body.mini.skin[data-theme^='argent'] #mini .controls button:not(.shuffle) svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+body.mini.skin[data-theme^='argent'] #mini .controls [data-command='previous'] {
+  left: 19px;
+  top: 163px;
+}
+body.mini.skin[data-theme^='argent'] #mini .controls .play {
+  left: 67px;
+  top: 159px;
+  width: 52px;
+  height: 52px;
+  border-color: var(--ar-round-on-edge);
+  background: var(--ar-round-on);
+  color: #fff;
+}
+body.mini.skin[data-theme^='argent'] #mini .controls .play svg {
+  width: 24px;
+  height: 24px;
+}
+body.mini.skin[data-theme^='argent'] #mini .controls [data-command='next'] {
+  left: 123px;
+  top: 163px;
+}
+/* Shuffle with its LED */
+body.mini.skin[data-theme^='argent'] #mini .controls .shuffle {
+  left: 178px;
+  top: 167px;
+  width: 44px;
+  height: 36px;
+  border-radius: 18px;
+  grid-auto-flow: column;
+  gap: 4px;
+}
+body.mini.skin[data-theme^='argent'] #mini .controls .shuffle svg {
+  width: 17px;
+  height: 17px;
+}
+body.mini.skin[data-theme^='argent'] #mini .controls .shuffle::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ar-led);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.4);
+}
+body.mini.skin[data-theme^='argent'] #mini .controls .shuffle[aria-pressed='true'] {
+  border-color: var(--ar-pill-on-edge);
+  background: var(--ar-pill-on);
+  color: #fff;
+}
+body.mini.skin[data-theme^='argent'] #mini .controls .shuffle[aria-pressed='true']::after {
+  background: #7fd3ff;
+  box-shadow: 0 0 6px #7fd3ff;
+}
+
+/* Volume: the speaker mutes, the slider is always there */
+body.mini.skin[data-theme^='argent'] #mini .volume-button {
+  left: 228px;
+  top: 175px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  place-items: center;
+  background: none;
+  border: 0;
+  color: var(--ar-label);
+}
+body.mini.skin[data-theme^='argent'] #mini .volume-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+body.mini.skin[data-theme^='argent'] #mini .slot {
+  left: 254px;
+  top: 167px;
+  width: 190px;
+  height: 36px;
+}
+body.mini.skin[data-theme^='argent'] #mini .volume-panel,
+body.mini.skin[data-theme^='argent'] #mini .bottom.volume-open .volume-panel {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0;
+  background: none;
+}
+body.mini.skin[data-theme^='argent'] #mini .volume-panel .slider {
+  position: relative;
+  flex: 1;
+  height: 16px;
+}
+body.mini.skin[data-theme^='argent'] #mini .volume-value {
+  flex: none;
+  width: 20px;
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  color: var(--ar-label);
+  text-align: left;
+}
+/* Lower part (panels) */
+body.mini.skin[data-theme^='argent'] #mini .lower-toggle {
+  position: absolute;
+  left: 450px;
+  top: 167px;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+}
+
+/* --- Panels under the window (drawer page) ------------------------------------- */
+body.drawer-view.mini[data-theme^='argent'] {
+  --ar-pixel: 'Argent Pixel', 'Segoe UI', sans-serif;
+  --ar-lcd-font: 'Argent LCD', Consolas, monospace;
+  --ar-ui: Tahoma, Verdana, 'Segoe UI', sans-serif;
+  background: var(--ar-lower);
+  font-family: var(--ar-ui);
+  color: var(--ar-text);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel {
+  padding: 0 10px 12px;
+  gap: 0;
+  border: 1px solid var(--ar-edge);
+  border-top: 0;
+  background: var(--ar-lower);
+  overflow: hidden;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .panel-head {
+  display: none;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel > section:not([hidden]) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid var(--ar-panel-edge);
+  border-radius: 8px;
+  background: var(--ar-panel);
+  box-shadow: var(--ar-panel-shine);
+  overflow: hidden;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .skin-tabs {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .skin-tabs button {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--ar-panel-edge);
+  border-top: 0;
+  border-radius: 0 0 9px 9px;
+  background: var(--ar-tab);
+  font-family: var(--ar-pixel);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--ar-tab-fg);
+  cursor: pointer;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .skin-tabs button[aria-pressed='true'] {
+  background: var(--ar-tab-on);
+  color: var(--ar-tab-on-fg);
+  box-shadow: inset 0 2px 0 var(--ar-tab-line);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .panel-notice {
+  margin: 6px 0;
+  font-size: 12px;
+}
+
+/* Small pixel labels and pill buttons */
+body.drawer-view.mini[data-theme^='argent'] #panel :is(.status-line, .library-status, .queue-status) {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--ar-label);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel :is(.pill, .row .icon, .refresh-library) {
+  height: 26px;
+  min-width: 26px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--ar-pill-edge);
+  border-radius: 13px;
+  background: var(--ar-pill);
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--ar-pill-fg);
+  text-decoration: none;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .row .icon:first-of-type:not(.remove):not(.star):not(.now) {
+  border-color: var(--ar-pill-on-edge);
+  background: var(--ar-pill-on);
+  color: #fff;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .row .icon svg {
+  width: 11px;
+  height: 11px;
+  fill: currentColor;
+}
+
+/* Lists in a white (dark) box */
+body.drawer-view.mini[data-theme^='argent'] #panel .results {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  border: 1px solid var(--ar-list-edge);
+  border-radius: 5px;
+  background: var(--ar-list);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .results .row {
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font: 12px var(--ar-ui);
+  color: var(--ar-text);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .results .row + .row {
+  border-top: 1px dotted var(--ar-dotted);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .results .row .title {
+  font-weight: bold;
+  color: inherit;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .results .row .sub {
+  font-size: 11px;
+  color: var(--ar-sub);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .results .row :is(img, .cover) {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  border: 1px solid var(--ar-edge);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .results .empty {
+  padding: 10px;
+  color: var(--ar-sub);
+}
+
+/* Search: the query on an LCD, the scopes as a segmented control */
+body.drawer-view.mini[data-theme^='argent'] #panel .search-box input,
+body.drawer-view.mini[data-theme^='argent'] #panel .search-box input:focus {
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 10px 0 34px;
+  border: 1px solid var(--ar-lcd-edge);
+  border-radius: 7px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Ccircle cx='7' cy='7' r='5' fill='none' stroke='%23EAF1FF' stroke-width='1.6'/%3E%3Cpath d='M11 11l4 4' stroke='%23EAF1FF' stroke-width='1.8'/%3E%3C/svg%3E")
+      10px center no-repeat,
+    var(--ar-lcd);
+  box-shadow: var(--ar-lcd-shadow);
+  font-family: var(--ar-lcd-font);
+  font-size: 24px;
+  color: #fff;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .search-box input::placeholder {
+  color: var(--ar-lcd-dim);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .tabs {
+  display: flex;
+  gap: 0;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .tabs button {
+  flex: 1;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--ar-pill-edge);
+  border-radius: 0;
+  background: var(--ar-pill);
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--ar-pill-fg);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .tabs button + button {
+  border-left: 0;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .tabs button:first-child {
+  border-radius: 16px 0 0 16px;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .tabs button:last-child {
+  border-radius: 0 16px 16px 0;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .tabs button[aria-selected='true'] {
+  border-color: var(--ar-pill-on-edge);
+  /* the base style marks the selected scope with !important */
+  background: var(--ar-pill-on) !important;
+  color: #fff;
+}
+
+/* Queue: numbered rows "artist — title", the track playing in blue */
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list {
+  counter-reset: queue;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row {
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row + .queue-row {
+  border-top: 0;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row::before {
+  counter-increment: queue;
+  content: counter(queue, decimal-leading-zero);
+  flex: none;
+  width: 16px;
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  opacity: 0.8;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row :is(img, .cover) {
+  display: none;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row .meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row .title {
+  font-weight: normal;
+  flex: 0 1 auto;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row .sub {
+  flex: 0 1 auto;
+  font-size: 12px;
+  color: inherit;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row .sub:not(:empty)::after {
+  content: ' — ';
+  white-space: pre;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row .duration {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  opacity: 0.85;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row.current {
+  background: var(--ar-current);
+  color: #fff;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row :is(.remove, .now) {
+  width: 22px;
+  height: 22px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  opacity: 0.75;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .queue-list .queue-row .remove:hover {
+  border-color: var(--ar-panel-edge);
+  opacity: 1;
+}
+
+/* Lyrics: a big LCD, lines in the pixel display font, centered */
+body.drawer-view.mini[data-theme^='argent'] #panel > section.lyrics-view:not([hidden]) {
+  padding: 0;
+  gap: 0;
+  border-color: var(--ar-lcd-edge);
+  background: var(--ar-lcd);
+  box-shadow: var(--ar-lcd-shadow);
+  color: var(--ar-lcd-fg);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-head {
+  padding: 8px 10px 4px 12px;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-head :is(.lyrics-title, .lyrics-artist) {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--ar-lcd-soft);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-art {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-close {
+  display: none;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-scroll .cl-lines {
+  --cl-size: 26px;
+  --cl-dim: var(--ar-lcd-dim);
+  font-family: var(--ar-lcd-font);
+  font-weight: normal;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-scroll .cl-line {
+  transform-origin: center;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-scroll .cl-line.cl-active {
+  filter: drop-shadow(0 0 5px rgba(127, 211, 255, 0.55));
+}
+body.drawer-view.mini[data-theme^='argent'] #panel :is(.lyrics-plain, .lyrics-status) {
+  font-family: var(--ar-lcd-font);
+  font-size: 20px;
+  color: var(--ar-lcd-fg);
+  text-align: center;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-foot {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--ar-lcd-soft);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .lyrics-offset button {
+  color: var(--ar-lcd-soft) !important;
+  font-family: var(--ar-pixel);
+  font-size: 9px !important;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel button.link {
+  color: var(--ar-current);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel button.link:hover {
+  background: none;
+  text-decoration: underline;
+}
+body.drawer-view.mini[data-theme^='argent'] #panel button:hover {
+  filter: brightness(1.06);
+}
+body.drawer-view.mini[data-theme^='argent'] #panel .search-box input::-webkit-search-cancel-button {
+  transform: scale(0.7);
+  cursor: pointer;
+}

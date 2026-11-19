@@ -43,10 +43,26 @@ export function startDrawer(): void {
   const queue = setupQueue(notice);
   const lyrics = setupLyricsView();
 
+  // Argent skins: the panels are tabs under the panel (the current one stays open).
+  const TAB_ACTIONS = {
+    queue: 'toggle-queue',
+    lyrics: 'toggle-lyrics',
+    search: 'toggle-search',
+    settings: 'toggle-settings',
+  } as const;
+  const tabs = $$<HTMLButtonElement>('.skin-tabs [data-tab]');
+  for (const tab of tabs)
+    tab.addEventListener('click', () => {
+      const name = tab.dataset.tab as keyof typeof TAB_ACTIONS;
+      if (name !== current) api.window(TAB_ACTIONS[name]);
+    });
+
   api.on('ui:state', state => {
     document.body.classList.remove('booting');
     document.body.classList.toggle('mini', state.mini);
     document.body.classList.toggle('large', !state.mini);
+    document.body.dataset.theme = state.theme;
+    for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.tab === state.panel));
     if (state.panel === current) return;
     current = state.panel;
     setText($('.panel-title', panel), TITLES[state.panel]);

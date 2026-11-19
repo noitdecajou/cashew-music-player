@@ -16,6 +16,8 @@ export interface UiState {
   videoFullscreen: boolean;
   /** YouTube Music is loading: large mode shows the splash instead of a blank view. */
   musicLoading: boolean;
+  /** The island is on (any mode but "never"). */
+  island: boolean;
 }
 
 export type WindowAction =
@@ -28,6 +30,10 @@ export type WindowAction =
   | 'toggle-search'
   | 'toggle-queue'
   | 'toggle-settings'
+  /** The island on or off (back to its last mode). */
+  | 'toggle-island'
+  /** The settings window, on the mini-player skins. */
+  | 'open-skins'
   | 'toggle-lyrics'
   | 'toggle-lyrics-full'
   | 'close-panel'

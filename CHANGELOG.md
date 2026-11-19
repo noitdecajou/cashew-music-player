@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.0-beta.1
+
+- **Two new mini-player skins, "Argent" and "Argent sombre"** (Winamp 5 style, light and dark): a blue LCD with the clock, the pinned / shuffle / muted flags, a spectrum that moves while music plays and the title scrolling with what comes next; seek bar with the time left; round play buttons; shuffle with its light; volume always at hand (the speaker mutes); buttons to pin the player, turn the island on or off and open the large player. The chevron opens the lower part, where the queue, the lyrics and the search are tabs (and the settings one click away).
+- **Fix**: the queue and the lyrics could stay empty the first time a panel opened (they were sent before the panel was ready).
+- **Updates**: Electron 45.3.2 (Chromium security fixes), koffi 3.3.8. Update proposals now come once a month.
+
 ## 2.4.0
 
 - **Smoother lyrics**: each word goes from grey to white and stays white, a finished line dims as a whole; no more YouTube Music text before cashew's lyrics (they are looked for as soon as the player page is shown); coming back to the Lyrics tab goes straight to the sung line.

@@ -16,6 +16,8 @@ export class ProgressBar {
     private readonly elapsed: HTMLElement,
     private readonly total: HTMLElement,
     send: (command: PlayerCommand) => void,
+    /** Every time shown (position, duration in seconds; 0 when unknown), e.g. for a skin's own clock. */
+    private readonly onTime: (position: number, duration: number) => void = () => {},
   ) {
     this.slider = new Slider({
       element: root,
@@ -63,6 +65,7 @@ export class ProgressBar {
     const known = this.duration > 0;
     this.elapsed.textContent = formatTime(position);
     this.total.textContent = known ? formatTime(this.duration) : '—';
+    this.onTime(position, this.duration);
     this.root.setAttribute(
       'aria-valuetext',
       known ? `${formatTime(position)} sur ${formatTime(this.duration)}` : 'Durée inconnue',

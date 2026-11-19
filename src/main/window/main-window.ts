@@ -49,6 +49,7 @@ export class MainWindow {
       online: true,
       videoFullscreen: false,
       musicLoading: true,
+      island: p.island.mode !== 'off',
     };
     this.win = new BrowserWindow({
       ...LARGE_DEFAULT,
@@ -363,6 +364,11 @@ export class MainWindow {
     if (this.ui.mini) this.applyMode();
   }
 
+  /** The island is on or off (the skins' island button shows it). */
+  setIsland(on: boolean): void {
+    if (on !== this.ui.island) this.setUi({ island: on });
+  }
+
   setOnline(online: boolean): void {
     if (online !== this.ui.online) this.setUi({ online });
   }
@@ -424,6 +430,8 @@ export class MainWindow {
         }
         break;
       case 'toggle-settings': // opens the settings window (main process)
+      case 'open-skins': // the same, on the skins
+      case 'toggle-island': // island preferences (main process)
         break;
       case 'close-panel':
         this.setPanel('none');

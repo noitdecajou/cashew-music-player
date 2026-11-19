@@ -41,7 +41,11 @@
   Music. In the large player it covers the right 380 px without resizing YouTube Music, and closes on a click in
   YouTube Music; in the mini-player it fills the space under the card (total height 450).
 - Mini-player: content size set by the skin (`src/shared/themes.ts`), + 30 px when the title bar is shown; an open
-  panel makes the total height 450. The YouTube Music view is detached and keeps playing.
+  panel makes the total height 450 (494 for the Argent skins, whose panels are tabs under the window). The YouTube
+  Music view is detached and keeps playing.
+- Skins share the mini-player DOM; each positions and draws every element itself (`styles/mini-skins.css`,
+  `styles/mini-argent.css`). The Argent skins add an LCD, an island button, a lower-part chevron and tabs in the
+  drawer; their fonts (VT323, Silkscreen) are bundled (`styles/fonts`, SIL OFL).
 - Moving the mini-player without a title bar: grip, cover or title (pointer capture, screen positions from the main
   process), arrow keys on the grip.
 

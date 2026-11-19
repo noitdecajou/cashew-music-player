@@ -44,7 +44,18 @@ export function startShell(): void {
   }
 
   const mini = $('#mini');
-  const progress = new ProgressBar($('.progress', mini), $('.elapsed', mini), $('.total', mini), send);
+  /** The Argent skins (Winamp 5 style): their own LCD, clock and inline volume. */
+  const argent = (): boolean =>
+    document.body.classList.contains('mini') && (document.body.dataset.theme ?? '').startsWith('argent');
+  let trackDuration = 0;
+  const progress = new ProgressBar($('.progress', mini), $('.elapsed', mini), $('.total', mini), send, (at, length) => {
+    setText($('.lcd-time', mini), formatTime(at));
+    setText($('.time.remaining', mini), length > 0 ? `-${formatTime(Math.max(0, length - at))}` : '');
+    if (length !== trackDuration) {
+      trackDuration = length;
+      renderLcd();
+    }
+  });
   const volume = new VolumeControl(
     {
       host: $('.bottom', mini),
@@ -52,6 +63,7 @@ export function startShell(): void {
       mute: $<HTMLButtonElement>('.volume-mute', mini),
       track: $('.slider.volume', mini),
       value: $('.volume-value', mini),
+      inline: argent,
     },
     send,
   );
@@ -147,6 +159,44 @@ export function startShell(): void {
     volume.update(next);
     renderNotice();
     updateMarquee();
+    renderLcd();
+  }
+
+  /**
+   * Argent LCD: play/pause state, flags, and the track scrolling like Winamp's
+   * (artist — title (length), then what comes next) when it does not fit.
+   */
+  function renderLcd(): void {
+    const track = snapshot.track;
+    const playing = snapshot.status === 'playing' || snapshot.status === 'buffering';
+    mini.classList.toggle('playing', playing);
+    $('.lcd-state use', mini).setAttribute('href', playing ? '#i-play' : '#i-pause');
+    $('.lcd-state', mini).hidden = !track;
+    $('.flag-shuffle', mini).hidden = snapshot.shuffle !== true;
+    $('.flag-muted', mini).hidden = !snapshot.muted;
+    const offered = resumeOffered();
+    const parts = track
+      ? [
+          `${[track.artist, track.title].filter(Boolean).join(' — ')}${trackDuration > 0 ? ` (${formatTime(trackDuration)})` : ''}`,
+          snapshot.next ? `À suivre : ${[snapshot.next.title, snapshot.next.artist].filter(Boolean).join(' — ')}` : '',
+        ]
+      : [offered ? `Reprise : ${[resume.artist, resume.title].filter(Boolean).join(' — ')}` : 'cashew'];
+    const text = parts.filter(Boolean).join('  ·  ');
+    const box = $('.lcd-marquee', mini);
+    const line = $('.lcd-marquee-text', mini);
+    if (box.dataset.text === text && box.dataset.fits) return;
+    box.dataset.text = text;
+    line.textContent = text;
+    line.classList.remove('scrolling');
+    box.dataset.fits = '';
+    if (!argent()) return;
+    const fits = line.scrollWidth <= box.clientWidth;
+    box.dataset.fits = String(fits);
+    if (fits) return;
+    // Seamless loop: the text twice, the animation moves by one copy.
+    line.textContent = `${text}  ·  ${text}  ·  `;
+    line.style.setProperty('--marquee-duration', `${Math.max(8, text.length / 4)}s`);
+    line.classList.add('scrolling');
   }
 
   /** Dot-matrix screens: a title too long for the display scrolls back and forth. */
@@ -216,6 +266,18 @@ export function startShell(): void {
       renderNotice();
     }
     requestAnimationFrame(updateMarquee);
+    $('.flag-pinned', mini).hidden = !state.pinned;
+    const islandToggle = $('.island-toggle', mini);
+    islandToggle.setAttribute('aria-pressed', String(state.island));
+    islandToggle.title = state.island ? 'Masquer l’island' : 'Afficher l’island';
+    islandToggle.setAttribute('aria-label', islandToggle.title);
+    const lower = $('.lower-toggle', mini);
+    const open = state.panel !== 'none';
+    lower.dataset.window = open ? 'close-panel' : 'toggle-queue';
+    lower.setAttribute('aria-expanded', String(open));
+    lower.setAttribute('aria-label', open ? 'Masquer la partie basse' : 'Afficher la partie basse');
+    lower.title = open ? 'Masquer la partie basse' : 'Afficher la partie basse (file, paroles, recherche)';
+    $('use', lower).setAttribute('href', open ? '#i-chevron-up' : '#i-chevron-down');
     for (const pin of $$('.pin')) {
       pin.setAttribute('aria-pressed', String(state.pinned));
       pin.title = state.pinned ? 'Désépingler' : 'Épingler au premier plan';
@@ -231,7 +293,10 @@ export function startShell(): void {
     panelOpen = state.panel !== 'none';
     const modeChanged = body.dataset.mode !== (state.mini ? 'mini' : 'large');
     body.dataset.mode = state.mini ? 'mini' : 'large';
-    if (themeChanged || modeChanged) renderSnapshot(snapshot);
+    if (themeChanged || modeChanged) {
+      $('.lcd-marquee', mini).dataset.fits = ''; // measured again in the new layout
+      renderSnapshot(snapshot);
+    }
     body.classList.toggle('music-loading', state.musicLoading);
     volume.hide();
   }

@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="./styles/base.css" />
     <link rel="stylesheet" href="./styles/mini-modern.css" />
     <link rel="stylesheet" href="./styles/mini-skins.css" />
+    <link rel="stylesheet" href="./styles/mini-argent.css" />
     <link rel="stylesheet" href="./styles/lyrics.css" />
   </head>
   <body class="booting" data-theme="modern">
@@ -67,6 +68,15 @@
       <symbol id="i-mute" viewBox="0 0 24 24">
         <path d="M4 9h4l5-4v14l-5-4H4z" />
         <path d="m16 9.5 5 5m0-5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </symbol>
+      <symbol id="i-island" viewBox="0 0 24 24">
+        <rect x="3" y="8" width="18" height="8" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" />
+      </symbol>
+      <symbol id="i-chevron-up" viewBox="0 0 24 24">
+        <path d="m6 15 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" />
+      </symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24">
+        <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" />
       </symbol>
       <symbol id="i-grip" viewBox="0 0 24 24">
         <g>
@@ -157,6 +167,22 @@
           ><svg class="led glyph"><use href="#i-cashew" /></svg>CASHEW</span
         >
         <img class="cover drag-zone" alt="" />
+        <!-- Argent skins: the blue LCD (state, clock, flags, spectrum, scrolling title). -->
+        <div class="lcd drag-zone">
+          <span class="lcd-state" aria-hidden="true"
+            ><svg><use href="#i-play" /></svg
+          ></span>
+          <span class="lcd-time" aria-hidden="true">0:00</span>
+          <span class="lcd-flags"
+            ><span class="lcd-flag flag-pinned">ÉPINGLÉ</span><span class="lcd-flag flag-shuffle">ALÉA</span
+            ><span class="lcd-flag flag-muted">MUET</span></span
+          >
+          <span class="lcd-bars" aria-hidden="true"
+            ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+            ><i></i><i></i><i></i
+          ></span>
+          <div class="lcd-marquee" aria-hidden="true"><span class="lcd-marquee-text"></span></div>
+        </div>
         <div class="meta drag-zone">
           <div class="title truncate"></div>
           <div class="artist truncate"></div>
@@ -175,6 +201,9 @@
           </button>
           <button data-window="pin" class="pin" aria-label="Épingler au premier plan">
             <svg><use href="#i-pin" /></svg>
+          </button>
+          <button data-window="toggle-island" class="island-toggle" aria-label="Island" aria-pressed="false">
+            <svg><use href="#i-island" /></svg>
           </button>
           <button data-window="toggle-mini" aria-label="Agrandir le lecteur" title="Agrandir le lecteur">
             <svg><use href="#i-expand" /></svg>
@@ -195,6 +224,7 @@
             <div class="thumb"></div>
           </div>
           <span class="time total">—</span>
+          <span class="time remaining" aria-hidden="true"></span>
         </div>
         <div class="bottom">
           <div class="controls">
@@ -238,6 +268,15 @@
               </button>
             </div>
           </div>
+          <button
+            data-window="toggle-queue"
+            class="lower-toggle"
+            aria-expanded="false"
+            aria-label="Afficher la partie basse"
+            title="Afficher la partie basse (file, paroles, recherche)"
+          >
+            <svg><use href="#i-chevron-down" /></svg>
+          </button>
           <button class="grip" aria-label="Déplacer le lecteur" title="Déplacer : glisser, ou flèches du clavier">
             <svg class="grip-dots"><use href="#i-grip" /></svg
             ><svg class="grip-glyph glyph"><use href="#i-cashew" /></svg
@@ -311,6 +350,12 @@
           >
         </footer>
       </section>
+
+      <!-- Argent skins: the panels as tabs under the panel. -->
+      <nav class="skin-tabs" aria-label="Partie basse">
+        <button data-tab="queue">File d’attente</button><button data-tab="lyrics">Paroles</button
+        ><button data-tab="search">Recherche</button><button data-tab="settings">Réglages</button>
+      </nav>
     </aside>
 
     <script type="module" src="./src/main.ts"></script>

@@ -4,11 +4,14 @@ export const MINI_THEMES = {
   hifi: { label: 'Hi-fi', width: 420, height: 168 },
   'autoradio-hf': { label: 'Autoradio 2000 (HF)', width: 720, height: 192 },
   'hifi-hf': { label: 'Hi-Fi de salon (HF)', width: 640, height: 192 },
+  // Winamp 5 "Modern"-style silver skins; their panel (queue, lyrics, search) has tabs.
+  argent: { label: 'Argent', width: 500, height: 224, panel: 494 },
+  'argent-sombre': { label: 'Argent sombre', width: 500, height: 224, panel: 494 },
 } as const;
 
 export type MiniTheme = keyof typeof MINI_THEMES;
 export const DEFAULT_THEME: MiniTheme = 'modern';
-/** Total content height when the search or queue panel is open. */
+/** Total content height when the search or queue panel is open (unless the skin sets its own). */
 export const PANEL_HEIGHT = 450;
 /** Custom title bar height, hidden in seamless mini mode. */
 export const TITLE_BAR_HEIGHT = 30;
@@ -26,6 +29,6 @@ export function normalizeTheme(value: unknown): MiniTheme {
 }
 
 export function miniContentSize(theme: MiniTheme, panelOpen: boolean): { width: number; height: number } {
-  const { width, height } = MINI_THEMES[theme];
-  return { width, height: panelOpen ? PANEL_HEIGHT : height };
+  const info: { width: number; height: number; panel?: number } = MINI_THEMES[theme];
+  return { width: info.width, height: panelOpen ? (info.panel ?? PANEL_HEIGHT) : info.height };
 }

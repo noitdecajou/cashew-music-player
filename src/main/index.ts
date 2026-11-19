@@ -24,7 +24,15 @@ import type {
   UiState,
   WindowAction,
 } from '../shared/ipc';
-import { EMPTY_SNAPSHOT, PLAYLIST_ID, type PlayerSnapshot, VIDEO_ID, sanitizeCommand, str } from '../shared/player';
+import {
+  EMPTY_SNAPSHOT,
+  PLAYLIST_ID,
+  type PlayerSnapshot,
+  type QueueState,
+  VIDEO_ID,
+  sanitizeCommand,
+  str,
+} from '../shared/player';
 import {
   type GameAnswer,
   type GamePrompt,
@@ -80,6 +88,8 @@ const WINDOW_ACTIONS: readonly WindowAction[] = [
   'toggle-search',
   'toggle-queue',
   'toggle-settings',
+  'toggle-island',
+  'open-skins',
   'toggle-lyrics',
   'toggle-lyrics-full',
   'close-panel',
@@ -183,6 +193,9 @@ function main(): void {
         drawer.send('player:snapshot', snapshot);
         drawer.send('library:status', library.currentStatus);
         drawer.send('update:state', updater.state);
+        // The queue and the lyrics may have been sent before this page was ready.
+        if (lastQueue) drawer.send('queue:state', lastQueue);
+        if (lyricsState) drawer.send('lyrics:state', lyricsState);
       });
     });
     const shell = window.win.webContents;
@@ -320,6 +333,8 @@ function main(): void {
     }
 
     // --- Player messages ----------------------------------------------------
+    /** The last queue the page agent published (the drawer may load after it). */
+    let lastQueue: QueueState | null = null;
     let streaming: boolean | null = null;
     /** cashew's lyrics are shown in the YouTube Music page (Lyrics tab or immersive view). */
     let pageLyricsOpen = false;
@@ -368,6 +383,7 @@ function main(): void {
           updateStreams();
           return;
         case 'queue':
+          lastQueue = message.queue;
           send('queue:state', message.queue);
           return;
         case 'progress':
@@ -469,6 +485,8 @@ function main(): void {
       if (!fromUi(event) || !WINDOW_ACTIONS.includes(action)) return;
       if (action === 'repair-display') repairDisplay();
       else if (action === 'toggle-settings') openSettings();
+      else if (action === 'open-skins') openSettings('player');
+      else if (action === 'toggle-island') toggleIsland();
       else window.action(action);
     });
     ipcMain.on('shell:drag', (event, phase) => {
@@ -782,10 +800,20 @@ function main(): void {
       if (pill && moved) pill.send('island:view', islandView());
       if (decision.visible) showLyrics(0);
     }
+    /** The island button of the skins: off, or back to the mode it had (always, by default). */
+    let islandModeBeforeOff: IslandPrefs['mode'] =
+      prefs.value.island.mode === 'off' ? 'always' : prefs.value.island.mode;
+    function toggleIsland(): void {
+      const p = prefs.value.island;
+      if (p.mode !== 'off') islandModeBeforeOff = p.mode;
+      // (the settings window reads the settings again when it gets the focus)
+      setIsland({ ...p, mode: p.mode === 'off' ? islandModeBeforeOff : 'off' });
+    }
     function setIsland(next: IslandPrefs): void {
       const before = prefs.value.island;
       prefs.update({ island: sanitizeIsland(next) });
       const p = prefs.value.island;
+      window.setIsland(p.mode !== 'off');
       if (p.lyrics !== before.lyrics) {
         showLyrics(0);
         if (lyricsState) island.contents?.send('lyrics:state', forIsland(lyricsState));

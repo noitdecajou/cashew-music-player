@@ -9,6 +9,8 @@ export interface VolumeElements {
   mute: HTMLButtonElement; // mute toggle inside the panel
   track: HTMLElement; // slider
   value: HTMLElement; // "42"
+  /** The slider is always shown (some skins): the speaker button then mutes. */
+  inline?: () => boolean;
 }
 
 /**
@@ -42,7 +44,8 @@ export class VolumeControl {
     const panel = el.track.parentElement as HTMLElement;
 
     el.button.addEventListener('click', () => {
-      if (this.open) this.hide();
+      if (el.inline?.()) this.send({ type: 'mute', muted: !this.muted });
+      else if (this.open) this.hide();
       else this.show();
     });
     el.mute.addEventListener('click', () => {
@@ -54,7 +57,7 @@ export class VolumeControl {
         'wheel',
         event => {
           event.preventDefault();
-          if (!this.open) this.show();
+          if (!this.open && !el.inline?.()) this.show();
           this.setVolume(this.volume + (event.deltaY < 0 ? 5 : -5));
           this.slider.set(this.volume / 100);
           this.armClose();
@@ -136,7 +139,9 @@ export class VolumeControl {
     button.querySelector('use')?.setAttribute('href', level === 0 ? '#i-mute' : level === 1 ? '#i-vol-1' : '#i-vol-3');
     const label = this.muted ? `Son coupé (volume ${this.volume} %)` : `Volume ${this.volume} %`;
     button.setAttribute('aria-label', label);
-    button.title = `${label} — clic pour ouvrir/fermer, molette pour régler`;
+    button.title = this.el.inline?.()
+      ? `${label} — clic pour ${this.muted ? 'rétablir' : 'couper'} le son, molette pour régler`
+      : `${label} — clic pour ouvrir/fermer, molette pour régler`;
     mute.setAttribute('aria-pressed', String(this.muted));
     mute.title = this.muted ? 'Rétablir le son' : 'Couper le son';
     mute.setAttribute('aria-label', mute.title);

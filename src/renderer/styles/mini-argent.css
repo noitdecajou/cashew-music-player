@@ -187,8 +187,8 @@ body.mini[data-theme^='argent'] #titlebar .brand {
   gap: 8px;
 }
 body.mini[data-theme^='argent'] #titlebar .brand .glyph {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
 }
 body.mini[data-theme^='argent'] #titlebar .brand .wordmark {
   flex: 1;
@@ -196,7 +196,7 @@ body.mini[data-theme^='argent'] #titlebar .brand .wordmark {
   align-items: center;
   gap: 8px;
   font-family: var(--ar-pixel);
-  font-size: 11px;
+  font-size: 9px;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: #fff;
@@ -211,8 +211,8 @@ body.mini[data-theme^='argent'] #titlebar .brand .wordmark::after {
   opacity: 0.8;
 }
 body.mini[data-theme^='argent'] #titlebar button {
-  width: 22px;
-  height: 18px;
+  width: 18px;
+  height: 15px;
   margin-left: 2px;
   border-radius: 3px;
   border: 1px solid var(--ar-tbtn-edge);
@@ -220,8 +220,8 @@ body.mini[data-theme^='argent'] #titlebar button {
   color: var(--ar-tbtn-fg);
 }
 body.mini[data-theme^='argent'] #titlebar button svg {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   stroke-width: 1.8;
 }
 body.mini[data-theme^='argent'] #titlebar button:hover {
@@ -233,7 +233,9 @@ body.mini[data-theme^='argent'] #titlebar .close:hover {
 }
 
 /* --- The window ---------------------------------------------------------------- */
+/* Drawn at 500 × 224, shown at 80 % (400 × 180, see themes.ts). */
 body.mini.skin[data-theme^='argent'] #mini .card {
+  zoom: 0.8;
   width: 500px;
   height: 224px;
   background: var(--ar-card);
@@ -544,8 +546,10 @@ body.mini.skin[data-theme^='argent'] #mini :is(.slider.progress, .slider.volume)
   position: absolute;
   left: 0;
   right: 0;
-  top: 4px;
+  /* centered on the slider's height (the base style moves it on hover) */
+  top: 50%;
   height: 8px;
+  margin-top: -4px;
   box-sizing: border-box;
   border: 1px solid var(--ar-rail-edge);
   border-radius: 4px;
@@ -559,10 +563,11 @@ body.mini.skin[data-theme^='argent'] #mini :is(.slider.progress, .slider.volume)
 }
 body.mini.skin[data-theme^='argent'] #mini :is(.slider.progress, .slider.volume) .thumb {
   position: absolute;
-  top: 0;
+  top: 50%;
   width: 30px;
   height: 16px;
-  margin-left: -15px;
+  /* centered on the rail and on its position (replaces the base margins) */
+  margin: -8px 0 0 -15px;
   box-sizing: border-box;
   border: 1px solid var(--ar-thumb-edge);
   border-radius: 8px;
@@ -721,6 +726,8 @@ body.drawer-view.mini[data-theme^='argent'] {
   color: var(--ar-text);
 }
 body.drawer-view.mini[data-theme^='argent'] #panel {
+  /* at 80 %, like the window above */
+  zoom: 0.8;
   padding: 0 10px 12px;
   gap: 0;
   border: 1px solid var(--ar-edge);

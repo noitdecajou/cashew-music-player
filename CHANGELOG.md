@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.5.0-beta.2
+
+- **Argent skins smaller**: 400 × 180 instead of 500 × 224 (everything at 80 %, the lower part too); the slider handles of the progress and volume bars are centered on their bars.
+- **Island appearance**, chosen apart from the mini-player's skin (Settings → Island → Apparence): Standard, Argent or Argent sombre — a silver pill, the line and the lyrics on a blue LCD, round buttons, as in the design.
+
 ## 2.5.0-beta.1
 
 - **Two new mini-player skins, "Argent" and "Argent sombre"** (Winamp 5 style, light and dark): a blue LCD with the clock, the pinned / shuffle / muted flags, a spectrum that moves while music plays and the title scrolling with what comes next; seek bar with the time left; round play buttons; shuffle with its light; volume always at hand (the speaker mutes); buttons to pin the player, turn the island on or off and open the large player. The chevron opens the lower part, where the queue, the lyrics and the search are tabs (and the settings one click away).

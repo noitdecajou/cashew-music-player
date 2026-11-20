@@ -72,8 +72,8 @@ describe('geometry and themes', () => {
     expect(miniContentSize('modern', false)).toEqual({ width: 420, height: 128 });
     expect(miniContentSize('autoradio-hf', true)).toEqual({ width: 720, height: 450 });
     // The Argent skins have their own, taller lower part (tabs under the panel).
-    expect(miniContentSize('argent', false)).toEqual({ width: 500, height: 224 });
-    expect(miniContentSize('argent-sombre', true)).toEqual({ width: 500, height: 494 });
+    expect(miniContentSize('argent', false)).toEqual({ width: 400, height: 180 });
+    expect(miniContentSize('argent-sombre', true)).toEqual({ width: 400, height: 396 });
     expect(normalizeTheme('retro')).toBe('autoradio');
     expect(normalizeTheme(undefined)).toBe('modern');
   });

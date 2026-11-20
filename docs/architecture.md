@@ -45,7 +45,9 @@
   Music view is detached and keeps playing.
 - Skins share the mini-player DOM; each positions and draws every element itself (`styles/mini-skins.css`,
   `styles/mini-argent.css`). The Argent skins add an LCD, an island button, a lower-part chevron and tabs in the
-  drawer; their fonts (VT323, Silkscreen) are bundled (`styles/fonts`, SIL OFL).
+  drawer; drawn at 500 × 224 and shown at 80 % (CSS zoom). Their fonts (VT323, Silkscreen) are bundled
+  (`styles/fonts`, SIL OFL). The island has its own look (`look`: default, argent, argent-sombre;
+  `styles/island-argent.css`), independent of the mini-player skin.
 - Moving the mini-player without a title bar: grip, cover or title (pointer capture, screen positions from the main
   process), arrow keys on the grip.
 

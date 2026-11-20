@@ -243,6 +243,7 @@ function main(): void {
         scale: ISLAND_SCALE[p.size],
         opacity: p.opacity,
         animations: p.animations,
+        look: p.look,
       };
     };
     function sendIslandState(contents: Electron.WebContents): void {

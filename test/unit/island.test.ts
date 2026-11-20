@@ -336,7 +336,9 @@ describe('island v3', () => {
       hideFromCapture: false,
     });
     expect(sanitizeIsland({ idleMinutes: 7 }).idleMinutes).toBe(0);
-    expect(sanitizeIsland({})).toMatchObject({ trackView: 'compact', animations: true });
+    expect(sanitizeIsland({})).toMatchObject({ trackView: 'compact', animations: true, look: 'default' });
+    expect(sanitizeIsland({ look: 'argent-sombre' }).look).toBe('argent-sombre');
+    expect(sanitizeIsland({ look: 'winamp' }).look).toBe('default');
     expect(sanitizeIsland({ trackView: 'expanded', animations: false })).toMatchObject({
       trackView: 'expanded',
       animations: false,

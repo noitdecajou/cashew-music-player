@@ -235,6 +235,7 @@ renderClock();
 function applyView(view: IslandView): void {
   document.body.className = `pos-${view.position}`;
   document.body.classList.toggle('still', !view.animations);
+  document.body.dataset.look = view.look;
   // CSS zoom, not the page zoom: Chromium shares page zoom between pages of the same origin.
   document.documentElement.style.setProperty('zoom', String(view.scale));
   // Near black: the pill melts into the screen's edge.

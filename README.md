@@ -30,7 +30,8 @@ the last session and a global shortcut. The interface is in French.
 - **Island** (optional): a pill at the top of the screen with the cover and synced lyrics; on hover, title, artist,
   progress (click to seek), three lyric lines, previous/play/pause/next, volume with the mouse wheel, cover color. Always shown, on each track
   change (compact or detailed), or only over games (per-game settings, new games offered), with a shortcut to show
-  the details, adjustable size and opacity, subtle animations (can be turned off).
+  the details, adjustable size and opacity, its own appearance (Standard, Argent, Argent sombre), subtle animations
+  (can be turned off).
 - **Synced lyrics in YouTube Music's Lyrics tab** (like Better Lyrics): the sung line lights up word by word and
   stays in view, click a line to go there; full screen with the cover and its colors, progress and controls, or the
   music video next to the lyrics; YouTube Music's own lyrics when no synced ones exist. A lyrics panel in the

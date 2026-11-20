@@ -1,0 +1,310 @@
+/* Island looks "Argent" and "Argent sombre" (Winamp 5 style, from the design):
+   a silver pill, the text on a blue LCD, round buttons. Chosen in the island's
+   settings, apart from the mini-player's skin. */
+
+/* VT323 and Silkscreen (SIL Open Font License, see fonts/OFL-*.txt). */
+@font-face {
+  font-family: 'Argent LCD';
+  font-display: block;
+  src: url('./fonts/vt323-latin-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Argent LCD';
+  font-display: block;
+  src: url('./fonts/vt323-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Argent Pixel';
+  font-display: block;
+  src: url('./fonts/silkscreen-latin-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Argent Pixel';
+  font-display: block;
+  src: url('./fonts/silkscreen-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+body[data-look='argent'] {
+  --ar-pill: linear-gradient(#f6f8fb, #d3d9e2 55%, #b9c1ce);
+  --ar-pill-edge: #3e4a62;
+  --ar-pill-shadow: inset 0 1px 0 #fff, 0 8px 22px rgba(0, 0, 0, 0.45);
+  --ar-lcd: linear-gradient(#21407c, #3961ab 55%, #2a4c90);
+  --ar-lcd-edge: #142245;
+  --ar-lcd-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+  --ar-lcd-fg: #eaf1ff;
+  --ar-round: radial-gradient(circle at 35% 28%, #ffffff, #d2d8e2 45%, #97a2b5);
+  --ar-round-edge: #4e5a70;
+  --ar-round-fg: #22325a;
+  --ar-cover-edge: #56627a;
+  --ar-rail: linear-gradient(#7f8ba0, #c7ced9);
+  --ar-rail-edge: #56627a;
+  --text: #16264a;
+  --muted: #3a4660;
+  --faint: #56627a;
+}
+body[data-look='argent-sombre'] {
+  --ar-pill: linear-gradient(#3a3f49, #262a31 55%, #1c1f25);
+  --ar-pill-edge: #05070a;
+  --ar-pill-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 22px rgba(0, 0, 0, 0.7);
+  --ar-lcd: linear-gradient(#0b1630, #16305e 55%, #0e1e40);
+  --ar-lcd-edge: #03060e;
+  --ar-lcd-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.7);
+  --ar-lcd-fg: #dde8ff;
+  --ar-round: radial-gradient(circle at 35% 28%, #6a7180, #3a3f49 45%, #1e2127);
+  --ar-round-edge: #05070a;
+  --ar-round-fg: #dde3ee;
+  --ar-cover-edge: #05070a;
+  --ar-rail: linear-gradient(#0a0c10, #2a2e36);
+  --ar-rail-edge: #05070a;
+  --text: #f0f3f8;
+  --muted: #aeb8cc;
+  --faint: #8f9ab0;
+}
+body[data-look^='argent'] {
+  --ar-lcd-soft: #bfd0f2;
+  --ar-lcd-dim: #7f94c2;
+  --ar-round-on: radial-gradient(circle at 35% 28%, #dce7ff, #7fa0e0 50%, #3d5fa6);
+  --ar-pixel: 'Argent Pixel', 'Segoe UI', sans-serif;
+  --ar-lcd-font: 'Argent LCD', Consolas, monospace;
+  --compact-h: 40px;
+  --expanded-h: 136px;
+  font-family: Tahoma, Verdana, 'Segoe UI', sans-serif;
+}
+
+/* The pill: silver, rounded all around, a little below the screen's edge. */
+body[data-look^='argent'] .island {
+  margin-top: 6px;
+  border: 1px solid var(--ar-pill-edge);
+  border-radius: 20px;
+  background: var(--ar-pill);
+  box-shadow: var(--ar-pill-shadow);
+}
+body[data-look^='argent'] .island.expanded-view,
+body[data-look^='argent'] .island.prompt-view {
+  border-radius: 26px;
+}
+
+/* Compact: round cover, then one LCD capsule with the equalizer and the line. */
+body[data-look^='argent'] .compact {
+  gap: 0;
+  padding: 3px 6px 3px 3px;
+}
+body[data-look^='argent'] .compact .art {
+  order: 0;
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--ar-cover-edge);
+}
+body[data-look^='argent'] .compact .bars,
+body[data-look^='argent'] .compact .line {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  margin: 1px 0;
+  background: var(--ar-lcd);
+  border: 1px solid var(--ar-lcd-edge);
+  box-shadow: var(--ar-lcd-shadow);
+  color: var(--ar-lcd-fg);
+}
+body[data-look^='argent'] .compact .bars {
+  order: 1;
+  height: auto;
+  gap: 2px;
+  padding: 0 6px 0 11px;
+  border-right: 0;
+  border-radius: 15px 0 0 15px;
+}
+body[data-look^='argent'] .compact .bars i {
+  width: 3px;
+  background: var(--ar-lcd-fg);
+}
+body[data-look^='argent'] .compact .line {
+  order: 2;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px 0 2px;
+  border-left: 0;
+  border-radius: 0 15px 15px 0;
+}
+body[data-look^='argent'] .compact .line .text {
+  font-family: var(--ar-lcd-font);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ar-lcd-fg);
+}
+body[data-look^='argent'] .clock {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  color: var(--muted);
+}
+body[data-look^='argent'] .clock-left {
+  order: -1;
+  margin: 0 8px 0 6px;
+}
+body[data-look^='argent'] .clock-right {
+  order: 3;
+  margin-left: 8px;
+}
+
+/* Expanded: round cover, title on the LCD, round buttons (play in blue). */
+body[data-look^='argent'] .expanded {
+  padding: 10px 14px 10px 10px;
+}
+body[data-look^='argent'] .head {
+  gap: 10px;
+}
+body[data-look^='argent'] .head .art,
+body[data-look^='argent'] button.cover {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+}
+body[data-look^='argent'] .head .art {
+  border: 2px solid var(--ar-cover-edge);
+  box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.2);
+}
+body[data-look^='argent'] .meta {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 12px;
+  border: 1px solid var(--ar-lcd-edge);
+  border-radius: 10px;
+  background: var(--ar-lcd);
+  box-shadow: var(--ar-lcd-shadow);
+}
+body[data-look^='argent'] .meta .title {
+  font-family: var(--ar-lcd-font);
+  font-size: 22px;
+  font-weight: normal;
+  line-height: 22px;
+  color: #fff;
+  text-shadow: 0 0 6px rgba(127, 211, 255, 0.8);
+}
+body[data-look^='argent'] .meta .artist {
+  margin: 0;
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--ar-lcd-soft);
+}
+body[data-look^='argent'] .head button:not(.cover) {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--ar-round-edge);
+  background: var(--ar-round);
+  color: var(--ar-round-fg);
+}
+body[data-look^='argent'] .head button:not(.cover) svg {
+  width: 16px;
+  height: 16px;
+}
+body[data-look^='argent'] .head button.play {
+  border-color: #1e3266;
+  background: var(--ar-round-on);
+  color: #fff;
+}
+body[data-look^='argent'] .head button:not(.cover):hover {
+  filter: brightness(1.08);
+}
+
+/* Progress: pixel times, an inset bar filled in blue */
+body[data-look^='argent'] .progress {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  color: var(--muted);
+}
+body[data-look^='argent'] .rail,
+body[data-look^='argent'] .rail:hover {
+  height: 6px;
+  border: 1px solid var(--ar-rail-edge);
+  border-radius: 3px;
+  background: var(--ar-rail);
+}
+body[data-look^='argent'] .rail .fill {
+  border-radius: 3px;
+  background: linear-gradient(#7fa0e0, #2f4d8e);
+}
+
+/* Lyrics on the LCD: the sung line white and glowing */
+body[data-look^='argent'] .karaoke {
+  padding: 4px 10px;
+  border: 1px solid var(--ar-lcd-edge);
+  border-radius: 10px;
+  background: var(--ar-lcd);
+  box-shadow: var(--ar-lcd-shadow);
+}
+body[data-look^='argent'] .k-line {
+  min-height: 17px;
+  font-family: var(--ar-lcd-font);
+  font-size: 17px;
+  line-height: 17px;
+  color: var(--ar-lcd-dim);
+}
+body[data-look^='argent'] .k-now {
+  min-height: 22px;
+  font-size: 22px;
+  font-weight: normal;
+  line-height: 22px;
+  color: #fff;
+  text-shadow: 0 0 6px rgba(127, 211, 255, 0.8);
+}
+body[data-look^='argent'] .foot,
+body[data-look^='argent'] .upnext,
+body[data-look^='argent'] .offset {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+body[data-look^='argent'] .offset button.shift {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  color: var(--muted);
+}
+body[data-look^='argent'] .volume-badge {
+  font-family: var(--ar-pixel);
+  background: var(--ar-lcd);
+  color: var(--ar-lcd-fg);
+}
+
+/* New game question */
+body[data-look^='argent'] .question .label {
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+body[data-look^='argent'] .question .game {
+  color: var(--text);
+}
+body[data-look^='argent'] .answers button.answer {
+  border: 1px solid var(--ar-round-edge);
+  border-radius: 14px;
+  background: var(--ar-round);
+  font-family: var(--ar-pixel);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--ar-round-fg);
+}
+body[data-look^='argent'] .answers button.add {
+  border-color: #1b2d5c;
+  background: linear-gradient(#5d80c6, #2f4d8e);
+  color: #fff;
+}

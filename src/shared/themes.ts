@@ -5,8 +5,8 @@ export const MINI_THEMES = {
   'autoradio-hf': { label: 'Autoradio 2000 (HF)', width: 720, height: 192 },
   'hifi-hf': { label: 'Hi-Fi de salon (HF)', width: 640, height: 192 },
   // Winamp 5 "Modern"-style silver skins; their panel (queue, lyrics, search) has tabs.
-  argent: { label: 'Argent', width: 500, height: 224, panel: 494 },
-  'argent-sombre': { label: 'Argent sombre', width: 500, height: 224, panel: 494 },
+  argent: { label: 'Argent', width: 400, height: 180, panel: 396 },
+  'argent-sombre': { label: 'Argent sombre', width: 400, height: 180, panel: 396 },
 } as const;
 
 export type MiniTheme = keyof typeof MINI_THEMES;

@@ -7,6 +7,9 @@ export type IslandSize = 'small' | 'normal' | 'large' | 'xlarge';
 export const ISLAND_SCALE: Record<IslandSize, number> = { small: 0.85, normal: 1, large: 1.2, xlarge: 1.4 };
 export type IslandPosition = 'left' | 'center' | 'right';
 export type ClockSide = 'none' | 'left' | 'right';
+/** The island's own look, chosen apart from the mini-player's skin. */
+export type IslandLook = 'default' | 'argent' | 'argent-sombre';
+export const ISLAND_LOOKS: readonly IslandLook[] = ['default', 'argent', 'argent-sombre'];
 
 export interface GameRule {
   /** Executable file name, lowercase (e.g. "valorant-win64-shipping.exe"). */
@@ -47,6 +50,7 @@ export interface IslandPrefs {
   trackView: 'compact' | 'expanded';
   /** Island animations, even when Windows animations are turned off. */
   animations: boolean;
+  look: IslandLook;
 }
 
 export const IDLE_CHOICES = [0, 1, 2, 5, 10] as const;
@@ -69,6 +73,7 @@ export const DEFAULT_ISLAND: IslandPrefs = {
   hideFromCapture: true,
   trackView: 'compact',
   animations: true,
+  look: 'default',
 };
 
 export const MAX_GAMES = 100;
@@ -131,6 +136,7 @@ export function sanitizeIsland(raw: unknown): IslandPrefs {
     hideFromCapture: typeof v.hideFromCapture === 'boolean' ? v.hideFromCapture : DEFAULT_ISLAND.hideFromCapture,
     trackView: v.trackView === 'expanded' ? 'expanded' : 'compact',
     animations: typeof v.animations === 'boolean' ? v.animations : DEFAULT_ISLAND.animations,
+    look: ISLAND_LOOKS.includes(v.look as IslandLook) ? (v.look as IslandLook) : DEFAULT_ISLAND.look,
     opacity:
       typeof v.opacity === 'number' && Number.isFinite(v.opacity)
         ? Math.round(Math.min(100, Math.max(50, v.opacity)))
@@ -408,6 +414,7 @@ export interface IslandView {
   opacity: number;
   /** Play the animations (the user's choice, not the system's). */
   animations: boolean;
+  look: IslandLook;
 }
 
 /** A new game in front: the island asks whether to add it to the list. */

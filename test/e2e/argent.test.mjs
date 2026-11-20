@@ -26,9 +26,9 @@ after(async () => {
   rmSync(profile, { recursive: true, force: true });
 });
 
-test('Argent: 500 × 224, the LCD shows the clock, the flags and the scrolling title with what comes next', async () => {
+test('Argent: 400 × 180 (drawn at 500 × 224, 80 %), the LCD shows the clock, the flags and the scrolling title with what comes next', async () => {
   await h.shell.evaluate(() => window.player.setTheme('argent'));
-  await h.until(async () => (await size()) === '[500,254]', { message: '500 × 224 + title bar' });
+  await h.until(async () => (await size()) === '[400,210]', { message: '400 × 180 + title bar' });
   assert.ok(await visible('#mini .lcd'), 'LCD');
   assert.ok(!(await visible('#mini .lcd-flags .flag-pinned')), 'not pinned');
   await h.shell.evaluate(() => window.player.command({ type: 'seek', trackId: 'AAAAAAAAAAA', position: 10 }));
@@ -74,7 +74,7 @@ test('Argent: the island button turns the island on and off, back to its mode', 
 
 test('Argent: the lower part opens on the queue; tabs switch panels; the chevron closes it', async () => {
   await h.shell.click('#mini .lower-toggle');
-  await h.until(async () => (await size()) === '[500,524]', { message: 'lower part (494 + title bar)' });
+  await h.until(async () => (await size()) === '[400,426]', { message: 'lower part (396 + title bar)' });
   const drawer = await h.drawer();
   await drawer.waitForSelector('section[data-panel="queue"]:not([hidden]) .queue-row');
   assert.equal(await drawer.getAttribute('.skin-tabs [data-tab="queue"]', 'aria-pressed'), 'true');
@@ -87,10 +87,10 @@ test('Argent: the lower part opens on the queue; tabs switch panels; the chevron
   // A click on the open tab keeps it open.
   await drawer.click('.skin-tabs [data-tab="search"]');
   await new Promise(resolve => setTimeout(resolve, 300));
-  assert.equal(await size(), '[500,524]');
+  assert.equal(await size(), '[400,426]');
   assert.equal(await h.shell.getAttribute('#mini .lower-toggle', 'aria-expanded'), 'true');
   await h.shell.click('#mini .lower-toggle');
-  await h.until(async () => (await size()) === '[500,254]', { message: 'closed' });
+  await h.until(async () => (await size()) === '[400,210]', { message: 'closed' });
 });
 
 test('Argent sombre: same layout, dark palette; other skins do not show the Argent parts', async () => {
@@ -98,7 +98,7 @@ test('Argent sombre: same layout, dark palette; other skins do not show the Arge
   await h.until(async () => (await h.shell.getAttribute('body', 'data-theme')) === 'argent-sombre', {
     message: 'dark',
   });
-  assert.equal(await size(), '[500,254]');
+  assert.equal(await size(), '[400,210]');
   const card = await h.shell.evaluate(() => getComputedStyle(document.querySelector('#mini .card')).backgroundImage);
   assert.match(card, /rgb\(58, 63, 73\)/, 'dark window');
   await h.shell.evaluate(() => window.player.setTheme('modern'));
@@ -112,5 +112,28 @@ test('settings: the two Argent skins are offered', async () => {
   const settings = await h.settings('player');
   const names = await settings.$$eval('.theme-card .name', cards => cards.map(c => c.textContent));
   assert.ok(names.includes('Argent') && names.includes('Argent sombre'), names.join(', '));
-  assert.ok((await settings.$$eval('.theme-card .size', cards => cards.map(c => c.textContent))).includes('500 × 224'));
+  assert.ok((await settings.$$eval('.theme-card .size', cards => cards.map(c => c.textContent))).includes('400 × 180'));
+});
+
+test('island: its own look (Argent, Argent sombre), apart from the mini-player skin', async () => {
+  await h.shell.evaluate(() => window.player.updateSettings({ island: { mode: 'always', look: 'argent-sombre' } }));
+  const island = await h.island();
+  await h.until(async () => (await island.evaluate(() => document.body.dataset.look)) === 'argent-sombre', {
+    message: 'dark Argent island',
+  });
+  assert.match(
+    await island.evaluate(() => getComputedStyle(document.querySelector('#island')).backgroundImage),
+    /rgb\(58, 63, 73\)/,
+    'silver-dark pill',
+  );
+  assert.equal(
+    await island.evaluate(() => getComputedStyle(document.querySelector('.compact .art')).borderRadius),
+    '50%',
+  );
+  // The mini-player keeps its own skin.
+  assert.equal(await h.shell.getAttribute('body', 'data-theme'), 'modern');
+  await h.shell.evaluate(() => window.player.updateSettings({ island: { look: 'default', mode: 'off' } }));
+  await h.until(async () => (await island.evaluate(() => document.body.dataset.look)) === 'default', {
+    message: 'standard look',
+  });
 });
